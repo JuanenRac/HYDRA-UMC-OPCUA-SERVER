@@ -65,9 +65,7 @@ HYDRA-UMC-OPCUA-SERVER/
 ```
 
 Servizio di rete puro, senza hardware proprio - `hardware/`, `firmware/`
-e `os/` sono state rimosse dal template originale del progetto (vedi la
-regola di potatura in `SONNET/5.PLAN_EJECUCION_32_PROYECTOS_NUEVOS.txt`,
-documentazione interna dell'ecosistema, applicata a tutto questo lotto).
+e `os/` sono omesse secondo la politica della struttura del repository.
 
 ---
 
@@ -201,3 +199,14 @@ Questo progetto fa parte di un ecosistema robotico più ampio dello stesso autor
 
 ## 📜 LICENZA
 GPL-3.0 - Vedere LICENSE per i dettagli.
+
+## 🛠️ BUILD & RUN
+
+Usa il controllo di compilazione senza versionamento prima di una compilazione di rilascio:
+
+| Azione | Windows | Linux / macOS |
+|---|---|---|
+| Controllo di compilazione (senza modificare versione o CHANGELOG) | `build-test.bat` | `./build-test.sh` |
+| Esecuzione / sviluppo (se disponibile) | `run*.bat` o `dev*.bat` | `./run*.sh` o `./dev*.sh` |
+
+`build-test.bat` e `build-test.sh` compilano o convalidano lo stack del progetto senza incrementare `hydra-umc.project.json` né modificare `CHANGELOG.md`. Possono creare solo i normali output del compilatore. Gli script esistenti `build*.bat`, `build*.sh`, `run*` e `dev*` mantengono il comportamento specifico di versione o esecuzione; usali quando tale comportamento è necessario.

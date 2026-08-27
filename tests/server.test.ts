@@ -10,7 +10,7 @@
 // just calling internal functions directly.
 // =============================================================================
 
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { OPCUAClient, AttributeIds, DataType, MessageSecurityMode, SecurityPolicy } from "node-opcua";
 import { buildAddressSpaceServer, type HydraNodeState } from "../src/server.js";
 import type { OPCUAServer } from "node-opcua";
@@ -25,13 +25,21 @@ const TEST_PORT = 41840;
 let server: OPCUAServer;
 let state: HydraNodeState;
 
-beforeEach(async () => {
+beforeAll(async () => {
   const built = await buildAddressSpaceServer(TEST_PORT);
   server = built.server;
   state = built.state;
 });
 
-afterEach(async () => {
+beforeEach(() => {
+  // The protocol endpoint is intentionally shared to avoid starting the
+  // heavyweight OPC-UA server once per assertion.  Each test still begins
+  // from the same application state as a freshly started server.
+  state.swarmOnline = true;
+  state.activeRobotCount = 0;
+});
+
+afterAll(async () => {
   await server.shutdown();
 });
 
