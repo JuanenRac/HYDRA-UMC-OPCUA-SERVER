@@ -81,6 +81,7 @@ export async function buildAddressSpaceServer(port: number = DEFAULT_PORT) {
     componentOf: hydraNode,
     browseName: "SwarmOnline",
     dataType: "Boolean",
+    minimumSamplingInterval: 1000,
     value: {
       get: () => new Variant({ dataType: DataType.Boolean, value: state.swarmOnline }),
       set: (variant: Variant) => {
@@ -94,6 +95,7 @@ export async function buildAddressSpaceServer(port: number = DEFAULT_PORT) {
     componentOf: hydraNode,
     browseName: "ActiveRobotCount",
     dataType: "UInt32",
+    minimumSamplingInterval: 1000,
     value: {
       get: () => new Variant({ dataType: DataType.UInt32, value: state.activeRobotCount }),
     },

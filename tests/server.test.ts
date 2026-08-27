@@ -15,20 +15,19 @@ import { OPCUAClient, AttributeIds, DataType, MessageSecurityMode, SecurityPolic
 import { buildAddressSpaceServer, type HydraNodeState } from "../src/server.js";
 import type { OPCUAServer } from "node-opcua";
 
-// Port 0 would be ideal but node-opcua's OPCUAServer does not support
-// binding an ephemeral port and reporting it back cleanly across all its
-// endpoint plumbing, so a fixed high, unlikely-to-collide port is used
-// instead - matching how every other project in this ecosystem picks a
-// non-default test port.
-const TEST_PORT = 41840;
-
-let server: OPCUAServer;
+// Use an OS-assigned port. A fixed port made this protocol suite fail when a
+// prior interrupted run (or another local OPC-UA tool) happened to own it.
+// node-opcua publishes the final endpoint after start(), so tests can use the
+// real assigned URL without guessing a high but still collidable port.
+let server: OPCUAServer | undefined;
 let state: HydraNodeState;
+let endpointUrl: string;
 
 beforeAll(async () => {
-  const built = await buildAddressSpaceServer(TEST_PORT);
+  const built = await buildAddressSpaceServer(0);
   server = built.server;
   state = built.state;
+  endpointUrl = server.getEndpointUrl();
 });
 
 beforeEach(() => {
@@ -40,7 +39,7 @@ beforeEach(() => {
 });
 
 afterAll(async () => {
-  await server.shutdown();
+  await server?.shutdown();
 });
 
 async function withClient<T>(fn: (session: import("node-opcua").ClientSession) => Promise<T>): Promise<T> {
@@ -49,7 +48,6 @@ async function withClient<T>(fn: (session: import("node-opcua").ClientSession) =
     securityMode: MessageSecurityMode.None,
     securityPolicy: SecurityPolicy.None,
   });
-  const endpointUrl = `opc.tcp://localhost:${TEST_PORT}/HYDRA-UMC-OPCUA-SERVER`;
   await client.connect(endpointUrl);
   const session = await client.createSession();
   try {
