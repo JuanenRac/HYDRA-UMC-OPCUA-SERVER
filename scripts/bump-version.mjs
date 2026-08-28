@@ -3,12 +3,9 @@
 // Copyright (C) 2026 JuanenRac (Electro Hobby 3D) <electrohobby3d@gmail.com>
 // GPL-3.0 - see LICENSE
 // =============================================================================
-// Runs as the first step of `npm run build` (see the "build" script in
-// package.json) so every real production build bumps package.json's own
-// "version" field automatically - no manual version bumps, no builds that
-// silently ship under the previous number. Copied/adapted from
-// HYDRA-UMC-SERVER's own scripts/bump-version.mjs - same ecosystem-wide
-// convention, applied here unchanged.
+// Legacy native-only version helper. Root build scripts own the single project
+// increment through bump_manifest_version.py; `npm run build` is deliberately
+// compilation-only so it cannot create manifest/package version drift.
 //
 // Increment rule ("odometer" in base 10, ecosystem-wide convention):
 //   - patch +1
