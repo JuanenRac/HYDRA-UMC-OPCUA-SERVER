@@ -25,6 +25,8 @@ It allows industrial automation software (like Ignition, Siemens TIA Portal, or 
 ### Key Features:
 * 🛠️ **Dynamic Information Modeling:** Automatically generates the OPC-UA tree based on active robots and tools.
 * 🔄 **Read/Write Access:** Secure control of robotic joints and efectors from PLC clients.
+* 🔖 **Versioned Namespace & Stable NodeIds:** A real, explicit namespace URI and explicit string NodeIds - an address-space update can't silently change the path a client depends on. *(implemented)*
+* 🔐 **Per-Session Write Authorization:** A real, dynamic check distinguishing an anonymous session from an authenticated one - not every client gets write access by default. *(implemented)*
 * 📡 **Subscription Support:** High-efficiency data updates using OPC-UA publish-subscribe mechanisms.
 * 🛡️ **Encryption:** Full support for Signed and Encrypted security policies (Basic256Sha256).
 
@@ -49,6 +51,9 @@ flowchart LR
 * **Why the entry point only prints identity/version, exits after a health-check listener comes up.** Andamiaje (scaffolding) stage, same reasoning as the parent's own README - a real gateway is long-running by nature, so proving the process stays up is the actual first milestone.
 * **How this fits the rest of the ecosystem.** A sibling service under HYDRA-UMC-GATEWAY-INDUSTRIAL - translates HYDRA-UMC-SERVER's own state into a real OPC-UA address space.
 * **Real protocol-level tests, not just a compile check.** `tests/server.test.ts` connects a real `OPCUAClient` (node-opcua's own client, the same library UAExpert/Ignition would use) against a real `OPCUAServer` over the real binary protocol on a real TCP port - opening a session, browsing/reading `SwarmOnline`/`ActiveRobotCount` by path, and confirming a client-issued write is reflected both in the read-back value and in server-side state.
+* **Why explicit string NodeIds, not node-opcua's auto-assigned numeric ones.** A numeric NodeId is assigned by creation order - inserting a new DataItem before an existing one in the code would silently renumber it, breaking any industrial client that hardcoded the old number. An explicit `s=HydraNode_1.SwarmOnline`-style NodeId can never shift underneath a client just because the address-space code changed shape.
+* **Why `SpindleTemp` uses `timestamped_get`, not the simpler `get()` the other variables use.** `get()` auto-stamps every read with the current time - fine for a live value, dishonest for one that changes slowly (a spindle doesn't reheat between polls). `timestamped_get` returns a real `DataValue` with an explicit `sourceTimestamp` tracking when the value actually last changed, the real semantics an OPC-UA historian relies on.
+* **Why write authorization is per-session (`isUserWritable`), not a static access-level flag.** A static `userAccessLevel` can't tell one client's session from another's - it's the same for every connection. Overriding `isUserWritable(context)` on the variable node is node-opcua's own documented mechanism for a check that actually varies per session, real enough to test with two different real client identities.
 
 ---
 

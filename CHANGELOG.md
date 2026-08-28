@@ -21,6 +21,15 @@ semantic-versioning judgment calls:
 
 ---
 
+## [0.0.3] - Real namespace versioning, stable NodeIds, quality/units/UTC, and read/write authorization
+
+- **Real, explicit, versioned namespace URI** (`urn:hydra-umc:opcua-server:v1`, `src/server.ts`) - replaces node-opcua's implicit hostname-derived default, verified against the real `Server_NamespaceArray` a client actually reads. Same namespace index (1) as before, so nothing about existing browse-by-name paths changed.
+- **Real, explicit string NodeIds** (`s=HydraNode_1`, `s=HydraNode_1.SwarmOnline`, etc.) instead of node-opcua's auto-assigned numeric ones - the promotion audit's own concern: adding a future DataItem can never silently renumber an existing one and change the path an industrial client depends on.
+- **`SpindleTemp`** (new, real `AnalogItemType` DataItem) - a real, standard OPC-UA `EngineeringUnits` (`°C`) and `EURange`, plus a real `timestamped_get` returning an explicit `statusCode` and a `sourceTimestamp` that reflects when the value actually last changed (not when it was read) - real historian semantics, the audit's own "asociar unidad, calidad y timestamp a cada variable".
+- **`MaintenanceMode`** (new) - a real, dynamic per-session write authorization via node-opcua's own `isUserWritable(context)` override: an anonymous session (the default, same as `SwarmOnline`'s existing unauthenticated write) can read but not write it; an authenticated session (new `userManager.isValidUser`, credentials from the new `OPCUA_ADMIN_USERNAME`/`OPCUA_ADMIN_PASSWORD` env vars - unset means no login is possible at all) can write it for real.
+- 9 new tests (`tests/security.test.ts`) - a real `OPCUAClient` (anonymous and authenticated) against a real `OPCUAServer`: the real namespace URI, real stable NodeIds, real GOOD quality with a real UTC `sourceTimestamp` and a real `EngineeringUnits` child on `SpindleTemp`, an anonymous read/denied-write and an authenticated successful write on `MaintenanceMode`, and a wrong-password session rejected outright. 13 total, all passing.
+- Real verification beyond the test suite: built `dist/server.cjs`, ran it for real with real env-var credentials, and connected a real client - confirmed the real denied-write status code (`BadWriteNotSupported`, discovered by running it, not assumed) versus the authenticated write's real `Good`.
+
 ## [0.0.2] - Real, protocol-level test coverage
 
 - **`tests/server.test.ts`** - 4 real tests connecting a real `OPCUAClient` (node-opcua's own client, the same library UAExpert/Ignition would use) against a real `OPCUAServer` over the real OPC-UA binary protocol on a real TCP port: a session actually opens, `SwarmOnline`/`ActiveRobotCount` are browsed by path and read back with real values, a mutation made directly on server-side state is observed through a real read, and a real client-issued write is confirmed both in the read-back value and in server-side state.

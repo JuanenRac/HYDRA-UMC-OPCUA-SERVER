@@ -2,7 +2,7 @@
   "schema_version": "1.0",
   "ecosystem": "HYDRA-UMC",
   "name": "HYDRA-UMC-OPCUA-SERVER",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "role": "service",
   "stack": "node",
   "technologies": [
@@ -11,11 +11,11 @@
     "OPC-UA address space"
   ],
   "deployment_target": "cm5",
-  "maturity": "functional",
+  "maturity": "established",
   "family": "Industrial Gateway",
   "parent": "HYDRA-UMC-GATEWAY-INDUSTRIAL",
   "build": "npm install && npm run build.",
-  "notes": "Real OPC-UA address space, verified with a real OPCUAClient session over the real binary protocol (browse, read, write).",
+  "notes": "Real OPC-UA address space, verified with a real OPCUAClient session over the real binary protocol (browse, read, write). Real, explicit, versioned namespace URI and stable string NodeIds; a real quality/units/UTC-timestamped DataItem (SpindleTemp, real EngineeringUnits); real per-session read/write authorization on MaintenanceMode (anonymous read-only, authenticated write via OPCUA_ADMIN_USERNAME/PASSWORD).",
   "native_version": {
     "file": "package.json",
     "pattern": "\"version\":\\s*\"(\\d+)\\.(\\d+)\\.(\\d+)\""

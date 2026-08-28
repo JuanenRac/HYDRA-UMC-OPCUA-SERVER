@@ -1,7 +1,7 @@
 {
   "name": "hydra-umc-opcua-server",
   "private": true,
-  "version": "0.0.2",
+  "version": "0.0.3",
   "type": "module",
   "description": "Full mapping of HydraState objects to a standardized, discoverable OPC-UA address space for factory PLCs and SCADA software.",
   "scripts": {
