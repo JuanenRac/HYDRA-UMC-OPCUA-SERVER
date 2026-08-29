@@ -167,3 +167,34 @@ describe("real read/write authorization on MaintenanceMode", () => {
     await expect(withSession(wrongCredentials, async () => {})).rejects.toThrow();
   });
 });
+
+// Real gap closed after a live bug audit: SwarmOnline used to accept a
+// write from ANY anonymous client - the one real per-session
+// isUserWritable check above (MaintenanceMode) never covered it. Same
+// three-way coverage as MaintenanceMode's own suite: anonymous denied,
+// authenticated accepted, and state genuinely unchanged by the denied
+// attempt (not a silent no-op that still reports success).
+describe("real read/write authorization on SwarmOnline", () => {
+  it("an anonymous client's write is denied and state stays unchanged", async () => {
+    const statusCodeName = await withSession(anonymous, async (session) => {
+      const nodeId = await resolveNodeId(session, ["HydraNode_1", "SwarmOnline"]);
+      const statusCode = await session.write({ nodeId: nodeId!, attributeId: AttributeIds.Value, value: { value: { dataType: DataType.Boolean, value: false } } });
+      return statusCode.name;
+    });
+    expect(statusCodeName).not.toBe("Good");
+    expect(state.swarmOnline).toBe(true);
+  });
+
+  it("an authenticated (correct credentials) client's write succeeds and is reflected in state", async () => {
+    const finalValue = await withSession(admin, async (session) => {
+      const nodeId = await resolveNodeId(session, ["HydraNode_1", "SwarmOnline"]);
+      const statusCode = await session.write({ nodeId: nodeId!, attributeId: AttributeIds.Value, value: { value: { dataType: DataType.Boolean, value: false } } });
+      expect(statusCode.name).toBe("Good");
+      const dataValue = await session.read({ nodeId: nodeId!, attributeId: AttributeIds.Value });
+      return dataValue.value.value as boolean;
+    });
+    expect(finalValue).toBe(false);
+    expect(state.swarmOnline).toBe(false);
+    state.swarmOnline = true; // restore for any test ordering after this one
+  });
+});

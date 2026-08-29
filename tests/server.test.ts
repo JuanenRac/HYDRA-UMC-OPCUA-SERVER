@@ -103,7 +103,15 @@ describe("HYDRA-UMC-OPCUA-SERVER address space (real OPC-UA protocol)", () => {
     expect(value).toBe(3);
   });
 
-  it("accepts a real write to SwarmOnline and reflects it back on a subsequent read", async () => {
+  // Real bug fixed after a live audit: SwarmOnline used to accept a write
+  // from ANY anonymous client, unlike MaintenanceMode (which already had a
+  // real per-session isUserWritable check) - closed the same way. This
+  // test used to assert the anonymous write succeeded; it now asserts the
+  // opposite, which is the actual point of the fix. A real *authenticated*
+  // write against SwarmOnline is covered in security.test.ts, alongside
+  // MaintenanceMode's own equivalent test - this file intentionally has no
+  // admin-credential plumbing of its own.
+  it("rejects an anonymous write to SwarmOnline and leaves its value unchanged", async () => {
     const finalValue = await withClient(async (session) => {
       const browsePath = await session.translateBrowsePath({
         startingNode: "ns=0;i=85",
@@ -120,11 +128,11 @@ describe("HYDRA-UMC-OPCUA-SERVER address space (real OPC-UA protocol)", () => {
         attributeId: AttributeIds.Value,
         value: { value: { dataType: DataType.Boolean, value: false } },
       });
-      expect(statusCode.name).toBe("Good");
+      expect(statusCode.name).not.toBe("Good");
       const dataValue = await session.read({ nodeId, attributeId: AttributeIds.Value });
       return dataValue.value.value as boolean;
     });
-    expect(finalValue).toBe(false);
-    expect(state.swarmOnline).toBe(false);
+    expect(finalValue).toBe(true);
+    expect(state.swarmOnline).toBe(true);
   });
 });

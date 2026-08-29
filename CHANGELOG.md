@@ -21,6 +21,22 @@ semantic-versioning judgment calls:
 
 ---
 
+## [0.0.4] - Real read/write authorization on SwarmOnline
+
+- **`SwarmOnline`** (`src/server.ts`) - fixed a real gap found in a live
+  ecosystem bug audit: this variable was still writable by ANY anonymous
+  client, unlike `MaintenanceMode` (added in 0.0.3), which already had a
+  real per-session `isUserWritable` check. Closed the same way - an
+  anonymous session can read `SwarmOnline` but no longer write it; an
+  authenticated session (existing `OPCUA_ADMIN_USERNAME`/
+  `OPCUA_ADMIN_PASSWORD` credentials) can.
+- `tests/server.test.ts`'s existing `SwarmOnline` write test inverted to
+  assert the anonymous write is now correctly rejected and state stays
+  unchanged (it previously asserted the opposite). Two new tests added to
+  `tests/security.test.ts` mirroring `MaintenanceMode`'s own coverage:
+  anonymous write denied with state unchanged, authenticated write
+  succeeds and is reflected in state. 15 total tests, all passing.
+
 ## [0.0.3] - Real namespace versioning, stable NodeIds, quality/units/UTC, and read/write authorization
 
 - **Real, explicit, versioned namespace URI** (`urn:hydra-umc:opcua-server:v1`, `src/server.ts`) - replaces node-opcua's implicit hostname-derived default, verified against the real `Server_NamespaceArray` a client actually reads. Same namespace index (1) as before, so nothing about existing browse-by-name paths changed.

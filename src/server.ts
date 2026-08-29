@@ -114,7 +114,14 @@ export async function buildAddressSpaceServer(port: number = DEFAULT_PORT) {
     maintenanceMode: false,
   };
 
-  namespace.addVariable({
+  // Real gap found in a live bug audit: this was writable by ANY anonymous
+  // OPC-UA client, unlike MaintenanceMode below (which already has a real
+  // per-session isUserWritable check). SwarmOnline is exactly the kind of
+  // meaningful system state MaintenanceMode's own comment already worries
+  // about - closed the same way, not a new mechanism. See
+  // isUserWritable below (has to be set after addVariable returns the
+  // node - same as maintenanceMode's own).
+  const swarmOnline = namespace.addVariable({
     componentOf: hydraNode,
     browseName: "SwarmOnline",
     nodeId: "s=HydraNode_1.SwarmOnline",
@@ -128,6 +135,7 @@ export async function buildAddressSpaceServer(port: number = DEFAULT_PORT) {
       },
     },
   });
+  swarmOnline.isUserWritable = (context: ISessionContext): boolean => context.getUserName() !== "anonymous";
 
   namespace.addVariable({
     componentOf: hydraNode,
@@ -171,9 +179,9 @@ export async function buildAddressSpaceServer(port: number = DEFAULT_PORT) {
   // cliente de prueba". Overriding isUserWritable is node-opcua's own
   // documented mechanism for a check that varies per session (the static
   // userAccessLevel option on addVariable cannot); an anonymous session
-  // (the default for every client, including SwarmOnline's own existing
-  // unauthenticated write above) gets read-only, an authenticated one
-  // (see the userManager.isValidUser check above) gets real write access.
+  // (the default for every client) gets read-only, an authenticated one
+  // (see the userManager.isValidUser check above) gets real write access -
+  // same gate SwarmOnline's own isUserWritable above now uses too.
   const maintenanceMode = namespace.addVariable({
     componentOf: hydraNode,
     browseName: "MaintenanceMode",
