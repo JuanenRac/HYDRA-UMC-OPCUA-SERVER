@@ -21,6 +21,14 @@ semantic-versioning judgment calls:
 
 ---
 
+## [0.0.5] - Real ecosystem live-status opt-in
+
+- **`hydra-umc.project.json`** declares its real `service.port` (4840,
+  the standard OPC-UA listen port) - HYDRA-UMC-SERVER's ecosystem status
+  endpoint now does a real TCP-connect probe against it instead of only
+  reporting static manifest metadata. No `health_path` (OPC-UA is a
+  binary protocol, not HTTP), so the probe is a bare connect.
+
 ## [0.0.4] - Real read/write authorization on SwarmOnline
 
 - **`SwarmOnline`** (`src/server.ts`) - fixed a real gap found in a live

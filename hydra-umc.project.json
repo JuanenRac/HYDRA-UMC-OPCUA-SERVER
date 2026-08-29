@@ -2,7 +2,7 @@
   "schema_version": "1.0",
   "ecosystem": "HYDRA-UMC",
   "name": "HYDRA-UMC-OPCUA-SERVER",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "role": "service",
   "stack": "node",
   "technologies": [
@@ -19,5 +19,8 @@
   "native_version": {
     "file": "package.json",
     "pattern": "\"version\":\\s*\"(\\d+)\\.(\\d+)\\.(\\d+)\""
+  },
+  "service": {
+    "port": 4840
   }
 }
