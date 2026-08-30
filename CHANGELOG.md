@@ -7,10 +7,14 @@ omits calendar dates.
 
 ## Versioning scheme
 
-`scripts/bump-version.mjs` bumps `package.json`'s `version` field
-automatically as the first step of every real `npm run build` (same
-mechanism HYDRA-UMC-SERVER/HYDRA-UMC-STUDIO already use) - no manual
-version edits, no build that silently ships under the previous number.
+`package.json`'s `version` field bumps via `bump_manifest_version.py`
+(bare invocation - single owner, no separate `--sync` step), run by
+`build.bat`/`build.sh` BEFORE `npm run build` itself - no manual version
+edits, no build that silently ships under the previous number.
+`scripts/bump-version.mjs` is a legacy native-only helper kept for
+reference; `npm run build` on its own is deliberately compilation-only
+(same convention HYDRA-UMC-SERVER/HYDRA-UMC-STUDIO already use), it does
+not call that script.
 
 It follows the ecosystem-wide base-10 "odometer" rule rather than
 semantic-versioning judgment calls:
