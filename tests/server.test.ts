@@ -12,7 +12,7 @@
 
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { OPCUAClient, AttributeIds, DataType, MessageSecurityMode, SecurityPolicy } from "node-opcua";
-import { buildAddressSpaceServer, type HydraNodeState } from "../src/server.js";
+import { buildAddressSpaceServer, resolvePort, type HydraNodeState } from "../src/server.js";
 import type { OPCUAServer } from "node-opcua";
 
 // Use an OS-assigned port. A fixed port made this protocol suite fail when a
@@ -59,6 +59,14 @@ async function withClient<T>(fn: (session: import("node-opcua").ClientSession) =
 }
 
 describe("HYDRA-UMC-OPCUA-SERVER address space (real OPC-UA protocol)", () => {
+  it("accepts only a real, valid TCP listen port", () => {
+    expect(resolvePort(undefined)).toBe(4840);
+    expect(resolvePort("51234")).toBe(51234);
+    for (const invalid of ["0", "-1", "65536", "not-a-port", "1.5"]) {
+      expect(() => resolvePort(invalid)).toThrow(/PORT must be an integer/);
+    }
+  });
+
   it("accepts a real OPC-UA client connection and session", async () => {
     await withClient(async (session) => {
       expect(session).toBeDefined();

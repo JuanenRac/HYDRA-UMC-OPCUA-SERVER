@@ -28,7 +28,16 @@ import { readPackageVersion } from "./version.js";
 // 4840 is the IANA-registered default OPC-UA TCP port, and node-opcua's
 // own default - kept here explicitly (rather than relying on the library
 // default) so it's obvious at a glance and overridable via PORT.
-const DEFAULT_PORT = Number(process.env.PORT) || 4840;
+export function resolvePort(raw: string | undefined = process.env.PORT): number {
+  if (raw === undefined || raw.trim() === "") return 4840;
+  const port = Number(raw);
+  if (!Number.isInteger(port) || port < 1 || port > 65_535) {
+    throw new Error(`HYDRA-UMC-OPCUA-SERVER: PORT must be an integer in 1..65535, got ${raw}`);
+  }
+  return port;
+}
+
+const DEFAULT_PORT = resolvePort();
 
 // A real, explicit, versioned namespace URI for this project's own address
 // space, rather than node-opcua's implicit hostname-derived default - the

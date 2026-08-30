@@ -21,6 +21,16 @@ semantic-versioning judgment calls:
 
 ---
 
+## Unreleased - validated OPC-UA listen port
+
+- **`src/server.ts`** - `PORT` is now parsed as a required valid TCP port
+  when provided: only integer values in `1..65535` are accepted. Invalid,
+  fractional or negative configuration fails at startup rather than passing
+  an ambiguous value to the OPC-UA listener.
+- Added a regression test for default, valid and invalid port settings.
+
+---
+
 ## [0.0.5] - Real ecosystem live-status opt-in
 
 - **`hydra-umc.project.json`** declares its real `service.port` (4840,
