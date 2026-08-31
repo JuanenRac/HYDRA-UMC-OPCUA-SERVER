@@ -24,6 +24,15 @@ FROM node:20-alpine AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
 COPY --from=build /app/dist ./dist
-COPY --from=build /app/package.json ./package.json
+COPY --from=build /app/package.json /app/package-lock.json ./
+# Real bug found live on this image's first real run: `npm run build`
+# bundles with esbuild's own `--packages=external` (see package.json's
+# own build script), which deliberately does NOT inline npm dependencies
+# into dist/server.cjs - they stay real require() calls expecting
+# node_modules to exist at runtime. This stage never installed them,
+# so every real run crashed immediately with MODULE_NOT_FOUND. Same
+# `npm ci --omit=dev` pattern HYDRA-UMC-OS's own install_server.sh
+# already uses for HYDRA-UMC-SERVER (also esbuild + --packages=external).
+RUN npm ci --omit=dev
 EXPOSE 4840
 CMD ["node", "dist/server.cjs"]

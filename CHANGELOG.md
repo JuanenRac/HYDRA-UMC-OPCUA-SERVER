@@ -35,6 +35,23 @@ semantic-versioning judgment calls:
 
 ---
 
+## [0.0.6] - Fixed the Docker image: MODULE_NOT_FOUND on every real run
+
+- **`Dockerfile`'s runtime stage never installed dependencies** - real bug
+  found live building and running this image for the first time (as part
+  of HYDRA-UMC-GATEWAY-INDUSTRIAL's own `docker-compose.yml`): the build
+  stage bundles with esbuild's own `--packages=external` (deliberate -
+  keeps real npm dependencies as real `require()` calls rather than
+  inlining them), so the runtime stage needed them installed separately -
+  it never was, so the container crashed immediately with
+  `MODULE_NOT_FOUND` on every real start. Now copies `package-lock.json`
+  too and runs `npm ci --omit=dev` in the runtime stage, the same pattern
+  HYDRA-UMC-OS's own `install_server.sh` already uses for
+  HYDRA-UMC-SERVER (also esbuild + `--packages=external`). Verified live:
+  the container now starts and stays up, and
+  `HYDRA-UMC-GATEWAY-INDUSTRIAL`'s own `GET /status` reports this service
+  reachable with a real measured latency.
+
 ## [0.0.5] - Real ecosystem live-status opt-in
 
 - **`hydra-umc.project.json`** declares its real `service.port` (4840,
