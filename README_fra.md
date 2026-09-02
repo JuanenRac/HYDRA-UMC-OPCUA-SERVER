@@ -62,10 +62,11 @@ flowchart LR
 ```text
 HYDRA-UMC-OPCUA-SERVER/
 ├── src/         # Code source (Node/TypeScript - Modèle, Serveur, Mappeur)
-├── docs/        # Documentation et référence de mappage des balises
+├── tests/       # Suite Vitest - comportement serveur et sécurité
 ├── build/       # Sortie compilée (npm run build)
 ├── images/      # Médias et diagrammes
 ├── scripts/     # Scripts utilitaires (bump-version.mjs)
+├── tools/       # ci_validate.py - validation manifest/CHANGELOG/docs utilisée par la CI
 └── README.md
 ```
 

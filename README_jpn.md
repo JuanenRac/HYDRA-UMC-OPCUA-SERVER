@@ -66,10 +66,11 @@ flowchart LR
 ```text
 HYDRA-UMC-OPCUA-SERVER/
 ├── src/         # ソースコード（Node/TypeScript —— モデル、サーバー、マッパー）
-├── docs/        # ドキュメントとタグマッピングリファレンス
+├── tests/       # Vitest スイート —— サーバーとセキュリティの動作
 ├── build/       # コンパイル出力（npm run build）
 ├── images/      # メディアと図表
 ├── scripts/     # ユーティリティスクリプト（bump-version.mjs）
+├── tools/       # ci_validate.py —— CI が使用する manifest/CHANGELOG/docs の検証
 └── README.md
 ```
 
