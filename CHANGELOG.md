@@ -25,18 +25,14 @@ semantic-versioning judgment calls:
 
 ---
 
-## Unreleased - validated OPC-UA listen port
+## [0.0.6] - Fixed the Docker image: MODULE_NOT_FOUND on every real run
 
 - **`src/server.ts`** - `PORT` is now parsed as a required valid TCP port
   when provided: only integer values in `1..65535` are accepted. Invalid,
   fractional or negative configuration fails at startup rather than passing
-  an ambiguous value to the OPC-UA listener.
-- Added a regression test for default, valid and invalid port settings.
-
----
-
-## [0.0.6] - Fixed the Docker image: MODULE_NOT_FOUND on every real run
-
+  an ambiguous value to the OPC-UA listener. Added a regression test for
+  default, valid and invalid port settings. Landed just ahead of this
+  build, so it ships as part of 0.0.6 rather than its own version bump.
 - **`Dockerfile`'s runtime stage never installed dependencies** - real bug
   found live building and running this image for the first time (as part
   of HYDRA-UMC-GATEWAY-INDUSTRIAL's own `docker-compose.yml`): the build

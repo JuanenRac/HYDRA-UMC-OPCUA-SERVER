@@ -11,8 +11,8 @@
 // Siemens TIA Portal, ...) can already connect, browse and read something
 // real today. The dynamic per-robot tree described in the README (one
 // object per active robot/tool, generated from HYDRA-UMC-SERVER's own
-// state) gets wired in once that data path is defined - see
-// mejoras_futuras.txt.
+// state) gets wired in once that data path is defined - see the ROADMAP
+// section of this project's own README.md.
 //
 // buildAddressSpaceServer() is exported (not just called from main() below)
 // so tests/server.test.ts can start a real OPCUAServer on an ephemeral
