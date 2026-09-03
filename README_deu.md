@@ -55,6 +55,8 @@ flowchart LR
 * **Warum `SpindleTemp` `timestamped_get` verwendet, nicht das einfachere `get()`, das die anderen Variablen nutzen.** `get()` versieht jede Lesung automatisch mit dem aktuellen Zeitstempel - passend für einen Live-Wert, unehrlich für einen, der sich langsam ändert (eine Spindel heizt sich zwischen zwei Abfragen nicht neu auf). `timestamped_get` liefert einen echten `DataValue` mit einem expliziten `sourceTimestamp`, der nachverfolgt, wann sich der Wert tatsächlich zuletzt geändert hat - die echte Semantik, auf die sich ein OPC-UA-Historian verlässt.
 * **Warum die Schreibautorisierung pro Sitzung erfolgt (`isUserWritable`), statt über ein statisches Zugriffsebenen-Flag.** Ein statisches `userAccessLevel` kann die Sitzung eines Clients nicht von der eines anderen unterscheiden - es ist für jede Verbindung dasselbe. Das Überschreiben von `isUserWritable(context)` am Variablenknoten ist node-opcuas eigener dokumentierter Mechanismus für eine Prüfung, die tatsächlich pro Sitzung variiert - real genug, um es mit zwei verschiedenen echten Client-Identitäten zu testen.
 
+Siehe `mejoras_futuras.txt` für die ehrliche Liste dessen, was bewusst zurückgestellt wurde und warum (der dynamische Baum pro Roboter, echte Testabdeckung für Verschlüsselung/Subscriptions, und der Pub/Sub-Punkt der Roadmap).
+
 ---
 
 ## 📂 VERZEICHNISSTRUKTUR

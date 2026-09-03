@@ -55,6 +55,8 @@ flowchart LR
 * **Why `SpindleTemp` uses `timestamped_get`, not the simpler `get()` the other variables use.** `get()` auto-stamps every read with the current time - fine for a live value, dishonest for one that changes slowly (a spindle doesn't reheat between polls). `timestamped_get` returns a real `DataValue` with an explicit `sourceTimestamp` tracking when the value actually last changed, the real semantics an OPC-UA historian relies on.
 * **Why write authorization is per-session (`isUserWritable`), not a static access-level flag.** A static `userAccessLevel` can't tell one client's session from another's - it's the same for every connection. Overriding `isUserWritable(context)` on the variable node is node-opcua's own documented mechanism for a check that actually varies per session, real enough to test with two different real client identities.
 
+See `mejoras_futuras.txt` for the honest list of what's deliberately deferred and why (the dynamic per-robot tree, real test coverage for encryption/subscriptions, and the Pub/Sub roadmap item).
+
 ---
 
 ## 📂 DIRECTORY STRUCTURE

@@ -58,6 +58,8 @@ flowchart LR
 * **为何 `SpindleTemp` 使用 `timestamped_get`，而不是其他变量所用的更简单的 `get()`。** `get()` 会自动为每次读取盖上当前时间戳——这对实时变化的值没有问题，但对于变化缓慢的值来说却并不诚实（主轴不会在两次轮询之间重新升温）。`timestamped_get` 返回一个真正的 `DataValue`，带有明确的 `sourceTimestamp`，追踪该值实际最后一次变化的时间，这正是 OPC-UA 历史数据库所依赖的真实语义。
 * **为何写入授权按会话进行（`isUserWritable`），而非使用静态的访问级别标志。** 静态的 `userAccessLevel` 无法区分一个客户端的会话与另一个客户端的会话——它对每个连接都是相同的。在变量节点上重写 `isUserWritable(context)` 是 node-opcua 自身文档化的机制，用于实现一个真正按会话变化的检查，真实到足以用两个不同的真实客户端身份进行测试。
 
+参见 `mejoras_futuras.txt`，了解哪些内容被有意推迟及原因（按机器人划分的动态树、加密/订阅的真实测试覆盖，以及路线图中的 Pub/Sub 事项）。
+
 ---
 
 ## 📂 目录结构

@@ -55,6 +55,8 @@ flowchart LR
 * **Por qué `SpindleTemp` usa `timestamped_get`, no el `get()` más simple que usan las demás variables.** `get()` sella automáticamente cada lectura con la hora actual - adecuado para un valor en vivo, deshonesto para uno que cambia lentamente (un husillo no se recalienta entre sondeos). `timestamped_get` devuelve un `DataValue` real con un `sourceTimestamp` explícito que registra cuándo cambió realmente el valor por última vez, la semántica real en la que se apoya un histórico de OPC-UA.
 * **Por qué la autorización de escritura es por sesión (`isUserWritable`), no un flag estático de nivel de acceso.** Un `userAccessLevel` estático no puede distinguir la sesión de un cliente de la de otro - es el mismo para cada conexión. Sobrescribir `isUserWritable(context)` en el nodo variable es el mecanismo propio y documentado de node-opcua para una comprobación que realmente varía por sesión, lo bastante real como para probarlo con dos identidades de cliente real distintas.
 
+Ver `mejoras_futuras.txt` para la lista honesta de lo que queda deliberadamente diferido y por qué (el árbol dinámico por robot, cobertura de test real para cifrado/suscripciones, y el punto de Pub/Sub del roadmap).
+
 ---
 
 ## 📂 ESTRUCTURA DE DIRECTORIOS

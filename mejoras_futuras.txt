@@ -1,0 +1,48 @@
+HYDRA-UMC-OPCUA-SERVER - what's still not real, on purpose
+================================================================
+
+This file is the honest list of what this OPC-UA address-space server
+deliberately does NOT do yet, and why each item was deferred instead of
+half-built alongside the real, protocol-tested address space that already
+exists in src/server.ts. It is referenced from the README (all languages)
+and the module-level comment in src/server.ts.
+
+1. Dynamic, per-robot address-space tree
+   --------------------------------------
+   src/server.ts builds one fixed HydraNode object with a handful of
+   variables (SwarmOnline, ActiveRobotCount, SpindleTemp, MaintenanceMode).
+   The README's eventual goal - one OPC-UA object per active robot/tool,
+   generated from HYDRA-UMC-SERVER's own live state - needs that data path
+   defined on the HYDRA-UMC-SERVER side first. Proving one real, browsable,
+   read/write-authorized node tree over the real binary protocol came
+   first; making the tree shape dynamic is separate, additive work on top
+   of address-space code that is already known to behave correctly.
+
+2. Real protocol-level test coverage for Signed/Encrypted sessions
+   -----------------------------------------------------------------
+   The "Encryption: Basic256Sha256" key feature is real in the sense that
+   node-opcua's own OPCUAServer defaults (this repo passes no explicit
+   `securityPolicies`/`securityModes`) already include Basic256Sha256 with
+   an auto-generated self-signed certificate - it is not custom code this
+   repo wrote. Every test in tests/server.test.ts and tests/security.test.ts
+   connects with SecurityPolicy.None; there is no test in this repo that
+   actually opens a Signed or SignAndEncrypt session and asserts it works.
+   Worth a real test once a client needing it exists to verify against.
+
+3. Real subscription (publish/subscribe) coverage
+   ------------------------------------------------
+   Same situation as encryption: node-opcua's OPCUAServer supports
+   subscriptions/MonitoredItems out of the box, but no test in this repo
+   creates a real subscription and asserts a data-change notification
+   actually arrives. The README's "Subscription Support" bullet describes
+   library-provided capability, not something this repo has verified with
+   its own protocol-level test yet.
+
+4. Choosing OPC-UA Pub/Sub vs. classic subscriptions for high-speed data
+   ----------------------------------------------------------------------
+   The ROADMAP's Phase 1 ("OPC-UA Pub/Sub implementation for high-speed
+   data exchange") is a real protocol decision (UDP/MQTT-based Pub/Sub vs.
+   the classic subscription model item 3 above already gets for free from
+   node-opcua) that deserves its own pass once a real high-frequency
+   consumer exists to design against, rather than guessing the shape in
+   advance.
