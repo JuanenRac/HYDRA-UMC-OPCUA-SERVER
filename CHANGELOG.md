@@ -1,6 +1,6 @@
 # Changelog
 
-All notable work on **HYDRA-UMC-OPCUA-SERVER** is summarized here, newest first. Full
+All notable work on **HYDRA-UMC-OPCUA-SERVER** is summarized here, newest first.
 This file intentionally omits calendar dates from individual entries.
 
 ## Versioning scheme
