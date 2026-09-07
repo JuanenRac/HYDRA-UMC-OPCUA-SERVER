@@ -1,0 +1,26 @@
+{
+  "schema_version": "1.0",
+  "ecosystem": "HYDRA-UMC",
+  "name": "HYDRA-UMC-OPCUA-SERVER",
+  "version": "0.1.0",
+  "role": "service",
+  "stack": "node",
+  "technologies": [
+    "Node.js",
+    "node-opcua",
+    "OPC-UA address space"
+  ],
+  "deployment_target": "cm5",
+  "maturity": "established",
+  "family": "Industrial Gateway",
+  "parent": "HYDRA-UMC-GATEWAY-INDUSTRIAL",
+  "build": "npm install && npm run build.",
+  "notes": "Real OPC-UA address space, verified with a real OPCUAClient session over the real binary protocol (browse, read, write). Real, explicit, versioned namespace URI and stable string NodeIds; a real quality/units/UTC-timestamped DataItem (SpindleTemp, real EngineeringUnits); real per-session read/write authorization on MaintenanceMode (anonymous read-only, authenticated write via OPCUA_ADMIN_USERNAME/PASSWORD). Every real session now requires Sign/SignAndEncrypt with a real security policy (Basic256Sha256/Aes128_Sha256_RsaOaep/Aes256_Sha256_RsaPss) - a real SecurityPolicy.None connection is genuinely refused, closing a real gap where node-opcua's own unconfigured defaults still exposed one; OPCUA_ALLOW_INSECURE=1 is an explicit, off-by-default local-dev escape hatch, verified with a real protocol-level test proving both the refusal and the escape hatch actually work.",
+  "native_version": {
+    "file": "package.json",
+    "pattern": "\"version\":\\s*\"(\\d+)\\.(\\d+)\\.(\\d+)\""
+  },
+  "service": {
+    "port": 4840
+  }
+}
