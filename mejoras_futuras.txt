@@ -1,0 +1,61 @@
+HYDRA-UMC-OPCUA-SERVER - what's still not real, on purpose
+================================================================
+
+This file is the honest, complete list of what this OPC-UA address-space
+server deliberately does NOT do yet, and why each item was deferred
+instead of half-built alongside the real, protocol-tested address space
+that already exists in src/server.ts. The README (all languages) and the
+module-level comment in src/server.ts each state their own short version
+of the relevant reason directly inline, so neither depends on this file
+to make sense on its own - this is the one place the full list lives.
+
+1. Dynamic, per-robot address-space tree
+   --------------------------------------
+   src/server.ts builds one fixed HydraNode object with a handful of
+   variables (SwarmOnline, ActiveRobotCount, SpindleTemp, MaintenanceMode).
+   The README's eventual goal - one OPC-UA object per active robot/tool,
+   generated from HYDRA-UMC-SERVER's own live state - needs that data path
+   defined on the HYDRA-UMC-SERVER side first. Proving one real, browsable,
+   read/write-authorized node tree over the real binary protocol came
+   first; making the tree shape dynamic is separate, additive work on top
+   of address-space code that is already known to behave correctly.
+
+2. RESOLVED - SecurityPolicy.None was a real, exposed default, not just untested
+   ------------------------------------------------------------------------------
+   This item used to say the gap was only missing test coverage. It was
+   worse: leaving `securityPolicies`/`securityModes` unset let node-opcua
+   fall back to its own defaults, which include `MessageSecurityMode.None`
+   - and node-opcua always adds a real, unencrypted `SecurityPolicy.None`
+   endpoint whenever `None` is present in `securityModes` at all,
+   regardless of `securityPolicies`. Any client could connect fully
+   unauthenticated and unencrypted despite the "Encryption: Basic256Sha256"
+   README claim. Fixed: `buildAddressSpaceServer()` now passes explicit
+   `securityModes: [Sign, SignAndEncrypt]` (no `None`) and
+   `securityPolicies: [Basic256Sha256, Aes128_Sha256_RsaOaep,
+   Aes256_Sha256_RsaPss]`, still using node-opcua's own auto-generated
+   self-signed certificate. `OPCUA_ALLOW_INSECURE=1` is a real, explicit,
+   off-by-default escape hatch for local development only (see
+   .env.example). tests/security-policy.test.ts proves, against a real
+   OPCUAServer/OPCUAClient pair, that a `SecurityPolicy.None` connection
+   is genuinely refused by default and genuinely accepted only with that
+   flag set; every existing test in tests/server.test.ts and
+   tests/security.test.ts was converted from `SecurityPolicy.None` to a
+   real `Basic256Sha256`/`SignAndEncrypt` session in the same pass.
+
+3. Real subscription (publish/subscribe) coverage
+   ------------------------------------------------
+   Same situation as encryption: node-opcua's OPCUAServer supports
+   subscriptions/MonitoredItems out of the box, but no test in this repo
+   creates a real subscription and asserts a data-change notification
+   actually arrives. The README's "Subscription Support" bullet describes
+   library-provided capability, not something this repo has verified with
+   its own protocol-level test yet.
+
+4. Choosing OPC-UA Pub/Sub vs. classic subscriptions for high-speed data
+   ----------------------------------------------------------------------
+   The ROADMAP's Phase 1 ("OPC-UA Pub/Sub implementation for high-speed
+   data exchange") is a real protocol decision (UDP/MQTT-based Pub/Sub vs.
+   the classic subscription model item 3 above already gets for free from
+   node-opcua) that deserves its own pass once a real high-frequency
+   consumer exists to design against, rather than guessing the shape in
+   advance.
