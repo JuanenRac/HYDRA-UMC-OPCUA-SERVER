@@ -7,7 +7,7 @@
 // versioned namespace URI, real stable NodeIds, real quality/units/UTC on
 // SpindleTemp, and real per-session read/write authorization on
 // MaintenanceMode - a real OPCUAClient (anonymous and authenticated)
-// against a real OPCUAServer, the promotion audit's own "cliente OPC-UA
+// against a real OPCUAServer, the review's own "cliente OPC-UA
 // local que lee valores, intenta write no autorizado y verifica
 // namespace/quality/UTC y respuesta de seguridad".
 // =============================================================================
@@ -41,7 +41,7 @@ afterAll(async () => {
 });
 
 async function withSession<T>(userIdentity: UserIdentityInfo, fn: (session: ClientSession) => Promise<T>): Promise<T> {
-  // Real, encrypted session - proving the audit fix (server.ts no longer
+  // Real, encrypted session - proving the fix (server.ts no longer
   // exposes SecurityPolicy.None at all) actually works end to end, not
   // just that the server starts, and that at least one real test opens a
   // genuine Signed or SignAndEncrypt session rather than only asserting
@@ -173,7 +173,7 @@ describe("real read/write authorization on MaintenanceMode", () => {
   });
 });
 
-// Real gap closed after a live bug audit: SwarmOnline used to accept a
+// Real gap closed while auditing the code: SwarmOnline used to accept a
 // write from ANY anonymous client - the one real per-session
 // isUserWritable check above (MaintenanceMode) never covered it. Same
 // three-way coverage as MaintenanceMode's own suite: anonymous denied,

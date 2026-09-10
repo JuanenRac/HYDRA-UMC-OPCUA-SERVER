@@ -111,7 +111,7 @@ describe("HYDRA-UMC-OPCUA-SERVER address space (real OPC-UA protocol)", () => {
     expect(value).toBe(3);
   });
 
-  // Real bug fixed after a live audit: SwarmOnline used to accept a write
+  // Real bug fixed while auditing the code: SwarmOnline used to accept a write
   // from ANY anonymous client, unlike MaintenanceMode (which already had a
   // real per-session isUserWritable check) - closed the same way. This
   // test used to assert the anonymous write succeeded; it now asserts the
