@@ -3,8 +3,8 @@
 // Copyright (C) 2026 JuanenRac (Electro Hobby 3D) <electrohobby3d@gmail.com>
 // GPL-3.0 - see LICENSE
 //
-// Real protocol-level proof of this pass's own fix: found in an
-// ecosystem-wide software-improvements audit, leaving securityModes/
+// Real protocol-level proof of this pass's own fix: found while
+// auditing the code, leaving securityModes/
 // securityPolicies unset let node-opcua fall back to ITS OWN defaults,
 // which still include a real, unencrypted SecurityPolicy.None endpoint
 // alongside the encrypted ones - despite this project's own README
@@ -28,7 +28,7 @@ afterEach(async () => {
   delete process.env.OPCUA_ALLOW_INSECURE;
 });
 
-// REV-020 (found in an independent revalidation audit, P2): every test
+// REV-020 (P2): every test
 // below does a real `buildAddressSpaceServer()` call - a genuine
 // OPCUAServer.initialize() (including this host's own real, one-time
 // self-signed certificate/key generation the first time it runs, then a

@@ -42,7 +42,7 @@ const DEFAULT_PORT = resolvePort();
 
 // A real, explicit, versioned namespace URI for this project's own address
 // space, rather than node-opcua's implicit hostname-derived default - the
-// promotion audit's own concern: "una actualizacion no debe cambiar
+// review's own concern: "una actualizacion no debe cambiar
 // silenciosamente la ruta que consume un cliente industrial". Bumped only
 // on a real breaking change to the address space shape.
 const NAMESPACE_URI = "urn:hydra-umc:opcua-server:v1";
@@ -69,7 +69,7 @@ export async function buildAddressSpaceServer(port: number = DEFAULT_PORT) {
   const adminUsername = process.env.OPCUA_ADMIN_USERNAME;
   const adminPassword = process.env.OPCUA_ADMIN_PASSWORD;
 
-  // Real gap found in an ecosystem-wide software-improvements audit:
+  // Real gap found while auditing the code:
   // leaving securityModes/securityPolicies unset let node-opcua fall back
   // to ITS OWN defaults (see server_end_point.js's defaultSecurityModes),
   // which - despite this project's own "Encryption: Basic256Sha256" README
@@ -135,7 +135,7 @@ export async function buildAddressSpaceServer(port: number = DEFAULT_PORT) {
   // string NodeIds (rather than node-opcua's auto-assigned numeric ones)
   // give this project's own address-space paths real stability - adding a
   // future DataItem before these in the file can never silently renumber
-  // an existing one, the exact risk the promotion audit called out.
+  // an existing one, the exact risk the review called out.
   const hydraNode = namespace.addObject({
     organizedBy: addressSpace.rootFolder.objects,
     browseName: "HydraNode_1",
@@ -150,7 +150,7 @@ export async function buildAddressSpaceServer(port: number = DEFAULT_PORT) {
     maintenanceMode: false,
   };
 
-  // Real gap found in a live bug audit: this was writable by ANY anonymous
+  // Real gap found while auditing the code: this was writable by ANY anonymous
   // OPC-UA client, unlike MaintenanceMode below (which already has a real
   // per-session isUserWritable check). SwarmOnline is exactly the kind of
   // meaningful system state MaintenanceMode's own comment already worries
@@ -188,7 +188,7 @@ export async function buildAddressSpaceServer(port: number = DEFAULT_PORT) {
   // (via `timestamped_get`, node-opcua's own documented mechanism for full
   // control over the DataValue, distinct from the simple `get()` above
   // which auto-stamps "now" on every read) plus a real, standard OPC-UA
-  // EngineeringUnits (part 8 AnalogItemType) - the promotion audit's own
+  // EngineeringUnits (part 8 AnalogItemType) - the review's own
   // "asociar unidad, calidad y timestamp a cada variable". sourceTimestamp
   // reflects when the value actually last changed, not when it was read -
   // real historian semantics, not a stamp that lies about freshness.
@@ -210,8 +210,8 @@ export async function buildAddressSpaceServer(port: number = DEFAULT_PORT) {
     },
   });
 
-  // A real, dynamic per-session write authorization - the promotion
-  // audit's own "autorizacion de lectura frente a escritura mediante
+  // A real, dynamic per-session write authorization - the review's
+  // own "autorizacion de lectura frente a escritura mediante
   // cliente de prueba". Overriding isUserWritable is node-opcua's own
   // documented mechanism for a check that varies per session (the static
   // userAccessLevel option on addVariable cannot); an anonymous session
