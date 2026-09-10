@@ -23,9 +23,9 @@ semantic-versioning judgment calls:
 
 ---
 
-## [0.1.0] - REV-020: real test-timing regression found by independent revalidation
+## [0.1.0] - REV-020: real test-timing regression found in a second review pass
 
-An independent revalidation audit reproduced a real intermittent failure
+A second review pass reproduced a real intermittent failure
 in `tests/security-policy.test.ts` (19/20 pass, 1 times out; 20/20 on an
 immediate retry, no code change):
 
@@ -58,7 +58,7 @@ immediate retry, no code change):
 
 ## [0.0.8] - DOC-26: removed private-document references
 
-- **DOC-26 (found in an ecosystem-wide software-improvements audit, P2):**
+- **DOC-26 (P2):**
   removed the 18 remaining references to `mejoras_futuras.txt` across
   `CHANGELOG.md`, `src/server.ts`, `tests/security.test.ts`, and README
   in all 7 languages. Where the reference pointed at a real, useful list
@@ -69,7 +69,7 @@ immediate retry, no code change):
 
 ## [0.0.7] - SecurityPolicy.None was a real, exposed default - now it's genuinely refused
 
-- Found in an ecosystem-wide software-improvements audit: `buildAddressSpaceServer()`
+- Found while auditing the code: `buildAddressSpaceServer()`
   left `securityPolicies`/`securityModes` unset, so node-opcua fell back
   to its own defaults - which include `MessageSecurityMode.None`, and
   node-opcua always adds a real, unencrypted `SecurityPolicy.None`
@@ -138,8 +138,8 @@ immediate retry, no code change):
 
 ## [0.0.4] - Real read/write authorization on SwarmOnline
 
-- **`SwarmOnline`** (`src/server.ts`) - fixed a real gap found in a live
-  ecosystem bug audit: this variable was still writable by ANY anonymous
+- **`SwarmOnline`** (`src/server.ts`) - fixed a real gap found while
+  auditing the code: this variable was still writable by ANY anonymous
   client, unlike `MaintenanceMode` (added in 0.0.3), which already had a
   real per-session `isUserWritable` check. Closed the same way - an
   anonymous session can read `SwarmOnline` but no longer write it; an
@@ -155,8 +155,8 @@ immediate retry, no code change):
 ## [0.0.3] - Real namespace versioning, stable NodeIds, quality/units/UTC, and read/write authorization
 
 - **Real, explicit, versioned namespace URI** (`urn:hydra-umc:opcua-server:v1`, `src/server.ts`) - replaces node-opcua's implicit hostname-derived default, verified against the real `Server_NamespaceArray` a client actually reads. Same namespace index (1) as before, so nothing about existing browse-by-name paths changed.
-- **Real, explicit string NodeIds** (`s=HydraNode_1`, `s=HydraNode_1.SwarmOnline`, etc.) instead of node-opcua's auto-assigned numeric ones - the promotion audit's own concern: adding a future DataItem can never silently renumber an existing one and change the path an industrial client depends on.
-- **`SpindleTemp`** (new, real `AnalogItemType` DataItem) - a real, standard OPC-UA `EngineeringUnits` (`°C`) and `EURange`, plus a real `timestamped_get` returning an explicit `statusCode` and a `sourceTimestamp` that reflects when the value actually last changed (not when it was read) - real historian semantics, the audit's own "asociar unidad, calidad y timestamp a cada variable".
+- **Real, explicit string NodeIds** (`s=HydraNode_1`, `s=HydraNode_1.SwarmOnline`, etc.) instead of node-opcua's auto-assigned numeric ones - an explicit concern: adding a future DataItem can never silently renumber an existing one and change the path an industrial client depends on.
+- **`SpindleTemp`** (new, real `AnalogItemType` DataItem) - a real, standard OPC-UA `EngineeringUnits` (`°C`) and `EURange`, plus a real `timestamped_get` returning an explicit `statusCode` and a `sourceTimestamp` that reflects when the value actually last changed (not when it was read) - real historian semantics, an explicit "asociar unidad, calidad y timestamp a cada variable".
 - **`MaintenanceMode`** (new) - a real, dynamic per-session write authorization via node-opcua's own `isUserWritable(context)` override: an anonymous session (the default, same as `SwarmOnline`'s existing unauthenticated write) can read but not write it; an authenticated session (new `userManager.isValidUser`, credentials from the new `OPCUA_ADMIN_USERNAME`/`OPCUA_ADMIN_PASSWORD` env vars - unset means no login is possible at all) can write it for real.
 - 9 new tests (`tests/security.test.ts`) - a real `OPCUAClient` (anonymous and authenticated) against a real `OPCUAServer`: the real namespace URI, real stable NodeIds, real GOOD quality with a real UTC `sourceTimestamp` and a real `EngineeringUnits` child on `SpindleTemp`, an anonymous read/denied-write and an authenticated successful write on `MaintenanceMode`, and a wrong-password session rejected outright. 13 total, all passing.
 - Real verification beyond the test suite: built `dist/server.cjs`, ran it for real with real env-var credentials, and connected a real client - confirmed the real denied-write status code (`BadWriteNotSupported`, discovered by running it, not assumed) versus the authenticated write's real `Good`.
