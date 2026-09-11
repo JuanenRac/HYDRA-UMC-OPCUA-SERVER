@@ -23,6 +23,19 @@ semantic-versioning judgment calls:
 
 ---
 
+## [0.1.1] - Honesty check section in every README
+
+Added a "Honesty check" paragraph right after the badges in `README.md`
+and all 6 translated READMEs, naming the real, tested `src/server.ts`
+and the real test count (20 passing across 3 files, including real
+protocol-level tests against a real `OPCUAClient` and a proof that
+`SecurityPolicy.None` is genuinely refused by default). States plainly
+which gaps are deliberately deferred, not accidental: the static
+(not per-robot-dynamic) address-space tree, untested OPC-UA
+subscriptions, and the unimplemented Pub/Sub roadmap item - pointing at
+`mejoras_futuras.txt` for the complete list. Documents the real,
+current state of what's implemented vs. planned; no behavior changed.
+
 ## [0.1.0] - REV-020: real test-timing regression found in a second review pass
 
 A second review pass reproduced a real intermittent failure
