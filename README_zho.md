@@ -16,7 +16,7 @@
 
 ---
 
-**诚实核查 - 今天真正能运行的部分：** OPC-UA 服务器与地址空间映射(`src/server.ts`)都是真实的并经过测试(`tests/server.test.ts`、`tests/security.test.ts`、`tests/security-policy.test.ts` 共 20 个测试通过)——而且这些都是真正的协议级测试：`tests/server.test.ts` 使用一个真实的 `OPCUAClient`(node-opcua 自身的客户端，也是 UAExpert/Ignition 会使用的同一个库)通过真实的二进制协议、在一个真实的 TCP 端口上进行连接；`tests/security-policy.test.ts` 证明了未加密的 `SecurityPolicy.None` 会话默认确实会被拒绝(只有通过明确的 `OPCUA_ALLOW_INSECURE=1` 逃生开关才会被接受)。以下是有意推迟的部分，而非意外发现的缺口：地址空间树是静态的，仅在启动时构建一次——之后新增的机器人需要重启才能出现，而不是拥有一个按机器人动态生成的树；目前只有读写操作经过了端到端测试，OPC-UA 订阅功能尚未测试；而 Pub/Sub(路线图第 1 阶段)仍未实现，因为目前还没有客户端依赖它。具体推迟了哪些内容以及原因，请见 `mejoras_futuras.txt` 的完整清单；具体已交付的内容请见 `CHANGELOG.md`。
+**诚实核查 - 今天真正能运行的部分：** OPC-UA 服务器与地址空间映射(`src/server.ts`)都是真实的并经过测试(`tests/server.test.ts`、`tests/security.test.ts`、`tests/security-policy.test.ts` 共 22 个测试通过)——而且这些都是真正的协议级测试：`tests/server.test.ts` 使用一个真实的 `OPCUAClient`(node-opcua 自身的客户端，也是 UAExpert/Ignition 会使用的同一个库)通过真实的二进制协议、在一个真实的 TCP 端口上进行连接；`tests/security-policy.test.ts` 证明了未加密的 `SecurityPolicy.None` 会话默认确实会被拒绝(只有通过明确的 `OPCUA_ALLOW_INSECURE=1` 逃生开关才会被接受)。以下是有意推迟的部分，而非意外发现的缺口：地址空间树是静态的，仅在启动时构建一次——之后新增的机器人需要重启才能出现，而不是拥有一个按机器人动态生成的树；目前只有读写操作经过了端到端测试，OPC-UA 订阅功能尚未测试；而 Pub/Sub(路线图第 1 阶段)仍未实现，因为目前还没有客户端依赖它。具体推迟了哪些内容以及原因，请见 `mejoras_futuras.txt` 的完整清单；具体已交付的内容请见 `CHANGELOG.md`。
 
 ---
 
