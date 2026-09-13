@@ -60,6 +60,7 @@ flowchart LR
 * **真实的协议级测试，而不仅仅是编译检查。** `tests/server.test.ts` 使用真实的 `OPCUAClient`（node-opcua 自带的客户端，与 UAExpert/Ignition 使用的是同一个库）通过真实的二进制协议、在真实的 TCP 端口上连接真实的 `OPCUAServer`——打开会话、按路径浏览/读取 `SwarmOnline`/`ActiveRobotCount`，并确认客户端发出的写入操作既反映在回读的值中，也反映在服务器端状态中。
 * **为何使用明确的字符串 NodeId，而非 node-opcua 自动分配的数字 NodeId。** 数字 NodeId 按创建顺序分配——在代码中把新的 DataItem 插入到已有 DataItem 之前，会悄悄将其重新编号，导致任何硬编码了旧编号的工业客户端出现故障。像 `s=HydraNode_1.SwarmOnline` 这样的显式 NodeId，不会仅仅因为地址空间代码的结构发生变化，就在客户端下方发生偏移。
 * **为何 `SpindleTemp` 使用 `timestamped_get`，而不是其他变量所用的更简单的 `get()`。** `get()` 会自动为每次读取盖上当前时间戳——这对实时变化的值没有问题，但对于变化缓慢的值来说却并不诚实（主轴不会在两次轮询之间重新升温）。`timestamped_get` 返回一个真正的 `DataValue`，带有明确的 `sourceTimestamp`，追踪该值实际最后一次变化的时间，这正是 OPC-UA 历史数据库所依赖的真实语义。
+* **`SpindleTemp` 的真实数据源断开连接后会发生什么。** 最后一个真实值仍会继续提供——绝不隐藏，也绝不重置——但其 `statusCode` 会从 `Good` 降级为 node-opcua 自身真实的标准状态码 `UncertainLastUsableValue`("Whatever was updating this value has stopped doing so"，意为"原本更新该值的机制已经停止运作")，`sourceTimestamp` 也会继续指向真实的最后观测时刻，而不是"现在"。一次通过正确认证、加密的会话绝不会改变这一点——它认证的是客户端本身，而不是数据的新鲜度。
 * **为何写入授权按会话进行（`isUserWritable`），而非使用静态的访问级别标志。** 静态的 `userAccessLevel` 无法区分一个客户端的会话与另一个客户端的会话——它对每个连接都是相同的。在变量节点上重写 `isUserWritable(context)` 是 node-opcua 自身文档化的机制，用于实现一个真正按会话变化的检查，真实到足以用两个不同的真实客户端身份进行测试。
 
 有意推迟的内容及原因：按机器人划分的动态地址空间树（目前是静态的，仅在启动时构建一次——之后新增的机器人需要重启才会出现）；OPC-UA 订阅的真实测试覆盖（目前只有读写做了端到端测试）；以及路线图中的 Pub/Sub 事项（尚未实现——目前没有客户端依赖它）。

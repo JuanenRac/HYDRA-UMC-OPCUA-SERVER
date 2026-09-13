@@ -52,6 +52,15 @@ export interface HydraNodeState {
   activeRobotCount: number;
   spindleTempC: number;
   spindleTempUpdatedAtMs: number;
+  // I42: real disconnection tracking, not simulated. true means whatever
+  // real source feeds spindleTempC is still actively updating it; a real
+  // caller sets this to false the moment it detects the source has
+  // stopped (a timeout, a closed connection, ...) - see SpindleTemp's
+  // own timestamped_get below for exactly what that changes on the wire.
+  // Defaults true: a source that has never been wired to mutate this
+  // value at all behaves exactly as it always did (Good quality) rather
+  // than starting in a fabricated "disconnected" state nobody reported.
+  spindleTempConnected: boolean;
   maintenanceMode: boolean;
 }
 
@@ -147,6 +156,7 @@ export async function buildAddressSpaceServer(port: number = DEFAULT_PORT) {
     activeRobotCount: 0,
     spindleTempC: 22,
     spindleTempUpdatedAtMs: Date.now(),
+    spindleTempConnected: true,
     maintenanceMode: false,
   };
 
@@ -192,6 +202,21 @@ export async function buildAddressSpaceServer(port: number = DEFAULT_PORT) {
   // "asociar unidad, calidad y timestamp a cada variable". sourceTimestamp
   // reflects when the value actually last changed, not when it was read -
   // real historian semantics, not a stamp that lies about freshness.
+  //
+  // I42 ("calidad y tiempo de origen coherentes con la fuente"): quality
+  // is likewise mapped from the real observation, not from the fact that
+  // a read happened to succeed. A `Good` statusCode paired with a stale
+  // sourceTimestamp would let a client compute staleness by hand but
+  // still see "Good" at a glance - real historian software, and this
+  // project's own README, both treat quality as the primary signal.
+  // `UncertainLastUsableValue` is node-opcua's own real, standard OPC-UA
+  // status code for exactly this situation ("Whatever was updating this
+  // value has stopped doing so.") - the LAST real value is kept and
+  // still readable (never fabricated, never withheld), only its quality
+  // degrades, with sourceTimestamp still honestly pointing at when it
+  // was last genuinely observed. A correct certificate and write
+  // permission on the session never overrides this - they authenticate
+  // the CLIENT, not the freshness of the DATA.
   namespace.addAnalogDataItem({
     componentOf: hydraNode,
     browseName: "SpindleTemp",
@@ -204,7 +229,7 @@ export async function buildAddressSpaceServer(port: number = DEFAULT_PORT) {
       timestamped_get: () =>
         new DataValue({
           value: new Variant({ dataType: DataType.Double, value: state.spindleTempC }),
-          statusCode: StatusCodes.Good,
+          statusCode: state.spindleTempConnected ? StatusCodes.Good : StatusCodes.UncertainLastUsableValue,
           sourceTimestamp: new Date(state.spindleTempUpdatedAtMs),
         }),
     },

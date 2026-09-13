@@ -116,6 +116,49 @@ describe("real quality/units/UTC timestamp on SpindleTemp", () => {
     expect(dataValue.sourceTimestamp?.toISOString()).toBe("2025-01-01T00:00:00.000Z");
   });
 
+  it("I42: after the real source disconnects, reads the frozen value with degraded quality, never a fresh Good", async () => {
+    // The exact acceptance test I42 itself describes: "cliente real
+    // loopback lee un valor congelado tras desconexion - no recibe valor
+    // fresco Good". A correct, encrypted, admin-authenticated session
+    // (see `withSession`/`admin` in this file) must not change this
+    // outcome either - a valid certificate/credential authenticates the
+    // CLIENT, it never revalidates a stale operational precondition.
+    const frozenAtMs = Date.UTC(2025, 5, 1, 12, 0, 0);
+    state.spindleTempC = 47.25;
+    state.spindleTempUpdatedAtMs = frozenAtMs;
+    state.spindleTempConnected = false;
+
+    const dataValue = await withSession(admin, async (session) => {
+      const nodeId = await resolveNodeId(session, ["HydraNode_1", "SpindleTemp"]);
+      return session.read({ nodeId: nodeId!, attributeId: AttributeIds.Value });
+    });
+
+    expect(dataValue.statusCode.name).not.toBe("Good");
+    expect(dataValue.statusCode.name).toBe("UncertainLastUsableValue");
+    // The last real value is still served, not withheld or zeroed out.
+    expect(dataValue.value.value).toBeCloseTo(47.25, 6);
+    // sourceTimestamp keeps pointing at the real last-observed instant,
+    // not "now" - a client can compute exactly how stale this is.
+    expect(dataValue.sourceTimestamp?.toISOString()).toBe(new Date(frozenAtMs).toISOString());
+
+    // Restore real connected state so this test never leaks into any
+    // test that runs after it in this same shared server instance.
+    state.spindleTempConnected = true;
+  });
+
+  it("I42: reconnecting the real source is reflected in a fresh Good read again", async () => {
+    state.spindleTempC = 22;
+    state.spindleTempUpdatedAtMs = Date.now();
+    state.spindleTempConnected = true;
+
+    const dataValue = await withSession(anonymous, async (session) => {
+      const nodeId = await resolveNodeId(session, ["HydraNode_1", "SpindleTemp"]);
+      return session.read({ nodeId: nodeId!, attributeId: AttributeIds.Value });
+    });
+
+    expect(dataValue.statusCode.name).toBe("Good");
+  });
+
   it("declares a real EngineeringUnits child carrying the real degree-Celsius unit", async () => {
     const displayName = await withSession(anonymous, async (session) => {
       // EngineeringUnits is a standard AnalogItemType property from the

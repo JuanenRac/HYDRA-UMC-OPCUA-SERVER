@@ -23,6 +23,33 @@ semantic-versioning judgment calls:
 
 ---
 
+## [0.1.2] - I42: SpindleTemp reports degraded quality after its real source disconnects
+
+SpindleTemp's own `sourceTimestamp` was already real (reflecting the last
+genuine observation, never "now"), but its `statusCode` was hardcoded to
+`StatusCodes.Good` unconditionally - a client reading a frozen value
+after the real source stopped updating it still saw a fresh, trustworthy
+"Good" quality with no way to tell the value was stale.
+
+New `HydraNodeState.spindleTempConnected` (defaults `true`, matching
+existing behavior for a source that was never wired to report
+disconnection at all): when `false`, `SpindleTemp`'s own
+`timestamped_get()` now reports `StatusCodes.UncertainLastUsableValue` -
+node-opcua's own real, standard OPC-UA status code for exactly this
+situation ("Whatever was updating this value has stopped doing so.").
+The last real value and its real sourceTimestamp are still served
+honestly, never withheld or reset - only the quality degrades. A correct
+certificate and write-authorized session (see `MaintenanceMode`'s own
+per-session `isUserWritable`) never overrides this: those authenticate
+the CLIENT, never the freshness of the DATA.
+
+2 new tests (`security.test.ts`): a real encrypted, authenticated
+session reading a frozen value after disconnection gets
+`UncertainLastUsableValue`, never `Good`; reconnecting is reflected in a
+fresh `Good` read again.
+
+Verified: 22/22 tests, `tsc --noEmit` clean, `tools/ci_validate.py` PASS.
+
 ## [0.1.1] - Honesty check section in every README
 
 Added a "Honesty check" paragraph right after the badges in `README.md`
