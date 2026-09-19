@@ -23,7 +23,7 @@ semantic-versioning judgment calls:
 
 ---
 
-## [0.1.2] - I42: SpindleTemp reports degraded quality after its real source disconnects
+## [0.1.2] - SpindleTemp reports degraded quality after its real source disconnects
 
 SpindleTemp's own `sourceTimestamp` was already real (reflecting the last
 genuine observation, never "now"), but its `statusCode` was hardcoded to
@@ -63,13 +63,13 @@ subscriptions, and the unimplemented Pub/Sub roadmap item - pointing at
 `mejoras_futuras.txt` for the complete list. Documents the real,
 current state of what's implemented vs. planned; no behavior changed.
 
-## [0.1.0] - REV-020: real test-timing regression found in a second review pass
+## [0.1.0] - real test-timing regression found in a second review pass
 
 A second review pass reproduced a real intermittent failure
 in `tests/security-policy.test.ts` (19/20 pass, 1 times out; 20/20 on an
 immediate retry, no code change):
 
-- **REV-020 [P2]:** every test in that file does a real
+- every test in that file does a real
   `buildAddressSpaceServer()` call - a genuine `OPCUAServer.initialize()`
   (including this host's own real, one-time self-signed certificate/key
   generation) and a real TLS security-policy handshake for the encrypted
