@@ -83,7 +83,7 @@ immediate retry, no code change):
   readiness synchronization, profiling exactly which phase is slow under
   contention) is real, separate future work, not attempted here.
 
-## [0.0.9] - DOC-26 follow-up: keep mejoras_futuras.txt discoverable and correct
+## [0.0.9] - follow-up: keep mejoras_futuras.txt discoverable and correct
 
 - **Correction to the [0.0.8] entry below:** `mejoras_futuras.txt` is a
   real, tracked, public file in this repo, not a stray reference to a
@@ -96,9 +96,9 @@ immediate retry, no code change):
   the header now describes the real, current state, and the file is
   listed in the README's own directory structure (all 7 languages).
 
-## [0.0.8] - DOC-26: removed private-document references
+## [0.0.8] - removed private-document references
 
-- **DOC-26 (P2):**
+- 
   removed the 18 remaining references to `mejoras_futuras.txt` across
   `CHANGELOG.md`, `src/server.ts`, `tests/security.test.ts`, and README
   in all 7 languages. Where the reference pointed at a real, useful list

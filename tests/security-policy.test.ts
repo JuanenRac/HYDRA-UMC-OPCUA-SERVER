@@ -28,7 +28,7 @@ afterEach(async () => {
   delete process.env.OPCUA_ALLOW_INSECURE;
 });
 
-// REV-020 (P2): every test
+// every test
 // below does a real `buildAddressSpaceServer()` call - a genuine
 // OPCUAServer.initialize() (including this host's own real, one-time
 // self-signed certificate/key generation the first time it runs, then a

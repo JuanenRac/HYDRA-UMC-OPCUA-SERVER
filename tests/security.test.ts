@@ -116,8 +116,8 @@ describe("real quality/units/UTC timestamp on SpindleTemp", () => {
     expect(dataValue.sourceTimestamp?.toISOString()).toBe("2025-01-01T00:00:00.000Z");
   });
 
-  it("I42: after the real source disconnects, reads the frozen value with degraded quality, never a fresh Good", async () => {
-    // The exact acceptance test I42 itself describes: "cliente real
+  it("after the real source disconnects, reads the frozen value with degraded quality, never a fresh Good", async () => {
+    // The exact acceptance test itself describes: "cliente real
     // loopback lee un valor congelado tras desconexion - no recibe valor
     // fresco Good". A correct, encrypted, admin-authenticated session
     // (see `withSession`/`admin` in this file) must not change this
@@ -146,7 +146,7 @@ describe("real quality/units/UTC timestamp on SpindleTemp", () => {
     state.spindleTempConnected = true;
   });
 
-  it("I42: reconnecting the real source is reflected in a fresh Good read again", async () => {
+  it("reconnecting the real source is reflected in a fresh Good read again", async () => {
     state.spindleTempC = 22;
     state.spindleTempUpdatedAtMs = Date.now();
     state.spindleTempConnected = true;

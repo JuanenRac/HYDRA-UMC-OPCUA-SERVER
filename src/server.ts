@@ -52,7 +52,7 @@ export interface HydraNodeState {
   activeRobotCount: number;
   spindleTempC: number;
   spindleTempUpdatedAtMs: number;
-  // I42: real disconnection tracking, not simulated. true means whatever
+  // real disconnection tracking, not simulated. true means whatever
   // real source feeds spindleTempC is still actively updating it; a real
   // caller sets this to false the moment it detects the source has
   // stopped (a timeout, a closed connection, ...) - see SpindleTemp's
@@ -203,7 +203,7 @@ export async function buildAddressSpaceServer(port: number = DEFAULT_PORT) {
   // reflects when the value actually last changed, not when it was read -
   // real historian semantics, not a stamp that lies about freshness.
   //
-  // I42 ("calidad y tiempo de origen coherentes con la fuente"): quality
+  // ("calidad y tiempo de origen coherentes con la fuente"): quality
   // is likewise mapped from the real observation, not from the fact that
   // a read happened to succeed. A `Good` statusCode paired with a stale
   // sourceTimestamp would let a client compute staleness by hand but
