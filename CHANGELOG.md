@@ -23,6 +23,10 @@ semantic-versioning judgment calls:
 
 ---
 
+## [0.1.5] - Roster end-to-end test
+
+- Added an end-to-end test: a real HTTP server plays HYDRA-UMC-SERVER, the poller reads it, and a real OPC-UA client reads the robot objects, including their removal when the source stops listing them.
+
 ## [0.1.4] - Robot roster source
 
 - When HYDRA_SERVER_URL and HYDRA_SERVER_TOKEN are set, the robot roster is read from HYDRA-UMC-SERVER (controllers[].robots in GET /api/settings) at a configurable interval and kept in the address space. If the source cannot be read, known robots stay listed but are shown offline; polling is off by default.
