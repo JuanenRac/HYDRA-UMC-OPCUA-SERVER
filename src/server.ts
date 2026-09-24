@@ -23,6 +23,7 @@
 import { OPCUAServer, Variant, DataType, DataValue, StatusCodes, MessageSecurityMode, SecurityPolicy, type ISessionContext } from "node-opcua";
 import path from "node:path";
 import { readPackageVersion } from "./version.js";
+import { pollerConfigFromEnv, startRobotPolling } from "./robotSource.js";
 
 // 4840 is the IANA-registered default OPC-UA TCP port, and node-opcua's
 // own default - kept here explicitly (rather than relying on the library
@@ -323,7 +324,12 @@ export interface RobotSnapshot {
 }
 
 async function main() {
-  const { server } = await buildAddressSpaceServer(DEFAULT_PORT);
+  const { server, setRobots } = await buildAddressSpaceServer(DEFAULT_PORT);
+  const source = pollerConfigFromEnv();
+  if (source) {
+    startRobotPolling({ ...source, setRobots });
+    console.log(`[HYDRA-UMC-OPCUA-SERVER] reading the robot roster from ${source.url} every ${source.intervalMs} ms`);
+  }
   const endpointUrl = server.getEndpointUrl();
   console.log("=================================================");
   console.log(` HYDRA-UMC-OPCUA-SERVER v${readPackageVersion()}`);
