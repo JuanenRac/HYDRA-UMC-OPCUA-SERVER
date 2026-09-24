@@ -9,11 +9,9 @@
 // file builds a minimal but real address space - one HydraNode object
 // with a couple of variables - so any OPC-UA client (UAExpert, Ignition,
 // Siemens TIA Portal, ...) can already connect, browse and read something
-// real today. The dynamic per-robot tree described in the README (one
-// object per active robot/tool, generated from HYDRA-UMC-SERVER's own
-// state) gets wired in once that data path is defined - real, honestly
-// deferred future work, same as subscription test coverage and the
-// Pub/Sub roadmap item.
+// real today. The per-robot tree (one Robot_<id> object per robot) is built
+// by the setRobots() function buildAddressSpaceServer() returns, from
+// whatever list the caller hands it.
 //
 // buildAddressSpaceServer() is exported (not just called from main() below)
 // so tests/server.test.ts can start a real OPCUAServer on an ephemeral
@@ -259,9 +257,69 @@ export async function buildAddressSpaceServer(port: number = DEFAULT_PORT) {
   });
   maintenanceMode.isUserWritable = (context: ISessionContext): boolean => context.getUserName() !== "anonymous";
 
+  // One object per robot, built from whatever list the caller hands to
+  // setRobots(). Node ids are derived from the robot id ("s=Robot_<id>"),
+  // so a robot keeps the same path for as long as it exists. A robot that
+  // is no longer in the list has its object and variables removed, and
+  // ActiveRobotCount follows the number of robots reported online.
+  const robotObjects = new Map<string, { object: any; state: RobotSnapshot }>();
+
+  const setRobots = (robots: RobotSnapshot[]): void => {
+    const wanted = new Map<string, RobotSnapshot>();
+    for (const robot of robots) {
+      const key = String(robot.id).replace(/[^A-Za-z0-9_-]/g, "_");
+      if (key !== "") wanted.set(key, robot);
+    }
+    for (const [key, entry] of [...robotObjects]) {
+      if (wanted.has(key)) continue;
+      for (const child of entry.object.getComponents()) addressSpace.deleteNode(child);
+      addressSpace.deleteNode(entry.object);
+      robotObjects.delete(key);
+    }
+    for (const [key, robot] of wanted) {
+      const known = robotObjects.get(key);
+      if (known) {
+        known.state = { ...robot };
+        continue;
+      }
+      const entry = {
+        object: namespace.addObject({
+          organizedBy: addressSpace.rootFolder.objects,
+          browseName: `Robot_${key}`,
+          nodeId: `s=Robot_${key}`,
+        }),
+        state: { ...robot },
+      };
+      namespace.addVariable({
+        componentOf: entry.object,
+        browseName: "Name",
+        nodeId: `s=Robot_${key}.Name`,
+        dataType: "String",
+        value: { get: () => new Variant({ dataType: DataType.String, value: entry.state.name }) },
+      });
+      namespace.addVariable({
+        componentOf: entry.object,
+        browseName: "Online",
+        nodeId: `s=Robot_${key}.Online`,
+        dataType: "Boolean",
+        minimumSamplingInterval: 1000,
+        value: { get: () => new Variant({ dataType: DataType.Boolean, value: entry.state.online }) },
+      });
+      robotObjects.set(key, entry);
+    }
+    state.activeRobotCount = [...robotObjects.values()].filter((e) => e.state.online).length;
+  };
+
   await server.start();
 
-  return { server, state };
+  return { server, state, setRobots };
+}
+
+/** What the address space knows about one robot; fed from the caller's own source. */
+export interface RobotSnapshot {
+  id: string | number;
+  name: string;
+  online: boolean;
 }
 
 async function main() {

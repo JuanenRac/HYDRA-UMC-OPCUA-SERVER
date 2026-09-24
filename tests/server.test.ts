@@ -144,3 +144,42 @@ describe("HYDRA-UMC-OPCUA-SERVER address space (real OPC-UA protocol)", () => {
     expect(state.swarmOnline).toBe(true);
   });
 });
+
+describe("per-robot tree", () => {
+  it("creates, updates and removes robot objects from the list handed to setRobots", async () => {
+    const built = await buildAddressSpaceServer(0);
+    try {
+      const url = built.server.getEndpointUrl();
+      const client = OPCUAClient.create({
+        endpointMustExist: false,
+        securityMode: MessageSecurityMode.SignAndEncrypt,
+        securityPolicy: SecurityPolicy.Basic256Sha256,
+      });
+      await client.connect(url);
+      const session = await client.createSession();
+      try {
+        built.setRobots([
+          { id: 1, name: "Arm", online: true },
+          { id: 2, name: "Mill", online: false },
+        ]);
+        expect(built.state.activeRobotCount).toBe(1);
+        const online = await session.read({ nodeId: "ns=1;s=Robot_1.Online", attributeId: AttributeIds.Value });
+        expect(online.value.value).toBe(true);
+        const name = await session.read({ nodeId: "ns=1;s=Robot_2.Name", attributeId: AttributeIds.Value });
+        expect(name.value.value).toBe("Mill");
+
+        built.setRobots([{ id: 2, name: "Mill", online: true }]);
+        expect(built.state.activeRobotCount).toBe(1);
+        const gone = await session.read({ nodeId: "ns=1;s=Robot_1.Online", attributeId: AttributeIds.Value });
+        expect(gone.statusCode.isGood()).toBe(false);
+        const now = await session.read({ nodeId: "ns=1;s=Robot_2.Online", attributeId: AttributeIds.Value });
+        expect(now.value.value).toBe(true);
+      } finally {
+        await session.close();
+        await client.disconnect();
+      }
+    } finally {
+      await built.server.shutdown();
+    }
+  }, 30000);
+});
