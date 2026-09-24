@@ -23,6 +23,10 @@ semantic-versioning judgment calls:
 
 ---
 
+## [0.1.3] - Per-robot tree
+
+- buildAddressSpaceServer() now also returns setRobots(), which builds one Robot_<id> object per robot (Name, Online), keeps the same path for as long as the robot exists, removes robots that leave the list, and sets ActiveRobotCount to the number of robots online.
+
 ## [0.1.2] - SpindleTemp reports degraded quality after its real source disconnects
 
 SpindleTemp's own `sourceTimestamp` was already real (reflecting the last
