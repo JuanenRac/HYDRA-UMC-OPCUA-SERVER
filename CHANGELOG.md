@@ -23,6 +23,10 @@ semantic-versioning judgment calls:
 
 ---
 
+## [0.1.4] - Robot roster source
+
+- When HYDRA_SERVER_URL and HYDRA_SERVER_TOKEN are set, the robot roster is read from HYDRA-UMC-SERVER (controllers[].robots in GET /api/settings) at a configurable interval and kept in the address space. If the source cannot be read, known robots stay listed but are shown offline; polling is off by default.
+
 ## [0.1.3] - Per-robot tree
 
 - buildAddressSpaceServer() now also returns setRobots(), which builds one Robot_<id> object per robot (Name, Online), keeps the same path for as long as the robot exists, removes robots that leave the list, and sets ActiveRobotCount to the number of robots online.
