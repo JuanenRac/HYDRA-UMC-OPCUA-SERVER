@@ -9,7 +9,7 @@
 ### 🛠️ Mapping of HydraState Objects to Standardized OPC-UA Address Spaces
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Licencia-GPL%203.0-blue.svg" alt="GPL 3.0">
+  <img src="https://img.shields.io/badge/License-GPL%203.0-blue.svg" alt="GPL 3.0">
   <img src="https://img.shields.io/badge/Standard-OPC--UA-orange.svg" alt="OPC-UA">
   <img src="https://img.shields.io/badge/Feature-Address%20Space%20Modeling-blue.svg" alt="Modeling">
 </p>
