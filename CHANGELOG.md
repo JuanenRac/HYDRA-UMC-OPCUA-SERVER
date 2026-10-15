@@ -121,7 +121,7 @@ immediate retry, no code change):
 
 ## [0.0.7] - SecurityPolicy.None was a real, exposed default - now it's genuinely refused
 
-- Found while auditing the code: `buildAddressSpaceServer()`
+- Found on code review: `buildAddressSpaceServer()`
   left `securityPolicies`/`securityModes` unset, so node-opcua fell back
   to its own defaults - which include `MessageSecurityMode.None`, and
   node-opcua always adds a real, unencrypted `SecurityPolicy.None`
@@ -190,8 +190,7 @@ immediate retry, no code change):
 
 ## [0.0.4] - Real read/write authorization on SwarmOnline
 
-- **`SwarmOnline`** (`src/server.ts`) - fixed a real gap found while
-  auditing the code: this variable was still writable by ANY anonymous
+- **`SwarmOnline`** (`src/server.ts`) - fixed a real gap found on code review: this variable was still writable by ANY anonymous
   client, unlike `MaintenanceMode` (added in 0.0.3), which already had a
   real per-session `isUserWritable` check. Closed the same way - an
   anonymous session can read `SwarmOnline` but no longer write it; an
