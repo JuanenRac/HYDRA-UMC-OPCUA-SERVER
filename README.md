@@ -4,7 +4,7 @@
 
 # 🏭 HYDRA-UMC-OPCUA-SERVER
 
-<p align="center">🇺🇸 <b>English</b> | <a href="README_spa.md">🇪🇸 Español</a> | <a href="README_fra.md">🇫🇷 Français</a> | <a href="README_ita.md">🇮🇹 Italiano</a> | <a href="README_deu.md">🇩🇪 Deutsch</a> | <a href="README_zho.md">🇨🇳 简体中文</a> | <a href="README_jpn.md">🇯🇵 日本語</a></p>
+<p align="center">🇺🇸 <b>English</b> | <a href="README_spa.md">🇪🇸 Español</a> | <a href="README_fra.md">🇫🇷 Français</a> | <a href="README_ita.md">🇮🇹 Italiano</a> | <a href="README_deu.md">🇩🇪 Deutsch</a> | <a href="README_zho.md">🇨🇳 简体中文</a> | <a href="README_jpn.md">🇯🇵 日本語</a> | <a href="README_por.md">🇵🇹 Português</a></p>
 
 ### 🛠️ Mapping of HydraState Objects to Standardized OPC-UA Address Spaces
 
@@ -16,7 +16,7 @@
 
 ---
 
-**Honesty check - what actually runs today:** the OPC-UA server and address-space mapping (`src/server.ts`) are real and tested (22 tests passing across `tests/server.test.ts`, `tests/security.test.ts`, `tests/security-policy.test.ts`) - and these are real protocol-level tests: `tests/server.test.ts` connects a real `OPCUAClient` (node-opcua's own client, the same library UAExpert/Ignition would use) over the real binary protocol on a real TCP port, and `tests/security-policy.test.ts` proves an unencrypted `SecurityPolicy.None` session is genuinely refused by default (accepted only via the explicit `OPCUA_ALLOW_INSECURE=1` escape hatch). What is deliberately deferred, not a gap found by accident: the address-space tree is static, built once at startup - a robot added later needs a restart to appear, not a dynamic per-robot tree; only reads/writes are tested end to end so far, not OPC-UA subscriptions; and Pub/Sub (Roadmap Phase 1) remains unimplemented, since no client depends on it yet. See `mejoras_futuras.txt` for the complete list of what's deferred and why, and `CHANGELOG.md` for exactly what has shipped so far.
+**Honesty check - what actually runs today:** the OPC-UA server and address-space mapping (`src/server.ts`) are real and tested (37 tests passing across `tests/server.test.ts`, `tests/security.test.ts`, `tests/security-policy.test.ts`, `tests/robotSource.test.ts`, `tests/robotSource.integration.test.ts`) - and these are real protocol-level tests: `tests/server.test.ts` connects a real `OPCUAClient` (node-opcua's own client, the same library UAExpert/Ignition would use) over the real binary protocol on a real TCP port, and `tests/security-policy.test.ts` proves an unencrypted `SecurityPolicy.None` session is genuinely refused by default (accepted only via the explicit `OPCUA_ALLOW_INSECURE=1` escape hatch). What is deliberately deferred, not a gap found by accident: the per-robot tree (`Robot_<id>`) follows the roster HYDRA-UMC-SERVER reports (polled with a token or an account, see `.env.example`), but the rest of the address space is built once at startup; only reads/writes are tested end to end so far, not OPC-UA subscriptions; and Pub/Sub (Roadmap Phase 1) remains unimplemented, since no client depends on it yet. See `mejoras_futuras.txt` for the complete list of what's deferred and why, and `CHANGELOG.md` for exactly what has shipped so far.
 
 ---
 
@@ -60,7 +60,7 @@ flowchart LR
 * **What happens when `SpindleTemp`'s real source disconnects.** The last real value keeps being served - never withheld, never reset - but its `statusCode` degrades from `Good` to node-opcua's own real, standard `UncertainLastUsableValue` ("Whatever was updating this value has stopped doing so"), and `sourceTimestamp` keeps pointing at the real last-observed instant rather than "now". A correctly authenticated, encrypted session never overrides this - it authenticates the client, not the freshness of the data.
 * **Why write authorization is per-session (`isUserWritable`), not a static access-level flag.** A static `userAccessLevel` can't tell one client's session from another's - it's the same for every connection. Overriding `isUserWritable(context)` on the variable node is node-opcua's own documented mechanism for a check that actually varies per session, real enough to test with two different real client identities.
 
-Deliberately deferred, and why: a dynamic per-robot address-space tree (today's is static, built once at startup - a robot added later needs a restart to appear); real test coverage for OPC-UA subscriptions (only reads/writes are tested end to end so far); and the Pub/Sub roadmap item (still unimplemented - no client depends on it yet).
+Deliberately deferred, and why: a fully dynamic address space (the per-robot tree already follows the roster HYDRA-UMC-SERVER reports; the rest is built once at startup); real test coverage for OPC-UA subscriptions (only reads/writes are tested end to end so far); and the Pub/Sub roadmap item (still unimplemented - no client depends on it yet).
 
 ---
 

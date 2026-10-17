@@ -23,6 +23,13 @@ semantic-versioning judgment calls:
 
 ---
 
+## [0.1.6] - Roster poller can log in, bounded responses
+
+- **The roster poller can log in:** the robot-roster poller only accepted a pasted bearer token, which expires with its session (30 days by default), after which every robot showed offline until someone pasted a new one. It now also takes `HYDRA_SERVER_USER` and `HYDRA_SERVER_PASSWORD`: it logs in with `POST /api/login`, and logs in again, once, when the Server refuses the session (401/403). When a token and an account are both set the token is used first and the account renews it. Checked end to end against a real HYDRA-UMC-SERVER process: with an account the roster was read, without a credential the robots stayed offline.
+- **Bounded responses:** a response from the Server larger than 4 MiB is refused instead of being read whole into memory.
+- **Tests:** new tests cover the login, the second login after a refused session, a refused login (no retry loop), the size cap and the environment configuration, 37 in total.
+- **Docs:** `.env.example` and `docs/OPERATIONS.md` document the roster variables, the README no longer says the per-robot tree needs a restart to follow the roster, the test count is corrected, and a README in Portuguese (`README_por.md`) joins the other translations.
+
 ## [0.1.5] - Roster end-to-end test
 
 - Added an end-to-end test: a real HTTP server plays HYDRA-UMC-SERVER, the poller reads it, and a real OPC-UA client reads the robot objects, including their removal when the source stops listing them.

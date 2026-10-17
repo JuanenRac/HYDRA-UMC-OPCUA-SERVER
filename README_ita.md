@@ -4,7 +4,7 @@
 
 # 🏭 HYDRA-UMC-OPCUA-SERVER
 
-<p align="center"><a href="README.md">🇺🇸 English</a> | <a href="README_spa.md">🇪🇸 Español</a> | <a href="README_fra.md">🇫🇷 Français</a> | 🇮🇹 <b>Italiano</b> | <a href="README_deu.md">🇩🇪 Deutsch</a> | <a href="README_zho.md">🇨🇳 简体中文</a> | <a href="README_jpn.md">🇯🇵 日本語</a></p>
+<p align="center"><a href="README.md">🇺🇸 English</a> | <a href="README_spa.md">🇪🇸 Español</a> | <a href="README_fra.md">🇫🇷 Français</a> | 🇮🇹 <b>Italiano</b> | <a href="README_deu.md">🇩🇪 Deutsch</a> | <a href="README_zho.md">🇨🇳 简体中文</a> | <a href="README_jpn.md">🇯🇵 日本語</a> | <a href="README_por.md">🇵🇹 Português</a></p>
 
 ### 🛠️ Mappatura degli oggetti HydraState su spazi di indirizzamento OPC-UA standardizzati
 
@@ -16,7 +16,7 @@
 
 ---
 
-**Controllo di onestà - cosa funziona davvero oggi:** il server OPC-UA e la mappatura dello spazio degli indirizzi (`src/server.ts`) sono reali e testati (22 test superati tra `tests/server.test.ts`, `tests/security.test.ts`, `tests/security-policy.test.ts`) - e sono veri test a livello di protocollo: `tests/server.test.ts` collega un vero `OPCUAClient` (il client stesso di node-opcua, la stessa libreria che userebbero UAExpert/Ignition) sul vero protocollo binario su una vera porta TCP, e `tests/security-policy.test.ts` dimostra che una sessione non cifrata `SecurityPolicy.None` viene genuinamente rifiutata di default (accettata solo tramite la via di fuga esplicita `OPCUA_ALLOW_INSECURE=1`). Ciò che è deliberatamente rimandato, non una lacuna trovata per caso: l'albero dello spazio degli indirizzi è statico, costruito una sola volta all'avvio - un robot aggiunto in seguito richiede un riavvio per apparire, non un albero dinamico per robot; finora sono testate end-to-end solo le letture/scritture, non le subscription OPC-UA; e il Pub/Sub (Fase 1 della Roadmap) resta non implementato, poiché nessun client ne dipende ancora. Vedi `mejoras_futuras.txt` per l'elenco completo di ciò che è rimandato e perché, e `CHANGELOG.md` per ciò che è stato consegnato esattamente finora.
+**Controllo di onestà - cosa funziona davvero oggi:** il server OPC-UA e la mappatura dello spazio degli indirizzi (`src/server.ts`) sono reali e testati (37 test superati tra `tests/server.test.ts`, `tests/security.test.ts`, `tests/security-policy.test.ts`, `tests/robotSource.test.ts`, `tests/robotSource.integration.test.ts`) - e sono veri test a livello di protocollo: `tests/server.test.ts` collega un vero `OPCUAClient` (il client stesso di node-opcua, la stessa libreria che userebbero UAExpert/Ignition) sul vero protocollo binario su una vera porta TCP, e `tests/security-policy.test.ts` dimostra che una sessione non cifrata `SecurityPolicy.None` viene genuinamente rifiutata di default (accettata solo tramite la via di fuga esplicita `OPCUA_ALLOW_INSECURE=1`). Ciò che è deliberatamente rimandato, non una lacuna trovata per caso: l'albero per robot (`Robot_<id>`) segue l'elenco riportato da HYDRA-UMC-SERVER (interrogato con un token o un account, vedi `.env.example`), ma il resto dello spazio degli indirizzi è costruito una sola volta all'avvio; finora sono testate end-to-end solo le letture/scritture, non le subscription OPC-UA; e il Pub/Sub (Fase 1 della Roadmap) resta non implementato, poiché nessun client ne dipende ancora. Vedi `mejoras_futuras.txt` per l'elenco completo di ciò che è rimandato e perché, e `CHANGELOG.md` per ciò che è stato consegnato esattamente finora.
 
 ---
 
@@ -60,7 +60,7 @@ flowchart LR
 * **Cosa succede quando la vera fonte di `SpindleTemp` si disconnette.** L'ultimo valore reale continua a essere servito - mai nascosto, mai azzerato - ma il suo `statusCode` degrada da `Good` al codice reale e standard di node-opcua `UncertainLastUsableValue` ("Whatever was updating this value has stopped doing so"), e `sourceTimestamp` continua a puntare al reale ultimo istante osservato, non a "adesso". Una sessione correttamente autenticata e cifrata non cambia mai questo - autentica il client, non la freschezza del dato.
 * **Perché l'autorizzazione di scrittura è per sessione (`isUserWritable`), non un flag statico di livello di accesso.** Un `userAccessLevel` statico non può distinguere la sessione di un client da quella di un altro - è lo stesso per ogni connessione. Sovrascrivere `isUserWritable(context)` sul nodo variabile è il meccanismo proprio e documentato di node-opcua per un controllo che varia realmente per sessione, abbastanza reale da poter essere testato con due identità client reali diverse.
 
-Deliberatamente rimandato, e perché: un albero di address-space dinamico per robot (quello odierno è statico, costruito una sola volta all'avvio - un robot aggiunto in seguito richiede un riavvio per comparire); una reale copertura di test per le sottoscrizioni OPC-UA (finora sono testate end-to-end solo letture/scritture); e il punto Pub/Sub della roadmap (ancora non implementato - nessun client ne dipende per ora).
+Deliberatamente rimandato, e perché: uno spazio degli indirizzi completamente dinamico (l'albero per robot segue già l'elenco riportato da HYDRA-UMC-SERVER; il resto è costruito una sola volta all'avvio); una reale copertura di test per le sottoscrizioni OPC-UA (finora sono testate end-to-end solo letture/scritture); e il punto Pub/Sub della roadmap (ancora non implementato - nessun client ne dipende per ora).
 
 ---
 
