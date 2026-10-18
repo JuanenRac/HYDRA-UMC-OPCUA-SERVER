@@ -17,6 +17,10 @@ something is not implemented it says so.
 | `PORT` | OPC-UA TCP port (1-65535, otherwise startup fails) | `4840` |
 | `OPCUA_ADMIN_USERNAME` / `OPCUA_ADMIN_PASSWORD` | The one authenticated account | unset = **no one can log in** |
 | `OPCUA_ALLOW_INSECURE` | `1` also exposes an unencrypted `SecurityPolicy.None` endpoint | off |
+| `OPCUA_AUTO_ACCEPT` | `1` accepts the application certificate of any client that connects (lab use). User certificates are never auto-accepted | off: unknown clients wait in `rejected/` until you trust them |
+| `OPCUA_PKI_DIR` | Directory of the certificate stores (`PKI/` and `UserPKI/` below it). Put it on a persistent volume | the library's per-user default location |
+| `OPCUA_ALTERNATE_HOSTNAME` | Extra host name the server certificate and the advertised endpoints use (the name your SCADA resolves) | the machine's host name |
+| `OPCUA_LOGIN_MAX_FAILURES` | Failed logins allowed per minute before every login is refused until the minute passes | `10` |
 | `HYDRA_SERVER_URL` + (`HYDRA_SERVER_TOKEN` or `HYDRA_SERVER_USER` + `HYDRA_SERVER_PASSWORD`) | Read the robot roster from HYDRA-UMC-SERVER (`GET /api/settings`, which only a logged-in account may read) and keep one `Robot_<id>` object per robot. An account is logged in with `POST /api/login` and logged in again, once, when the session is refused; a token expires with its session. A response over 4 MiB is refused | off |
 | `HYDRA_SERVER_POLL_MS` | Roster polling interval in milliseconds (at least 1000) | `5000` |
 
@@ -33,21 +37,35 @@ systemd, Docker or the shell. Never commit credentials.
   meant for a local smoke test - never for a real deployment.
 - **Anonymous is read-only.** Every client that does not log in is
   `anonymous` and can browse and read.
-- **One write role.** With the admin credentials set, a logged-in session may
-  write `SwarmOnline` and `MaintenanceMode`. With them unset, nobody can.
+- **One write role.** Only a session that logged in with the administrator's
+  user name and password (`OPCUA_ADMIN_USERNAME` / `OPCUA_ADMIN_PASSWORD`) may
+  write `SwarmOnline` and `MaintenanceMode`. A session whose identity is a
+  certificate can never write, whoever signed it; a user certificate is also
+  refused at login unless you put it in `UserPKI/trusted/certs/`. With the
+  credentials unset, nobody can write.
+- **Logins are bounded.** The password is compared in constant time, and after
+  `OPCUA_LOGIN_MAX_FAILURES` failures in a minute every login is refused until
+  that minute passes (an attacker can therefore also keep the administrator out
+  for as long as the attack lasts).
 - **No dangerous writes are published.** The only writable nodes are those
-  two Booleans; there is no actuator, setpoint or command node.
+  two Booleans, and writing them changes a value held in this process only: it
+  is not sent to HYDRA-UMC-SERVER and does not inhibit any robot or job. There
+  is no actuator, setpoint or command node.
 
 ## Certificates
 
-node-opcua generates and manages the server's own application certificate
-in its default PKI store on first start. Clients must trust it (and the
-server must trust each client's certificate) before a `Sign`/`SignAndEncrypt`
-session opens; the exact trust step depends on your client (UAExpert,
-Ignition, TIA Portal ...). Certificate rotation and a managed PKI location
-are not configured by this project - if you deploy it, keep the PKI
-directory on persistent storage or every restart will present a new
-identity to your clients.
+node-opcua generates the server's own application certificate on first start,
+in the PKI store (`OPCUA_PKI_DIR`, on persistent storage in a deployment, or
+every restart presents a new identity to your clients).
+
+The server **does not trust a client by itself**: the first time a client
+connects, its application certificate lands in `PKI/rejected/`, and the
+connection is refused. Move that file to `PKI/trusted/certs/` (or set
+`OPCUA_AUTO_ACCEPT=1` in a lab) and connect again. Clients must in turn trust
+the server's certificate; the exact step depends on your client (UAExpert,
+Ignition, TIA Portal ...). The stores for user certificates (`UserPKI/`) never
+auto-accept, whatever `OPCUA_AUTO_ACCEPT` says. Certificate rotation is not
+managed by this project.
 
 ## Address space
 
@@ -59,14 +77,18 @@ namespace version changes only on a breaking change to this shape.
 | --- | --- | --- | --- |
 | `s=HydraNode_1` | Object | - | Root object |
 | `s=HydraNode_1.SwarmOnline` | Boolean | read; write authenticated | |
-| `s=HydraNode_1.ActiveRobotCount` | UInt32 | read | |
-| `s=HydraNode_1.SpindleTemp` | Double (°C, range -20..150) | read | Real source timestamp; quality drops to `UncertainLastUsableValue` when the source stops updating - the last value stays readable |
+| `s=HydraNode_1.ActiveRobotCount` | UInt32 | read | Robots of the roster whose `online` flag is true |
+| `s=HydraNode_1.SpindleTemp` | Double (°C, range -20..150) | read | `BadWaitingForInitialData` until a real source reports a value (nothing feeds it today); then a real source timestamp, and quality drops to `UncertainLastUsableValue` when the source stops updating - the last value stays readable |
+| `s=Robot_<id>` | Object | - | One per robot of the roster, with `Name` (String) and `Online` (Boolean), both read-only. An id with characters outside letters, digits, `_` and `-` gets them replaced and a short hash appended |
 | `s=HydraNode_1.MaintenanceMode` | Boolean | read; write authenticated | |
 
-Honest limits: this is a fixed placeholder tree. The per-robot tree
-generated from HYDRA-UMC-SERVER's live state is not wired up yet, and no
-process feeds `SpindleTemp` or `ActiveRobotCount` on its own - they change
-only when code mutates the server's state object.
+Honest limits: with `HYDRA_SERVER_URL` set, `SwarmOnline` is true only while
+the last read of HYDRA-UMC-SERVER worked; without it, it is a plain flag.
+`Online` (and so `ActiveRobotCount`) is the `online` flag HYDRA-UMC-SERVER keeps
+for each robot, the one the operator interface toggles: it says the robot is
+enabled there, not that its controller answered. Nothing feeds `SpindleTemp`.
+There are no companion-specification types (OPC UA Robotics / DI) yet; the
+robots hang from the Objects folder.
 
 ## Reconnection and subscriptions
 
@@ -87,6 +109,7 @@ running container.
 | Symptom | Likely cause |
 | --- | --- |
 | Client cannot connect | Certificate not trusted on one side, or a security mode/policy the client does not support |
-| Login refused | `OPCUA_ADMIN_*` not set, or wrong credentials |
-| Write refused | Session is anonymous |
+| Client cannot connect, certificate in `PKI/rejected/` | Trust it: move it to `PKI/trusted/certs/` (or `OPCUA_AUTO_ACCEPT=1` in a lab) |
+| Login refused | `OPCUA_ADMIN_*` not set, wrong credentials, or too many failed logins in the last minute |
+| Write refused | Session is anonymous or certificate-based, not the administrator's user name and password |
 | `PORT must be an integer` at startup | Invalid `PORT` value |

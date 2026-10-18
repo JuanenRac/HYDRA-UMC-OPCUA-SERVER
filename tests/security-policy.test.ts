@@ -20,6 +20,9 @@ import { MessageSecurityMode, OPCUAClient, SecurityPolicy } from "node-opcua";
 import type { OPCUAServer } from "node-opcua";
 import { buildAddressSpaceServer } from "../src/server.js";
 
+// These tests open secure channels with throw-away client certificates: accept them (a lab setting).
+process.env.OPCUA_AUTO_ACCEPT = "1";
+
 let server: OPCUAServer | undefined;
 
 afterEach(async () => {

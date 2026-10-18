@@ -13,6 +13,9 @@ import { AttributeIds, MessageSecurityMode, OPCUAClient, SecurityPolicy } from "
 import { buildAddressSpaceServer } from "../src/server.js";
 import { startRobotPolling } from "../src/robotSource.js";
 
+// These tests open secure channels with throw-away client certificates: accept them (a lab setting).
+process.env.OPCUA_AUTO_ACCEPT = "1";
+
 const TOKEN = "integration-token";
 let roster: unknown = { controllers: [{ robots: [{ id: 7, name: "Arm", online: true }] }] };
 let upstream: http.Server;

@@ -23,6 +23,17 @@ semantic-versioning judgment calls:
 
 ---
 
+## [0.1.7] - Only the administrator can write; the server no longer trusts every client
+
+- **A certificate can no longer write.** Write access was granted to any session whose user name was not "anonymous", and for a session that identifies itself with a certificate the user name is the certificate's common name, so any client with a self-signed certificate could change `MaintenanceMode` and `SwarmOnline` even with no administrator configured. Only a session that logged in with the administrator's user name and password may write now, and the store of user certificates never accepts an unknown certificate. Regression tests present a certificate as the user identity, trusted and untrusted, and confirm nothing is written.
+- **The secure channel no longer trusts every client.** Unknown client certificates were accepted automatically, so signing and encryption did not authenticate anybody. They now wait in `PKI/rejected/` until an operator moves them to `PKI/trusted/certs/`; `OPCUA_AUTO_ACCEPT=1` restores the old behaviour for a lab. `OPCUA_PKI_DIR` puts the stores on a persistent volume, so a recreated container keeps its certificate, and `OPCUA_ALTERNATE_HOSTNAME` sets the host name clients should use.
+- **No invented data.** `SpindleTemp` used to be served as 22 degrees with Good quality although nothing measures it; it is `BadWaitingForInitialData` until a real source reports a value. With `HYDRA_SERVER_URL` set, `SwarmOnline` is true only while the last read of HYDRA-UMC-SERVER worked.
+- **Logins are bounded:** the password is compared in constant time and, after `OPCUA_LOGIN_MAX_FAILURES` (default 10) failures in a minute, logins are refused until the minute passes.
+- **Robot nodes:** ids that differ only in characters that are not valid in a node name (`a.b` and `a_b`) no longer share a node; the roster poller keeps a path prefix in `HYDRA_SERVER_URL`, never runs two polls at once, and stops reading a response at 4 MiB counting bytes instead of characters.
+- The server closes its sessions on `SIGTERM`/`SIGINT`; an invalid `PORT` no longer breaks importing the module; the version is read once and also found when the process starts from another directory; the tests are type-checked.
+- **Container:** the image runs as an unprivileged user, keeps the certificate stores in a volume, checks its own port, installs from the lockfile and builds on Node 24.
+- Documentation: the README no longer promises joint or effector control or a build that bumps the version, the operations guide describes the real security model and the certificate trust step, and the example environment file documents the new settings. 53 tests.
+
 ## [0.1.6] - Roster poller can log in, bounded responses
 
 - **The roster poller can log in:** the robot-roster poller only accepted a pasted bearer token, which expires with its session (30 days by default), after which every robot showed offline until someone pasted a new one. It now also takes `HYDRA_SERVER_USER` and `HYDRA_SERVER_PASSWORD`: it logs in with `POST /api/login`, and logs in again, once, when the Server refuses the session (401/403). When a token and an account are both set the token is used first and the account renews it. Checked end to end against a real HYDRA-UMC-SERVER process: with an account the roster was read, without a credential the robots stayed offline.

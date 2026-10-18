@@ -39,12 +39,31 @@ export function extractRobots(settings: unknown): RobotSnapshot[] {
 /** Largest response read from HYDRA-UMC-SERVER; a bigger one is refused. */
 const MAX_RESPONSE_BYTES = 4 * 1024 * 1024;
 
-async function readJsonCapped(response: Response): Promise<unknown> {
+/** Reads the body as it arrives and stops at the limit, counting bytes, so an endless or huge body is never held in memory. */
+export async function readJsonCapped(response: Response, maxBytes: number = MAX_RESPONSE_BYTES): Promise<unknown> {
   const declared = Number(response.headers.get("content-length"));
-  if (Number.isFinite(declared) && declared > MAX_RESPONSE_BYTES) throw new Error(`response larger than ${MAX_RESPONSE_BYTES} bytes`);
-  const text = await response.text();
-  if (text.length > MAX_RESPONSE_BYTES) throw new Error(`response larger than ${MAX_RESPONSE_BYTES} bytes`);
-  return JSON.parse(text);
+  if (Number.isFinite(declared) && declared > maxBytes) throw new Error(`response larger than ${maxBytes} bytes`);
+  if (!response.body) return JSON.parse(await response.text());
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let received = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    received += value.byteLength;
+    if (received > maxBytes) {
+      await reader.cancel().catch(() => undefined);
+      throw new Error(`response larger than ${maxBytes} bytes`);
+    }
+    chunks.push(value);
+  }
+  return JSON.parse(Buffer.concat(chunks).toString("utf-8"));
+}
+
+/** The URL of an API path under the configured base, keeping any path prefix of the base (http://host/hydra/ + api/settings). */
+export function apiUrl(base: string, apiPath: string): URL {
+  const withSlash = base.endsWith("/") ? base : `${base}/`;
+  return new URL(apiPath.replace(/^\/+/, ""), withSlash);
 }
 
 export interface RobotPollerOptions {
@@ -56,6 +75,8 @@ export interface RobotPollerOptions {
   password?: string;
   intervalMs: number;
   setRobots: (robots: RobotSnapshot[]) => void;
+  /** Called after every poll with whether the source could be read, so the address space can report the swarm as offline when it cannot. */
+  onSourceStatus?: (readable: boolean) => void;
   fetchImpl?: typeof fetch;
 }
 
@@ -67,9 +88,10 @@ export function startRobotPolling(options: RobotPollerOptions): () => void {
   let sessionToken = options.token;
   let known: RobotSnapshot[] = [];
   let stopped = false;
+  let inFlight = false;
 
   const login = async (): Promise<void> => {
-    const response = await doFetch(new URL("/api/login", url), {
+    const response = await doFetch(apiUrl(url, "/api/login"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username, password }),
@@ -82,7 +104,7 @@ export function startRobotPolling(options: RobotPollerOptions): () => void {
   };
 
   const getSettings = (): Promise<Response> =>
-    doFetch(new URL("/api/settings", url), {
+    doFetch(apiUrl(url, "/api/settings"), {
       headers: sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {},
       signal: AbortSignal.timeout(Math.max(1000, intervalMs)),
     });
@@ -100,16 +122,29 @@ export function startRobotPolling(options: RobotPollerOptions): () => void {
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       known = extractRobots(await readJsonCapped(response));
       setRobots(known);
+      options.onSourceStatus?.(true);
     } catch (error) {
       console.warn(`[HYDRA-UMC-OPCUA-SERVER] robot source unavailable: ${error instanceof Error ? error.message : String(error)}`);
       known = known.map((robot) => ({ ...robot, online: false }));
       setRobots(known);
+      options.onSourceStatus?.(false);
     }
   };
 
-  void pollOnce();
+  // A poll that is still running when the next tick arrives is not started a second time: an old answer arriving late could overwrite a newer one.
+  const pollGuarded = async (): Promise<void> => {
+    if (inFlight || stopped) return;
+    inFlight = true;
+    try {
+      await pollOnce();
+    } finally {
+      inFlight = false;
+    }
+  };
+
+  void pollGuarded();
   const timer = setInterval(() => {
-    if (!stopped) void pollOnce();
+    void pollGuarded();
   }, intervalMs);
   timer.unref?.();
   return () => {

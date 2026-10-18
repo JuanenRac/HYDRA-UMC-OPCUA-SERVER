@@ -13,11 +13,30 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 
+let cachedVersion: string | null = null;
+
+/** package.json next to the working directory, or one level above the entry file (dist/server.cjs), so the version is right whichever directory the process was started from. */
+function candidatePaths(): string[] {
+  const candidates = [path.join(process.cwd(), "package.json")];
+  const entry = process.argv[1];
+  if (entry) candidates.push(path.join(path.dirname(path.resolve(entry)), "..", "package.json"));
+  return candidates;
+}
+
+/** Read once and cached: /health and /status are polled, and the version cannot change while the process runs. */
 export function readPackageVersion(): string {
-  try {
-    const raw = readFileSync(path.join(process.cwd(), "package.json"), "utf-8");
-    return JSON.parse(raw).version || "0.0.0";
-  } catch {
-    return "0.0.0";
+  if (cachedVersion !== null) return cachedVersion;
+  for (const candidate of candidatePaths()) {
+    try {
+      const version = JSON.parse(readFileSync(candidate, "utf-8")).version;
+      if (typeof version === "string" && version) {
+        cachedVersion = version;
+        return version;
+      }
+    } catch {
+      // try the next candidate
+    }
   }
+  cachedVersion = "0.0.0";
+  return cachedVersion;
 }

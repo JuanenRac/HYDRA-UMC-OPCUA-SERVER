@@ -9,16 +9,14 @@ module-level comment in src/server.ts each state their own short version
 of the relevant reason directly inline, so neither depends on this file
 to make sense on its own - this is the one place the full list lives.
 
-1. Dynamic, per-robot address-space tree
-   --------------------------------------
-   src/server.ts builds one fixed HydraNode object with a handful of
-   variables (SwarmOnline, ActiveRobotCount, SpindleTemp, MaintenanceMode).
-   The README's eventual goal - one OPC-UA object per active robot/tool,
-   generated from HYDRA-UMC-SERVER's own live state - needs that data path
-   defined on the HYDRA-UMC-SERVER side first. Proving one real, browsable,
-   read/write-authorized node tree over the real binary protocol came
-   first; making the tree shape dynamic is separate, additive work on top
-   of address-space code that is already known to behave correctly.
+1. Per-robot address-space tree: done for the roster, not for tools
+   -----------------------------------------------------------------
+   src/server.ts builds one HydraNode object with a handful of variables
+   (SwarmOnline, ActiveRobotCount, SpindleTemp, MaintenanceMode) and, with
+   HYDRA_SERVER_URL set, one Robot_<id> object per robot of the roster that
+   HYDRA-UMC-SERVER reports (Name and Online). Still missing: objects for
+   tools, typed objects (ObjectTypes / the OPC UA Robotics companion) and a
+   liveness signal better than the `online` flag of the operator interface.
 
 2. RESOLVED - SecurityPolicy.None was a real, exposed default, not just untested
    ------------------------------------------------------------------------------

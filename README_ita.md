@@ -16,7 +16,7 @@
 
 ---
 
-**Controllo di onestà - cosa funziona davvero oggi:** il server OPC-UA e la mappatura dello spazio degli indirizzi (`src/server.ts`) sono reali e testati (37 test superati tra `tests/server.test.ts`, `tests/security.test.ts`, `tests/security-policy.test.ts`, `tests/robotSource.test.ts`, `tests/robotSource.integration.test.ts`) - e sono veri test a livello di protocollo: `tests/server.test.ts` collega un vero `OPCUAClient` (il client stesso di node-opcua, la stessa libreria che userebbero UAExpert/Ignition) sul vero protocollo binario su una vera porta TCP, e `tests/security-policy.test.ts` dimostra che una sessione non cifrata `SecurityPolicy.None` viene genuinamente rifiutata di default (accettata solo tramite la via di fuga esplicita `OPCUA_ALLOW_INSECURE=1`). Ciò che è deliberatamente rimandato, non una lacuna trovata per caso: l'albero per robot (`Robot_<id>`) segue l'elenco riportato da HYDRA-UMC-SERVER (interrogato con un token o un account, vedi `.env.example`), ma il resto dello spazio degli indirizzi è costruito una sola volta all'avvio; finora sono testate end-to-end solo le letture/scritture, non le subscription OPC-UA; e il Pub/Sub (Fase 1 della Roadmap) resta non implementato, poiché nessun client ne dipende ancora. Vedi `mejoras_futuras.txt` per l'elenco completo di ciò che è rimandato e perché, e `CHANGELOG.md` per ciò che è stato consegnato esattamente finora.
+**Controllo di onestà - cosa funziona davvero oggi:** il server OPC-UA e la mappatura dello spazio degli indirizzi (`src/server.ts`) sono reali e testati (53 test superati tra `tests/server.test.ts`, `tests/security.test.ts`, `tests/security-policy.test.ts`, `tests/robotSource.test.ts`, `tests/robotSource.integration.test.ts`) - e sono veri test a livello di protocollo: `tests/server.test.ts` collega un vero `OPCUAClient` (il client stesso di node-opcua, la stessa libreria che userebbero UAExpert/Ignition) sul vero protocollo binario su una vera porta TCP, e `tests/security-policy.test.ts` dimostra che una sessione non cifrata `SecurityPolicy.None` viene genuinamente rifiutata di default (accettata solo tramite la via di fuga esplicita `OPCUA_ALLOW_INSECURE=1`). Ciò che è deliberatamente rimandato, non una lacuna trovata per caso: l'albero per robot (`Robot_<id>`) segue l'elenco riportato da HYDRA-UMC-SERVER (interrogato con un token o un account, vedi `.env.example`), ma il resto dello spazio degli indirizzi è costruito una sola volta all'avvio; finora sono testate end-to-end solo le letture/scritture, non le subscription OPC-UA; e il Pub/Sub (Fase 1 della Roadmap) resta non implementato, poiché nessun client ne dipende ancora. Vedi `mejoras_futuras.txt` per l'elenco completo di ciò che è rimandato e perché, e `CHANGELOG.md` per ciò che è stato consegnato esattamente finora.
 
 ---
 
@@ -28,7 +28,7 @@ Consente ai software di automazione industriale (come Ignition, Siemens TIA Port
 
 ### Caratteristiche principali:
 * 🛠️ **Modellazione dinamica delle informazioni:** Genera automaticamente l'albero OPC-UA in base ai robot e agli strumenti attivi.
-* 🔄 **Accesso in lettura/scrittura:** Controllo sicuro dei giunti e degli effettori robotici dai client PLC.
+* 🔄 **Elenco dei robot e due indicatori:** l'elenco dei robot (oggetti `Robot_<id>` con `Name` e `Online`) è di sola lettura; `SwarmOnline` e `MaintenanceMode` sono le uniche variabili scrivibili, e solo per l'amministratore autenticato. Nessun nodo comanda un giunto o un effettore.
 * 🔖 **Namespace Versionato e NodeId Stabili:** Un URI di namespace reale ed esplicito, e NodeId di tipo stringa espliciti - un aggiornamento dell'address space non può cambiare silenziosamente il percorso da cui dipende un client. *(implementato)*
 * 🔐 **Autorizzazione di Scrittura per Sessione:** Un controllo reale e dinamico che distingue una sessione anonima da una autenticata - non tutti i client ottengono l'accesso in scrittura per impostazione predefinita. *(implementato)*
 * 📡 **Supporto alle sottoscrizioni:** Aggiornamenti dei dati ad alta efficienza utilizzando i meccanismi publish-subscribe di OPC-UA.
@@ -52,7 +52,6 @@ flowchart LR
 
 * **Perché è fratello, non un sottomodulo, di HYDRA-UMC-GATEWAY-INDUSTRIAL.** Ogni adattatore di protocollo è un processo distribuibile/riavviabile separatamente - un problema nella libreria client OPC-UA non abbatte mai gli adattatori MQTT o MTConnect che girano accanto.
 * **Perché un address space OPC-UA, non un semplice passthrough REST.** I client OPC-UA (SCADA/storici) si aspettano un vero address space navigabile con nodi tipizzati - un passthrough REST piatto esporrebbe tecnicamente i dati ma vanificherebbe il senso di parlare OPC-UA.
-* **Perché il punto di ingresso stampa solo identità/versione, e termina dopo che un listener di health-check si avvia.** Fase di andamiaje, stesso motivo del README proprio del genitore - un vero gateway è di lunga durata per natura, quindi dimostrare che il processo resta attivo è il vero primo traguardo.
 * **Come si inserisce nel resto dell'ecosistema.** Un servizio fratello sotto HYDRA-UMC-GATEWAY-INDUSTRIAL - traduce lo stato proprio di HYDRA-UMC-SERVER in un vero address space OPC-UA.
 * **Test reali a livello di protocollo, non solo un controllo di compilazione.** `tests/server.test.ts` connette un `OPCUAClient` reale (il client proprio di node-opcua, la stessa libreria che userebbero UAExpert/Ignition) a un `OPCUAServer` reale tramite il vero protocollo binario su una porta TCP reale - aprendo una sessione, navigando/leggendo `SwarmOnline`/`ActiveRobotCount` per percorso, e confermando che una scrittura emessa dal client si riflette sia nel valore riletto sia nello stato interno del server.
 * **Perché NodeId di tipo stringa espliciti, non quelli numerici auto-assegnati di node-opcua.** Un NodeId numerico viene assegnato in base all'ordine di creazione - inserire un nuovo DataItem prima di uno esistente nel codice lo rinumererebbe silenziosamente, rompendo qualsiasi client industriale che avesse il vecchio numero hardcoded. Un NodeId esplicito in stile `s=HydraNode_1.SwarmOnline` non può mai spostarsi sotto un client solo perché il codice dell'address space ha cambiato forma.
@@ -70,7 +69,7 @@ Deliberatamente rimandato, e perché: uno spazio degli indirizzi completamente d
 HYDRA-UMC-OPCUA-SERVER/
 ├── src/         # Codice sorgente (Node/TypeScript - Modello, Server, Mapper)
 ├── tests/       # Suite Vitest - comportamento di server e sicurezza
-├── build/       # Output compilato (npm run build)
+├── dist/       # Output compilato (npm run build)
 ├── images/      # Media e diagrammi
 ├── scripts/     # Script di utilità (bump-version.mjs)
 ├── tools/       # ci_validate.py - validazione manifest/CHANGELOG/docs usata dalla CI
@@ -86,7 +85,7 @@ e `os/` sono omesse secondo la politica della struttura del repository.
 ## 🛠️ AMBIENTE DI SVILUPPO
 
 ### Requisiti
-- [Node.js](https://nodejs.org/) (v18 o superiore consigliato)
+- [Node.js](https://nodejs.org/) (v20 o superiore consigliato)
 - npm
 
 ### Installazione
@@ -116,11 +115,7 @@ OPC-UA (UAExpert, Ignition, Siemens TIA Portal, ...) per esplorare lo
 spazio di indirizzamento.
 
 ### Versionamento
-Ogni `npm run build` reale incrementa automaticamente il `version` di
-`package.json` (`scripts/bump-version.mjs`, primo passo dello script
-`build`) - un "contachilometri" in base 10: patch +1 per build, con
-riporto a minor (e da minor a major) oltre il 9 invece di raggiungere mai
-un segmento a due cifre (`0.0.9` -> `0.1.0`, non `0.0.10`).
+`npm run build` si limita a impacchettare il server. La versione viene incrementata da `build.sh` / `build.bat` (tramite `bump_manifest_version.py`), un "contachilometri" in base 10: patch +1 per build, con riporto su minor (e da minor a major) dopo 9 invece di raggiungere un segmento a due cifre (`0.0.9` -> `0.1.0`, non `0.0.10`).
 
 ---
 

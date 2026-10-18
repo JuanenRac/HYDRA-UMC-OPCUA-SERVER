@@ -16,7 +16,7 @@
 
 ---
 
-**Vérification d'honnêteté - ce qui fonctionne réellement aujourd'hui :** le serveur OPC-UA et le mappage de l'espace d'adressage (`src/server.ts`) sont réels et testés (37 tests passants entre `tests/server.test.ts`, `tests/security.test.ts`, `tests/security-policy.test.ts`, `tests/robotSource.test.ts`, `tests/robotSource.integration.test.ts`) - et ce sont de vrais tests au niveau du protocole : `tests/server.test.ts` connecte un vrai `OPCUAClient` (le propre client de node-opcua, la même bibliothèque qu'utiliseraient UAExpert/Ignition) via le vrai protocole binaire sur un vrai port TCP, et `tests/security-policy.test.ts` prouve qu'une session non chiffrée `SecurityPolicy.None` est authentiquement refusée par défaut (acceptée uniquement via l'échappatoire explicite `OPCUA_ALLOW_INSECURE=1`). Ce qui est délibérément différé, pas une lacune trouvée par accident : l'arbre par robot (`Robot_<id>`) suit la liste que rapporte HYDRA-UMC-SERVER (interrogée avec un jeton ou un compte, voir `.env.example`), mais le reste de l'espace d'adressage est construit une seule fois au démarrage ; seules les lectures/écritures sont testées de bout en bout pour l'instant, pas les abonnements OPC-UA ; et le Pub/Sub (Phase 1 de la feuille de route) reste non implémenté, car aucun client n'en dépend encore. Voir `mejoras_futuras.txt` pour la liste complète de ce qui est différé et pourquoi, et `CHANGELOG.md` pour ce qui a été livré exactement jusqu'à présent.
+**Vérification d'honnêteté - ce qui fonctionne réellement aujourd'hui :** le serveur OPC-UA et le mappage de l'espace d'adressage (`src/server.ts`) sont réels et testés (53 tests passants entre `tests/server.test.ts`, `tests/security.test.ts`, `tests/security-policy.test.ts`, `tests/robotSource.test.ts`, `tests/robotSource.integration.test.ts`) - et ce sont de vrais tests au niveau du protocole : `tests/server.test.ts` connecte un vrai `OPCUAClient` (le propre client de node-opcua, la même bibliothèque qu'utiliseraient UAExpert/Ignition) via le vrai protocole binaire sur un vrai port TCP, et `tests/security-policy.test.ts` prouve qu'une session non chiffrée `SecurityPolicy.None` est authentiquement refusée par défaut (acceptée uniquement via l'échappatoire explicite `OPCUA_ALLOW_INSECURE=1`). Ce qui est délibérément différé, pas une lacune trouvée par accident : l'arbre par robot (`Robot_<id>`) suit la liste que rapporte HYDRA-UMC-SERVER (interrogée avec un jeton ou un compte, voir `.env.example`), mais le reste de l'espace d'adressage est construit une seule fois au démarrage ; seules les lectures/écritures sont testées de bout en bout pour l'instant, pas les abonnements OPC-UA ; et le Pub/Sub (Phase 1 de la feuille de route) reste non implémenté, car aucun client n'en dépend encore. Voir `mejoras_futuras.txt` pour la liste complète de ce qui est différé et pourquoi, et `CHANGELOG.md` pour ce qui a été livré exactement jusqu'à présent.
 
 ---
 
@@ -28,7 +28,7 @@ Il permet aux logiciels d'automatisation industrielle (comme Ignition, Siemens T
 
 ### Caractéristiques principales :
 * 🛠️ **Modélisation dynamique des informations :** Génère automatiquement l'arborescence OPC-UA en fonction des robots et des outils actifs.
-* 🔄 **Accès en lecture/écriture :** Contrôle sécurisé des articulations et des effecteurs robotiques à partir des clients PLC.
+* 🔄 **Liste des robots et deux indicateurs :** la liste des robots (objets `Robot_<id>` avec `Name` et `Online`) est en lecture seule ; `SwarmOnline` et `MaintenanceMode` sont les seules variables inscriptibles, et seulement pour l'administrateur authentifié. Aucun nœud ne commande une articulation ni un effecteur.
 * 🔖 **Espace de noms versionné & NodeIds stables :** Une URI d'espace de noms réelle et explicite, ainsi que des NodeIds de type chaîne explicites - une mise à jour de l'espace d'adressage ne peut pas changer silencieusement le chemin dont dépend un client. *(implémenté)*
 * 🔐 **Autorisation d'écriture par session :** Une vérification réelle et dynamique distinguant une session anonyme d'une session authentifiée - tous les clients n'obtiennent pas un accès en écriture par défaut. *(implémenté)*
 * 📡 **Prise en charge des abonnements :** Mises à jour des données haute efficacité à l'aide des mécanismes de publication-abonnement OPC-UA.
@@ -52,7 +52,6 @@ flowchart LR
 
 * **Pourquoi c'est un frère, pas un sous-module, de HYDRA-UMC-GATEWAY-INDUSTRIAL.** Chaque adaptateur de protocole est un processus déployable/redémarrable séparément - un problème dans la bibliothèque cliente OPC-UA ne fait jamais tomber les adaptateurs MQTT ou MTConnect qui tournent à côté.
 * **Pourquoi un espace d'adressage OPC-UA, pas un simple passthrough REST.** Les clients OPC-UA (SCADA/historiens) attendent un vrai espace d'adressage navigable avec des nœuds typés - un passthrough REST plat exposerait techniquement les données mais viderait de son sens le fait de parler OPC-UA.
-* **Pourquoi le point d'entrée n'imprime qu'identité/version, et se termine après la mise en place d'un listener de health-check.** Étape d'andamiaje, même raison que le propre README du parent - une vraie passerelle est de longue durée par nature, donc prouver que le processus reste actif est le vrai premier jalon.
 * **Comment cela s'intègre dans le reste de l'écosystème.** Un service frère sous HYDRA-UMC-GATEWAY-INDUSTRIAL - traduit le propre état de HYDRA-UMC-SERVER en un vrai espace d'adressage OPC-UA.
 * **Des tests réels au niveau du protocole, pas seulement une vérification de compilation.** `tests/server.test.ts` connecte un vrai `OPCUAClient` (le client propre de node-opcua, la même bibliothèque qu'utiliseraient UAExpert/Ignition) à un vrai `OPCUAServer` via le vrai protocole binaire sur un vrai port TCP - ouverture d'une session, parcours/lecture de `SwarmOnline`/`ActiveRobotCount` par chemin, et confirmation qu'une écriture émise par le client se reflète à la fois dans la valeur relue et dans l'état interne du serveur.
 * **Pourquoi des NodeIds de type chaîne explicites, et non les NodeIds numériques auto-assignés de node-opcua.** Un NodeId numérique est attribué selon l'ordre de création - insérer un nouveau DataItem avant un DataItem existant dans le code le renumérote silencieusement, cassant tout client industriel ayant codé en dur l'ancien numéro. Un NodeId explicite au format `s=HydraNode_1.SwarmOnline` ne peut jamais se déplacer sous un client simplement parce que le code de l'espace d'adressage a changé de forme.
@@ -70,7 +69,7 @@ Délibérément reporté, et pourquoi : un espace d'adressage entièrement dynam
 HYDRA-UMC-OPCUA-SERVER/
 ├── src/         # Code source (Node/TypeScript - Modèle, Serveur, Mappeur)
 ├── tests/       # Suite Vitest - comportement serveur et sécurité
-├── build/       # Sortie compilée (npm run build)
+├── dist/       # Sortie compilée (npm run build)
 ├── images/      # Médias et diagrammes
 ├── scripts/     # Scripts utilitaires (bump-version.mjs)
 ├── tools/       # ci_validate.py - validation manifest/CHANGELOG/docs utilisée par la CI
@@ -86,7 +85,7 @@ Service réseau pur, sans matériel propre - `hardware/`, `firmware/` et
 ## 🛠️ ENVIRONNEMENT DE DÉVELOPPEMENT
 
 ### Prérequis
-- [Node.js](https://nodejs.org/) (v18 ou supérieur recommandé)
+- [Node.js](https://nodejs.org/) (v20 ou supérieur recommandé)
 - npm
 
 ### Installation
@@ -115,11 +114,7 @@ pointez n'importe quel client OPC-UA (UAExpert, Ignition, Siemens TIA
 Portal, ...) pour parcourir l'espace d'adressage.
 
 ### Gestion des versions
-Chaque `npm run build` réel incrémente automatiquement le `version` de
-`package.json` (`scripts/bump-version.mjs`, première étape du script
-`build`) - un « compteur kilométrique » en base 10 : patch +1 par build,
-avec report vers minor (et de minor vers major) au-delà de 9 plutôt que
-d'atteindre un segment à deux chiffres (`0.0.9` -> `0.1.0`, pas `0.0.10`).
+`npm run build` ne fait que regrouper le serveur. La version est incrémentée par `build.sh` / `build.bat` (via `bump_manifest_version.py`), un « compteur kilométrique » en base 10 : patch +1 par build, avec report sur minor (et de minor sur major) après 9 au lieu d'atteindre un segment à deux chiffres (`0.0.9` -> `0.1.0`, pas `0.0.10`).
 
 ---
 

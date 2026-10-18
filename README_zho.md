@@ -16,7 +16,7 @@
 
 ---
 
-**诚实核查 - 今天真正能运行的部分：** OPC-UA 服务器与地址空间映射(`src/server.ts`)都是真实的并经过测试(`tests/server.test.ts`、`tests/security.test.ts`、`tests/security-policy.test.ts`, `tests/robotSource.test.ts`, `tests/robotSource.integration.test.ts` 共 37 个测试通过)——而且这些都是真正的协议级测试：`tests/server.test.ts` 使用一个真实的 `OPCUAClient`(node-opcua 自身的客户端，也是 UAExpert/Ignition 会使用的同一个库)通过真实的二进制协议、在一个真实的 TCP 端口上进行连接；`tests/security-policy.test.ts` 证明了未加密的 `SecurityPolicy.None` 会话默认确实会被拒绝(只有通过明确的 `OPCUA_ALLOW_INSECURE=1` 逃生开关才会被接受)。以下是有意推迟的部分，而非意外发现的缺口：按机器人划分的树（`Robot_<id>`）会跟随 HYDRA-UMC-SERVER 报告的名单（使用令牌或账户轮询，参见 `.env.example`），但地址空间的其余部分仅在启动时构建一次；目前只有读写操作经过了端到端测试，OPC-UA 订阅功能尚未测试；而 Pub/Sub(路线图第 1 阶段)仍未实现，因为目前还没有客户端依赖它。具体推迟了哪些内容以及原因，请见 `mejoras_futuras.txt` 的完整清单；具体已交付的内容请见 `CHANGELOG.md`。
+**诚实核查 - 今天真正能运行的部分：** OPC-UA 服务器与地址空间映射(`src/server.ts`)都是真实的并经过测试(`tests/server.test.ts`、`tests/security.test.ts`、`tests/security-policy.test.ts`, `tests/robotSource.test.ts`, `tests/robotSource.integration.test.ts` 共 53 个测试通过)——而且这些都是真正的协议级测试：`tests/server.test.ts` 使用一个真实的 `OPCUAClient`(node-opcua 自身的客户端，也是 UAExpert/Ignition 会使用的同一个库)通过真实的二进制协议、在一个真实的 TCP 端口上进行连接；`tests/security-policy.test.ts` 证明了未加密的 `SecurityPolicy.None` 会话默认确实会被拒绝(只有通过明确的 `OPCUA_ALLOW_INSECURE=1` 逃生开关才会被接受)。以下是有意推迟的部分，而非意外发现的缺口：按机器人划分的树（`Robot_<id>`）会跟随 HYDRA-UMC-SERVER 报告的名单（使用令牌或账户轮询，参见 `.env.example`），但地址空间的其余部分仅在启动时构建一次；目前只有读写操作经过了端到端测试，OPC-UA 订阅功能尚未测试；而 Pub/Sub(路线图第 1 阶段)仍未实现，因为目前还没有客户端依赖它。具体推迟了哪些内容以及原因，请见 `mejoras_futuras.txt` 的完整清单；具体已交付的内容请见 `CHANGELOG.md`。
 
 ---
 
@@ -31,7 +31,7 @@ FactoryTalk）能够浏览、读取和写入机器人变量，就像它们是标
 
 ### 关键特性：
 * 🛠️ **动态信息建模：** 根据活跃的机器人和工具自动生成 OPC-UA 树。
-* 🔄 **读写访问：** 从 PLC 客户端安全地控制机器人关节和执行器。
+* 🔄 **机器人列表与两个标志：** 机器人列表（带有 `Name` 和 `Online` 的 `Robot_<id>` 对象）是只读的；`SwarmOnline` 和 `MaintenanceMode` 是仅有的可写变量，且只有经过认证的管理员可以写入。没有任何节点控制关节或执行器。
 * 🔖 **版本化命名空间与稳定的 NodeId：** 真实、明确的命名空间 URI，以及明确的字符串 NodeId——地址空间的更新不会悄悄改变客户端所依赖的路径。*(已实现)*
 * 🔐 **按会话的写入授权：** 真实、动态的检查，区分匿名会话与已认证会话——并非每个客户端默认都能获得写入权限。*(已实现)*
 * 📡 **订阅支持：** 使用 OPC-UA 发布-订阅机制实现高效的数据更新。
@@ -73,7 +73,7 @@ flowchart LR
 HYDRA-UMC-OPCUA-SERVER/
 ├── src/         # 源代码（Node/TypeScript —— 模型、服务器、映射器）
 ├── tests/       # Vitest 测试套件——服务器与安全行为
-├── build/       # 编译输出（npm run build）
+├── dist/       # 编译输出（npm run build）
 ├── images/      # 媒体与图表
 ├── scripts/     # 实用脚本（bump-version.mjs）
 ├── tools/       # ci_validate.py——CI 使用的 manifest/CHANGELOG/docs 校验
@@ -89,7 +89,7 @@ HYDRA-UMC-OPCUA-SERVER/
 ## 🛠️ 开发环境
 
 ### 前提条件
-- [Node.js](https://nodejs.org/)（建议 v18 或更高版本）
+- [Node.js](https://nodejs.org/)（建议 v20 或更高版本）
 - npm
 
 ### 安装
@@ -118,11 +118,7 @@ npm start
 空间。
 
 ### 版本管理
-每次真实的 `npm run build` 都会自动递增 `package.json` 自身的
-`version`（`scripts/bump-version.mjs`，作为 `build` 脚本的第一步接入）
-——一种十进制"里程表"方案：每次构建 patch +1，超过 9 时进位到 minor
-（minor 超过 9 时进位到 major），而不会到达两位数段（`0.0.9` ->
-`0.1.0`，而非 `0.0.10`）。
+`npm run build` 只负责打包服务器。版本由 `build.sh` / `build.bat`（通过 `bump_manifest_version.py`）递增，采用十进制"里程表"方案：每次构建 patch +1，超过 9 时进位到 minor（minor 超过 9 时进位到 major），而不会到达两位数段（`0.0.9` -> `0.1.0`，而非 `0.0.10`）。
 
 ---
 

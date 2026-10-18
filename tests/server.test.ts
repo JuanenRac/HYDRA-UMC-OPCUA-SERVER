@@ -15,6 +15,9 @@ import { OPCUAClient, AttributeIds, DataType, MessageSecurityMode, SecurityPolic
 import { buildAddressSpaceServer, resolvePort, type HydraNodeState } from "../src/server.js";
 import type { OPCUAServer } from "node-opcua";
 
+// These tests open secure channels with throw-away client certificates: accept them (a lab setting).
+process.env.OPCUA_AUTO_ACCEPT = "1";
+
 // Use an OS-assigned port. A fixed port made this protocol suite fail when a
 // prior interrupted run (or another local OPC-UA tool) happened to own it.
 // node-opcua publishes the final endpoint after start(), so tests can use the

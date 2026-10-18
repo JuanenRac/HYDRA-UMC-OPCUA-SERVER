@@ -16,7 +16,7 @@
 
 ---
 
-**Ehrlichkeitscheck - was heute wirklich läuft:** der OPC-UA-Server und die Adressraum-Zuordnung (`src/server.ts`) sind real und getestet (37 bestandene Tests über `tests/server.test.ts`, `tests/security.test.ts`, `tests/security-policy.test.ts`, `tests/robotSource.test.ts`, `tests/robotSource.integration.test.ts`) - und das sind echte Tests auf Protokollebene: `tests/server.test.ts` verbindet einen echten `OPCUAClient` (node-opcuas eigenen Client, dieselbe Bibliothek, die UAExpert/Ignition verwenden würden) über das echte Binärprotokoll auf einem echten TCP-Port, und `tests/security-policy.test.ts` beweist, dass eine unverschlüsselte `SecurityPolicy.None`-Sitzung standardmäßig tatsächlich abgelehnt wird (nur über das explizite Escape-Hatch `OPCUA_ALLOW_INSECURE=1` akzeptiert). Was absichtlich zurückgestellt ist, keine zufällig gefundene Lücke: der Baum pro Roboter (`Robot_<id>`) folgt der von HYDRA-UMC-SERVER gemeldeten Liste (abgefragt mit einem Token oder einem Konto, siehe `.env.example`), aber der Rest des Adressraums wird einmal beim Start aufgebaut; bisher sind nur Lese-/Schreibvorgänge Ende-zu-Ende getestet, keine OPC-UA-Subscriptions; und Pub/Sub (Roadmap-Phase 1) bleibt unimplementiert, da noch kein Client davon abhängt. Siehe `mejoras_futuras.txt` für die vollständige Liste dessen, was zurückgestellt ist und warum, und `CHANGELOG.md` für das, was bisher genau ausgeliefert wurde.
+**Ehrlichkeitscheck - was heute wirklich läuft:** der OPC-UA-Server und die Adressraum-Zuordnung (`src/server.ts`) sind real und getestet (53 bestandene Tests über `tests/server.test.ts`, `tests/security.test.ts`, `tests/security-policy.test.ts`, `tests/robotSource.test.ts`, `tests/robotSource.integration.test.ts`) - und das sind echte Tests auf Protokollebene: `tests/server.test.ts` verbindet einen echten `OPCUAClient` (node-opcuas eigenen Client, dieselbe Bibliothek, die UAExpert/Ignition verwenden würden) über das echte Binärprotokoll auf einem echten TCP-Port, und `tests/security-policy.test.ts` beweist, dass eine unverschlüsselte `SecurityPolicy.None`-Sitzung standardmäßig tatsächlich abgelehnt wird (nur über das explizite Escape-Hatch `OPCUA_ALLOW_INSECURE=1` akzeptiert). Was absichtlich zurückgestellt ist, keine zufällig gefundene Lücke: der Baum pro Roboter (`Robot_<id>`) folgt der von HYDRA-UMC-SERVER gemeldeten Liste (abgefragt mit einem Token oder einem Konto, siehe `.env.example`), aber der Rest des Adressraums wird einmal beim Start aufgebaut; bisher sind nur Lese-/Schreibvorgänge Ende-zu-Ende getestet, keine OPC-UA-Subscriptions; und Pub/Sub (Roadmap-Phase 1) bleibt unimplementiert, da noch kein Client davon abhängt. Siehe `mejoras_futuras.txt` für die vollständige Liste dessen, was zurückgestellt ist und warum, und `CHANGELOG.md` für das, was bisher genau ausgeliefert wurde.
 
 ---
 
@@ -28,7 +28,7 @@ Er ermöglicht es industrieller Automatisierungssoftware (wie Ignition, Siemens 
 
 ### Hauptmerkmale:
 * 🛠️ **Dynamische Informationsmodellierung:** Generiert automatisch den OPC-UA-Baum basierend auf aktiven Robotern und Werkzeugen.
-* 🔄 **Lese-/Schreibzugriff:** Sichere Steuerung von Robotergelenken und Effektoren über SPS-Clients.
+* 🔄 **Roboterliste und zwei Schalter:** Die Roboterliste (`Robot_<id>`-Objekte mit `Name` und `Online`) ist schreibgeschützt; `SwarmOnline` und `MaintenanceMode` sind die einzigen beschreibbaren Variablen, und nur für den authentifizierten Administrator. Kein Knoten steuert ein Gelenk oder einen Effektor.
 * 🔖 **Versionierter Namespace & stabile NodeIds:** Eine echte, explizite Namespace-URI und explizite String-NodeIds - eine Aktualisierung des Address Space kann den Pfad, von dem ein Client abhängt, nicht stillschweigend ändern. *(implementiert)*
 * 🔐 **Sitzungsbasierte Schreibautorisierung:** Eine echte, dynamische Prüfung, die eine anonyme Sitzung von einer authentifizierten unterscheidet - nicht jeder Client erhält standardmäßig Schreibzugriff. *(implementiert)*
 * 📡 **Subscription-Unterstützung:** Hocheffiziente Datenaktualisierungen über OPC-UA-Publish-Subscribe-Mechanismen.
@@ -52,7 +52,6 @@ flowchart LR
 
 * **Warum es Geschwister, kein Submodul, von HYDRA-UMC-GATEWAY-INDUSTRIAL ist.** Jeder Protokolladapter ist ein separat bereitstellbarer/neustartbarer Prozess - ein Problem in der OPC-UA-Client-Bibliothek legt nie die daneben laufenden MQTT- oder MTConnect-Adapter lahm.
 * **Warum ein OPC-UA-Address-Space statt eines einfachen REST-Passthrough.** OPC-UA-Clients (SCADA/Historians) erwarten einen echten, durchsuchbaren Address Space mit typisierten Knoten - ein flacher REST-Passthrough würde die Daten technisch offenlegen, aber den Sinn ergäbe, überhaupt OPC-UA zu sprechen.
-* **Warum der Einstiegspunkt nur Identität/Version ausgibt und nach dem Start eines Health-Check-Listeners beendet wird.** Andamiaje-Stadium, gleicher Grund wie im eigenen README des Elternteils - ein echtes Gateway ist von Natur aus langlaufend, daher ist der Nachweis, dass der Prozess aktiv bleibt, der eigentliche erste Meilenstein.
 * **Wie sich das ins restliche Ökosystem einfügt.** Ein Geschwisterdienst unter HYDRA-UMC-GATEWAY-INDUSTRIAL - übersetzt den eigenen Zustand von HYDRA-UMC-SERVER in einen echten OPC-UA-Address-Space.
 * **Echte Tests auf Protokollebene, nicht nur eine Kompilierprüfung.** `tests/server.test.ts` verbindet einen echten `OPCUAClient` (der eigene Client von node-opcua, dieselbe Bibliothek, die UAExpert/Ignition verwenden würden) mit einem echten `OPCUAServer` über das echte binäre Protokoll auf einem echten TCP-Port - eine Sitzung wird geöffnet, `SwarmOnline`/`ActiveRobotCount` werden per Pfad durchsucht/gelesen, und es wird bestätigt, dass ein vom Client ausgegebener Schreibvorgang sich sowohl im zurückgelesenen Wert als auch im serverseitigen Zustand widerspiegelt.
 * **Warum explizite String-NodeIds statt der automatisch vergebenen numerischen von node-opcua.** Eine numerische NodeId wird nach Erstellungsreihenfolge vergeben - würde man ein neues DataItem im Code vor ein bestehendes einfügen, würde dieses stillschweigend umnummeriert, was jeden industriellen Client bricht, der die alte Nummer fest codiert hat. Eine explizite NodeId im Stil `s=HydraNode_1.SwarmOnline` kann sich niemals unter einem Client verschieben, nur weil sich die Form des Address-Space-Codes geändert hat.
@@ -70,7 +69,7 @@ Bewusst zurückgestellt, und warum: ein vollständig dynamischer Adressraum (der
 HYDRA-UMC-OPCUA-SERVER/
 ├── src/         # Quellcode (Node/TypeScript - Modell, Server, Mapper)
 ├── tests/       # Vitest-Suite - Server- und Sicherheitsverhalten
-├── build/       # Kompilierte Ausgabe (npm run build)
+├── dist/       # Kompilierte Ausgabe (npm run build)
 ├── images/      # Medien und Diagramme
 ├── scripts/     # Utility-Skripte (bump-version.mjs)
 ├── tools/       # ci_validate.py - Manifest-/CHANGELOG-/Doku-Validierung, von der CI genutzt
@@ -86,7 +85,7 @@ Reiner Netzwerkdienst ohne eigene Hardware - `hardware/`, `firmware/` und
 ## 🛠️ ENTWICKLUNGSUMGEBUNG
 
 ### Voraussetzungen
-- [Node.js](https://nodejs.org/) (v18 oder höher empfohlen)
+- [Node.js](https://nodejs.org/) (v20 oder höher empfohlen)
 - npm
 
 ### Installation
@@ -116,12 +115,7 @@ OPC-UA-Standardport) unter dem Endpoint
 Adressraum zu durchsuchen.
 
 ### Versionierung
-Jeder echte `npm run build` erhöht automatisch die `version` in
-`package.json` (`scripts/bump-version.mjs`, erster Schritt des
-`build`-Skripts) - ein "Kilometerzähler" auf Basis 10: patch +1 pro Build,
-mit Übertrag auf minor (und von minor auf major) über 9 hinaus, anstatt
-je ein zweistelliges Segment zu erreichen (`0.0.9` -> `0.1.0`, nicht
-`0.0.10`).
+`npm run build` bündelt nur den Server. Die Version wird von `build.sh` / `build.bat` (über `bump_manifest_version.py`) erhöht, ein Dezimal-"Kilometerzähler": Patch +1 pro Build, mit Übertrag auf Minor (und von Minor auf Major) nach 9, statt je ein zweistelliges Segment zu erreichen (`0.0.9` -> `0.1.0`, nicht `0.0.10`).
 
 ---
 

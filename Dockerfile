@@ -11,18 +11,20 @@
 # HYDRA-UMC-GATEWAY-INDUSTRIAL's own docker-compose.yml as the "opcua-server"
 # service.
 
-FROM node:20-alpine AS build
+FROM node:24-alpine AS build
 WORKDIR /app
 COPY package*.json ./
-RUN npm install
+RUN npm ci
 COPY tsconfig.json ./
 COPY scripts ./scripts
 COPY src ./src
 RUN npm run build
 
-FROM node:20-alpine AS runtime
+FROM node:24-alpine AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
+# The certificate stores live on a volume (see docker-compose.yml): a recreated container keeps its identity.
+ENV OPCUA_PKI_DIR=/data/pki
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/package.json /app/package-lock.json ./
 # Real bug found live on this image's first real run: `npm run build`
@@ -33,6 +35,9 @@ COPY --from=build /app/package.json /app/package-lock.json ./
 # so every real run crashed immediately with MODULE_NOT_FOUND. Same
 # `npm ci --omit=dev` pattern HYDRA-UMC-OS's own install_server.sh
 # already uses for HYDRA-UMC-SERVER (also esbuild + --packages=external).
-RUN npm ci --omit=dev
+RUN npm ci --omit=dev && mkdir -p /data/pki && chown -R node:node /data
+USER node
 EXPOSE 4840
+HEALTHCHECK --interval=15s --timeout=3s --start-period=20s --retries=3 \
+  CMD node -e "require('node:net').connect(process.env.PORT||4840,'127.0.0.1').on('connect',()=>process.exit(0)).on('error',()=>process.exit(1))"
 CMD ["node", "dist/server.cjs"]

@@ -16,7 +16,7 @@
 
 ---
 
-**正直な現状確認 - 今日実際に動くもの:** OPC-UA サーバーとアドレス空間のマッピング(`src/server.ts`)は本物であり、テスト済みである(`tests/server.test.ts`、`tests/security.test.ts`、`tests/security-policy.test.ts`, `tests/robotSource.test.ts`, `tests/robotSource.integration.test.ts` 全体で 37 件のテストが成功)。しかもこれらは本物のプロトコルレベルのテストである: `tests/server.test.ts` は本物の `OPCUAClient`(node-opcua 自身のクライアントであり、UAExpert/Ignition が使うのと同じライブラリ)を、本物のバイナリプロトコルで本物の TCP ポートに接続しており、`tests/security-policy.test.ts` は暗号化されていない `SecurityPolicy.None` セッションがデフォルトで実際に拒否されることを証明している(明示的な `OPCUA_ALLOW_INSECURE=1` という抜け道を使った場合のみ受け入れられる)。以下は偶然見つかったギャップではなく、意図的に先送りされているものである: ロボットごとのツリー（`Robot_<id>`）は HYDRA-UMC-SERVER が報告する一覧に追従する（トークンまたはアカウントで取得。`.env.example` を参照）が、アドレス空間のそれ以外の部分は起動時に一度だけ構築される。今のところエンドツーエンドでテストされているのは読み書きのみであり、OPC-UA のサブスクリプションはテストされていない。そして Pub/Sub(ロードマップのフェーズ 1)はまだ実装されていない、依存するクライアントがまだ存在しないためである。何が先送りされ、なぜそうなのかの完全なリストは `mejoras_futuras.txt` を、これまでに何が実際に出荷されたかは `CHANGELOG.md` を参照。
+**正直な現状確認 - 今日実際に動くもの:** OPC-UA サーバーとアドレス空間のマッピング(`src/server.ts`)は本物であり、テスト済みである(`tests/server.test.ts`、`tests/security.test.ts`、`tests/security-policy.test.ts`, `tests/robotSource.test.ts`, `tests/robotSource.integration.test.ts` 全体で 53 件のテストが成功)。しかもこれらは本物のプロトコルレベルのテストである: `tests/server.test.ts` は本物の `OPCUAClient`(node-opcua 自身のクライアントであり、UAExpert/Ignition が使うのと同じライブラリ)を、本物のバイナリプロトコルで本物の TCP ポートに接続しており、`tests/security-policy.test.ts` は暗号化されていない `SecurityPolicy.None` セッションがデフォルトで実際に拒否されることを証明している(明示的な `OPCUA_ALLOW_INSECURE=1` という抜け道を使った場合のみ受け入れられる)。以下は偶然見つかったギャップではなく、意図的に先送りされているものである: ロボットごとのツリー（`Robot_<id>`）は HYDRA-UMC-SERVER が報告する一覧に追従する（トークンまたはアカウントで取得。`.env.example` を参照）が、アドレス空間のそれ以外の部分は起動時に一度だけ構築される。今のところエンドツーエンドでテストされているのは読み書きのみであり、OPC-UA のサブスクリプションはテストされていない。そして Pub/Sub(ロードマップのフェーズ 1)はまだ実装されていない、依存するクライアントがまだ存在しないためである。何が先送りされ、なぜそうなのかの完全なリストは `mejoras_futuras.txt` を、これまでに何が実際に出荷されたかは `CHANGELOG.md` を参照。
 
 ---
 
@@ -32,7 +32,7 @@ Ignition、Siemens TIA Portal、Rockwell FactoryTalk のような産業用
 
 ### 主な機能：
 * 🛠️ **動的な情報モデリング：** アクティブなロボットと工具に基づいて OPC-UA ツリーを自動生成します。
-* 🔄 **読み書きアクセス：** PLC クライアントからロボットの関節とエフェクターを安全に制御します。
+* 🔄 **ロボット一覧と 2 つのフラグ：** ロボット一覧（`Name` と `Online` を持つ `Robot_<id>` オブジェクト）は読み取り専用です。書き込めるのは `SwarmOnline` と `MaintenanceMode` だけで、認証された管理者に限られます。関節やエフェクターを制御するノードはありません。
 * 🔖 **バージョン管理された名前空間と安定した NodeId：** 実際の明示的な名前空間 URI と、明示的な文字列 NodeId——アドレス空間の更新によって、クライアントが依存するパスが密かに変わることはありません。*(実装済み)*
 * 🔐 **セッションごとの書き込み認可：** 匿名セッションと認証済みセッションを区別する、実際の動的なチェック——すべてのクライアントがデフォルトで書き込みアクセス権を得られるわけではありません。*(実装済み)*
 * 📡 **サブスクリプションサポート：** OPC-UA のパブリッシュ・サブスクライブ機構を用いた高効率なデータ更新。
@@ -74,7 +74,7 @@ flowchart LR
 HYDRA-UMC-OPCUA-SERVER/
 ├── src/         # ソースコード（Node/TypeScript —— モデル、サーバー、マッパー）
 ├── tests/       # Vitest スイート —— サーバーとセキュリティの動作
-├── build/       # コンパイル出力（npm run build）
+├── dist/       # コンパイル出力（npm run build）
 ├── images/      # メディアと図表
 ├── scripts/     # ユーティリティスクリプト（bump-version.mjs）
 ├── tools/       # ci_validate.py —— CI が使用する manifest/CHANGELOG/docs の検証
@@ -91,7 +91,7 @@ HYDRA-UMC-OPCUA-SERVER/
 ## 🛠️ 開発環境
 
 ### 必要条件
-- [Node.js](https://nodejs.org/)（v18 以上を推奨）
+- [Node.js](https://nodejs.org/)（v20 以上を推奨）
 - npm
 
 ### インストール
@@ -122,12 +122,7 @@ npm start
 エンドポイントに向けることで、アドレス空間を参照できます。
 
 ### バージョン管理
-実際の `npm run build` のたびに、`package.json` 自身の `version` が
-自動的に増加します（`scripts/bump-version.mjs`、`build` スクリプトの
-最初のステップとして接続）——10 進法の「オドメーター」方式：ビルド
-ごとに patch を +1 し、9 を超えると minor に繰り上がり（minor が 9 を
-超えると major に繰り上がる）、2 桁のセグメントに到達することはあり
-ません（`0.0.9` -> `0.1.0`、`0.0.10` にはなりません）。
+`npm run build` はサーバーをバンドルするだけです。バージョンは `build.sh` / `build.bat`（`bump_manifest_version.py` 経由）が上げます。10 進法の「オドメーター」方式で、ビルドごとに patch を +1 し、9 を超えると minor に繰り上がり（minor が 9 を超えると major に繰り上がる）、2 桁のセグメントに到達することはありません（`0.0.9` -> `0.1.0`、`0.0.10` にはなりません）。
 
 ---
 

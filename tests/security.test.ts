@@ -17,6 +17,9 @@ import { AttributeIds, DataType, MessageSecurityMode, OPCUAClient, SecurityPolic
 import type { ClientSession, OPCUAServer, UserIdentityInfo } from "node-opcua";
 import { buildAddressSpaceServer, type HydraNodeState } from "../src/server.js";
 
+// These tests open secure channels with throw-away client certificates: accept them (a lab setting).
+process.env.OPCUA_AUTO_ACCEPT = "1";
+
 const ADMIN_USERNAME = "hydra-admin";
 const ADMIN_PASSWORD = "real-test-only-credential";
 

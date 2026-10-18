@@ -28,7 +28,7 @@ It allows industrial automation software (like Ignition, Siemens TIA Portal, or 
 
 ### Key Features:
 * 🛠️ **Dynamic Information Modeling:** Automatically generates the OPC-UA tree based on active robots and tools.
-* 🔄 **Read/Write Access:** Secure control of robotic joints and efectors from PLC clients.
+* 🔄 **Roster and two flags:** the robot roster (`Robot_<id>` objects with `Name` and `Online`) is read-only; `SwarmOnline` and `MaintenanceMode` are the only writable variables, and only for the authenticated administrator. No node controls a joint or an effector.
 * 🔖 **Versioned Namespace & Stable NodeIds:** A real, explicit namespace URI and explicit string NodeIds - an address-space update can't silently change the path a client depends on. *(implemented)*
 * 🔐 **Per-Session Write Authorization:** A real, dynamic check distinguishing an anonymous session from an authenticated one - not every client gets write access by default. *(implemented)*
 * 📡 **Subscription Support:** High-efficiency data updates using OPC-UA publish-subscribe mechanisms.
@@ -52,7 +52,6 @@ flowchart LR
 
 * **Why this is a sibling, not a submodule, of HYDRA-UMC-GATEWAY-INDUSTRIAL.** Each protocol adapter is a separately deployable/restartable process - an OPC-UA client library issue never takes down the MQTT or MTConnect adapters running alongside it.
 * **Why an OPC-UA address space, not a flat REST passthrough.** OPC-UA clients (SCADA/historians) expect a real, browsable address space with typed nodes - a flat REST passthrough would technically expose the data but defeat the point of speaking OPC-UA at all.
-* **Why the entry point only prints identity/version, exits after a health-check listener comes up.** Andamiaje (scaffolding) stage, same reasoning as the parent's own README - a real gateway is long-running by nature, so proving the process stays up is the actual first milestone.
 * **How this fits the rest of the ecosystem.** A sibling service under HYDRA-UMC-GATEWAY-INDUSTRIAL - translates HYDRA-UMC-SERVER's own state into a real OPC-UA address space.
 * **Real protocol-level tests, not just a compile check.** `tests/server.test.ts` connects a real `OPCUAClient` (node-opcua's own client, the same library UAExpert/Ignition would use) against a real `OPCUAServer` over the real binary protocol on a real TCP port - opening a session, browsing/reading `SwarmOnline`/`ActiveRobotCount` by path, and confirming a client-issued write is reflected both in the read-back value and in server-side state.
 * **Why explicit string NodeIds, not node-opcua's auto-assigned numeric ones.** A numeric NodeId is assigned by creation order - inserting a new DataItem before an existing one in the code would silently renumber it, breaking any industrial client that hardcoded the old number. An explicit `s=HydraNode_1.SwarmOnline`-style NodeId can never shift underneath a client just because the address-space code changed shape.
@@ -70,7 +69,7 @@ Deliberately deferred, and why: a fully dynamic address space (the per-robot tre
 HYDRA-UMC-OPCUA-SERVER/
 ├── src/         # Source code (Node/TypeScript - Model, Server, Mapper)
 ├── tests/       # Vitest suite - server and security behavior
-├── build/       # Compiled output (npm run build)
+├── dist/       # Compiled output (npm run build)
 ├── images/      # Media and diagrams
 ├── scripts/     # Utility scripts (bump-version.mjs)
 ├── tools/       # ci_validate.py - manifest/CHANGELOG/docs validation used by CI
@@ -86,7 +85,7 @@ Pure network service, no dedicated hardware of its own - `hardware/`,
 ## 🛠️ DEVELOPMENT ENVIRONMENT
 
 ### Requirements
-- [Node.js](https://nodejs.org/) (v18 or higher recommended)
+- [Node.js](https://nodejs.org/) (v20 or higher recommended)
 - npm
 
 ### Installation
@@ -115,11 +114,7 @@ any OPC-UA client (UAExpert, Ignition, Siemens TIA Portal, ...) at it to
 browse the address space.
 
 ### Versioning
-Every real `npm run build` bumps `package.json`'s own `version`
-automatically (`scripts/bump-version.mjs`, wired as the first step of the
-`build` script) - a base-10 "odometer": patch +1 per build, rolling over
-into minor (and minor into major) past 9 rather than ever reaching a
-two-digit segment (`0.0.9` -> `0.1.0`, not `0.0.10`).
+`npm run build` only bundles the server. The version is bumped by `build.sh` / `build.bat` (through `bump_manifest_version.py`), a base-10 "odometer": patch +1 per build, rolling over into minor (and minor into major) past 9 rather than ever reaching a two-digit segment (`0.0.9` -> `0.1.0`, not `0.0.10`).
 
 ---
 

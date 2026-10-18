@@ -20,7 +20,20 @@
 // that addObject()/addVariable() were called without throwing.
 // =============================================================================
 
-import { OPCUAServer, Variant, DataType, DataValue, StatusCodes, MessageSecurityMode, SecurityPolicy, type ISessionContext } from "node-opcua";
+import {
+  OPCUAServer,
+  OPCUACertificateManager,
+  Variant,
+  DataType,
+  DataValue,
+  StatusCodes,
+  MessageSecurityMode,
+  SecurityPolicy,
+  UserNameIdentityToken,
+  getDefaultCertificateManager,
+  type ISessionContext,
+} from "node-opcua";
+import { createHash, timingSafeEqual } from "node:crypto";
 import path from "node:path";
 import { readPackageVersion } from "./version.js";
 import { pollerConfigFromEnv, startRobotPolling } from "./robotSource.js";
@@ -37,8 +50,6 @@ export function resolvePort(raw: string | undefined = process.env.PORT): number 
   return port;
 }
 
-const DEFAULT_PORT = resolvePort();
-
 // A real, explicit, versioned namespace URI for this project's own address
 // space, rather than node-opcua's implicit hostname-derived default - the
 // review's own concern: "una actualizacion no debe cambiar
@@ -49,18 +60,91 @@ const NAMESPACE_URI = "urn:hydra-umc:opcua-server:v1";
 export interface HydraNodeState {
   swarmOnline: boolean;
   activeRobotCount: number;
-  spindleTempC: number;
-  spindleTempUpdatedAtMs: number;
+  /** null until a real source has reported a temperature: nothing in this server measures one by itself. */
+  spindleTempC: number | null;
+  /** null until the first real report; while null SpindleTemp is served with a Bad status instead of an invented value. */
+  spindleTempUpdatedAtMs: number | null;
   // real disconnection tracking, not simulated. true means whatever
   // real source feeds spindleTempC is still actively updating it; a real
   // caller sets this to false the moment it detects the source has
   // stopped (a timeout, a closed connection, ...) - see SpindleTemp's
   // own timestamped_get below for exactly what that changes on the wire.
-  // Defaults true: a source that has never been wired to mutate this
-  // value at all behaves exactly as it always did (Good quality) rather
-  // than starting in a fabricated "disconnected" state nobody reported.
+  // Defaults true once a value has been reported; before the first report
+  // (spindleTempUpdatedAtMs === null) the variable is Bad regardless.
   spindleTempConnected: boolean;
   maintenanceMode: boolean;
+}
+
+export interface CertificateManagers {
+  serverCertificateManager: OPCUACertificateManager;
+  userCertificateManager: OPCUACertificateManager;
+}
+
+/**
+ * The PKI stores of the server.
+ *
+ *  - Application certificates (the clients' own, for the secure channel): an unknown one is accepted only when OPCUA_AUTO_ACCEPT=1 says so
+ *    (a lab); otherwise it lands in `rejected/` and the operator moves it to `trusted/certs/` to let that client in.
+ *  - User certificates (an X509 identity token): an unknown certificate is NEVER accepted, whatever OPCUA_AUTO_ACCEPT says.
+ *
+ * OPCUA_PKI_DIR puts both stores under a directory that should live on a persistent volume, so a container that is recreated keeps its own
+ * certificate and the clients keep trusting it. Without it the library's per-user default location is used.
+ */
+export function createCertificateManagers(env: NodeJS.ProcessEnv = process.env): CertificateManagers {
+  const autoAccept = (env.OPCUA_AUTO_ACCEPT ?? "").trim() === "1";
+  const pkiDir = env.OPCUA_PKI_DIR?.trim();
+  if (pkiDir) {
+    return {
+      serverCertificateManager: new OPCUACertificateManager({ name: "PKI", rootFolder: path.join(pkiDir, "PKI"), automaticallyAcceptUnknownCertificate: autoAccept }),
+      userCertificateManager: new OPCUACertificateManager({ name: "UserPKI", rootFolder: path.join(pkiDir, "UserPKI"), automaticallyAcceptUnknownCertificate: false }),
+    };
+  }
+  const serverCertificateManager = getDefaultCertificateManager("PKI");
+  serverCertificateManager.automaticallyAcceptUnknownCertificate = autoAccept;
+  const userCertificateManager = getDefaultCertificateManager("UserPKI");
+  userCertificateManager.automaticallyAcceptUnknownCertificate = false;
+  return { serverCertificateManager, userCertificateManager };
+}
+
+/** Compares two secrets in constant time (hashing first so the lengths do not leak). */
+export function secretsMatch(provided: string, expected: string): boolean {
+  const a = createHash("sha256").update(provided).digest();
+  const b = createHash("sha256").update(expected).digest();
+  return timingSafeEqual(a, b);
+}
+
+/**
+ * Bounds how many failed logins are tried: after `maxFailures` failures inside `windowMs`, every attempt is refused until the window passes,
+ * even with the right password. It slows a guessing attack from the network down to a handful of attempts a minute; the price is that an
+ * attacker can also keep the administrator out of the (few) writable variables for as long as the attack lasts.
+ */
+export class LoginThrottle {
+  private failures: number[] = [];
+  constructor(
+    private readonly maxFailures: number = 10,
+    private readonly windowMs: number = 60_000,
+  ) {}
+
+  private prune(now: number): void {
+    this.failures = this.failures.filter((at) => now - at < this.windowMs);
+  }
+
+  isLocked(now: number = Date.now()): boolean {
+    this.prune(now);
+    return this.failures.length >= this.maxFailures;
+  }
+
+  recordFailure(now: number = Date.now()): void {
+    this.prune(now);
+    this.failures.push(now);
+  }
+}
+
+/** True only for a session that logged in with the administrator's user name and password (never a certificate, never anonymous). */
+export function isAdminSession(context: ISessionContext, adminUsername: string | undefined): boolean {
+  if (!adminUsername) return false;
+  const token = (context as { session?: { userIdentityToken?: unknown } }).session?.userIdentityToken;
+  return token instanceof UserNameIdentityToken && token.userName === adminUsername;
 }
 
 /** Builds and starts a real OPCUAServer with one HydraNode_1 object exposing
@@ -69,13 +153,17 @@ export interface HydraNodeState {
  * activeRobotCount and observe the change reflected in a real OPC-UA read -
  * the get() closures below always read from this same object, never a
  * value captured at construction time. */
-export async function buildAddressSpaceServer(port: number = DEFAULT_PORT) {
+export async function buildAddressSpaceServer(port: number = resolvePort()) {
   // Real username/password credentials for the one authenticated role this
   // v0 defines (see MaintenanceMode below) - sourced from real env vars,
   // never hardcoded. Unset means isValidUser rejects every credential, so
   // an undeployed instance never ships a silent default login.
   const adminUsername = process.env.OPCUA_ADMIN_USERNAME;
   const adminPassword = process.env.OPCUA_ADMIN_PASSWORD;
+  const maxFailures = Number(process.env.OPCUA_LOGIN_MAX_FAILURES);
+  const throttle = new LoginThrottle(Number.isInteger(maxFailures) && maxFailures > 0 ? maxFailures : 10);
+  const { serverCertificateManager, userCertificateManager } = createCertificateManagers();
+  const alternateHostname = process.env.OPCUA_ALTERNATE_HOSTNAME?.trim();
 
   // Real gap found while auditing the code:
   // leaving securityModes/securityPolicies unset let node-opcua fall back
@@ -111,10 +199,23 @@ export async function buildAddressSpaceServer(port: number = DEFAULT_PORT) {
     },
     securityModes,
     securityPolicies,
+    serverCertificateManager,
+    userCertificateManager,
+    ...(alternateHostname ? { alternateHostname } : {}),
     userManager: {
       isValidUser: (username: string, password: string): boolean => {
         if (!adminUsername || !adminPassword) return false;
-        return username === adminUsername && password === adminPassword;
+        if (throttle.isLocked()) {
+          console.warn("[HYDRA-UMC-OPCUA-SERVER] too many failed logins: attempts are refused until the window passes");
+          return false;
+        }
+        // Both comparisons always run, so a wrong user name takes as long as a wrong password.
+        const userOk = secretsMatch(username, adminUsername);
+        const passwordOk = secretsMatch(password, adminPassword);
+        if (userOk && passwordOk) return true;
+        throttle.recordFailure();
+        console.warn("[HYDRA-UMC-OPCUA-SERVER] failed login attempt");
+        return false;
       },
     },
   });
@@ -153,8 +254,9 @@ export async function buildAddressSpaceServer(port: number = DEFAULT_PORT) {
   const state: HydraNodeState = {
     swarmOnline: true,
     activeRobotCount: 0,
-    spindleTempC: 22,
-    spindleTempUpdatedAtMs: Date.now(),
+    // Nothing in this server measures a spindle temperature: until a real source reports one the variable is Bad.
+    spindleTempC: null,
+    spindleTempUpdatedAtMs: null,
     spindleTempConnected: true,
     maintenanceMode: false,
   };
@@ -180,7 +282,7 @@ export async function buildAddressSpaceServer(port: number = DEFAULT_PORT) {
       },
     },
   });
-  swarmOnline.isUserWritable = (context: ISessionContext): boolean => context.getUserName() !== "anonymous";
+  swarmOnline.isUserWritable = (context: ISessionContext): boolean => isAdminSession(context, adminUsername);
 
   namespace.addVariable({
     componentOf: hydraNode,
@@ -226,11 +328,13 @@ export async function buildAddressSpaceServer(port: number = DEFAULT_PORT) {
     engineeringUnitsRange: { low: -20, high: 150 },
     value: {
       timestamped_get: () =>
-        new DataValue({
-          value: new Variant({ dataType: DataType.Double, value: state.spindleTempC }),
-          statusCode: state.spindleTempConnected ? StatusCodes.Good : StatusCodes.UncertainLastUsableValue,
-          sourceTimestamp: new Date(state.spindleTempUpdatedAtMs),
-        }),
+        state.spindleTempC === null || state.spindleTempUpdatedAtMs === null
+          ? new DataValue({ value: new Variant({ dataType: DataType.Null }), statusCode: StatusCodes.BadWaitingForInitialData })
+          : new DataValue({
+              value: new Variant({ dataType: DataType.Double, value: state.spindleTempC }),
+              statusCode: state.spindleTempConnected ? StatusCodes.Good : StatusCodes.UncertainLastUsableValue,
+              sourceTimestamp: new Date(state.spindleTempUpdatedAtMs),
+            }),
     },
   });
 
@@ -256,7 +360,7 @@ export async function buildAddressSpaceServer(port: number = DEFAULT_PORT) {
       },
     },
   });
-  maintenanceMode.isUserWritable = (context: ISessionContext): boolean => context.getUserName() !== "anonymous";
+  maintenanceMode.isUserWritable = (context: ISessionContext): boolean => isAdminSession(context, adminUsername);
 
   // One object per robot, built from whatever list the caller hands to
   // setRobots(). Node ids are derived from the robot id ("s=Robot_<id>"),
@@ -268,8 +372,10 @@ export async function buildAddressSpaceServer(port: number = DEFAULT_PORT) {
   const setRobots = (robots: RobotSnapshot[]): void => {
     const wanted = new Map<string, RobotSnapshot>();
     for (const robot of robots) {
-      const key = String(robot.id).replace(/[^A-Za-z0-9_-]/g, "_");
-      if (key !== "") wanted.set(key, robot);
+      const key = robotNodeKey(robot.id);
+      if (key === "") continue;
+      if (wanted.has(key)) console.warn(`[HYDRA-UMC-OPCUA-SERVER] two robots map to the node Robot_${key}; the later one wins`);
+      wanted.set(key, robot);
     }
     for (const [key, entry] of [...robotObjects]) {
       if (wanted.has(key)) continue;
@@ -316,6 +422,18 @@ export async function buildAddressSpaceServer(port: number = DEFAULT_PORT) {
   return { server, state, setRobots };
 }
 
+/**
+ * The node name of a robot. An id made only of letters, digits, `_` and `-` is used as it is; any other id gets its unusable characters
+ * replaced and a short hash of the original appended, so "a.b" and "a_b" never end up on the same node.
+ */
+export function robotNodeKey(id: string | number): string {
+  const text = String(id);
+  const clean = text.replace(/[^A-Za-z0-9_-]/g, "_");
+  if (clean === text) return clean;
+  const suffix = createHash("sha1").update(text).digest("hex").slice(0, 6);
+  return clean === "" ? `_${suffix}` : `${clean}_${suffix}`;
+}
+
 /** What the address space knows about one robot; fed from the caller's own source. */
 export interface RobotSnapshot {
   id: string | number;
@@ -324,17 +442,35 @@ export interface RobotSnapshot {
 }
 
 async function main() {
-  const { server, setRobots } = await buildAddressSpaceServer(DEFAULT_PORT);
+  const port = resolvePort();
+  const { server, state, setRobots } = await buildAddressSpaceServer(port);
+  const shutdown = (signal: string) => {
+    console.log(`[HYDRA-UMC-OPCUA-SERVER] ${signal} received: closing the sessions`);
+    server
+      .shutdown(1000)
+      .catch((err) => console.error("[HYDRA-UMC-OPCUA-SERVER] shutdown error:", err))
+      .finally(() => process.exit(0));
+  };
+  process.once("SIGTERM", () => shutdown("SIGTERM"));
+  process.once("SIGINT", () => shutdown("SIGINT"));
   const source = pollerConfigFromEnv();
   if (source) {
-    startRobotPolling({ ...source, setRobots });
+    // With a source configured, SwarmOnline follows it: it is true only while the last read of HYDRA-UMC-SERVER worked.
+    state.swarmOnline = false;
+    startRobotPolling({
+      ...source,
+      setRobots,
+      onSourceStatus: (readable) => {
+        state.swarmOnline = readable;
+      },
+    });
     console.log(`[HYDRA-UMC-OPCUA-SERVER] reading the robot roster from ${source.url} every ${source.intervalMs} ms`);
   }
   const endpointUrl = server.getEndpointUrl();
   console.log("=================================================");
   console.log(` HYDRA-UMC-OPCUA-SERVER v${readPackageVersion()}`);
   console.log(" ROLE: Full mapping of HydraState objects to OPC-UA address spaces");
-  console.log(` STATUS: Running on port ${DEFAULT_PORT} - endpoint ${endpointUrl}`);
+  console.log(` STATUS: Running on port ${port} - endpoint ${endpointUrl}`);
   console.log("=================================================");
 }
 
