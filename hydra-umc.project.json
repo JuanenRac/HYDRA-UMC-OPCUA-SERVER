@@ -2,7 +2,7 @@
   "schema_version": "1.0",
   "ecosystem": "HYDRA-UMC",
   "name": "HYDRA-UMC-OPCUA-SERVER",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "role": "service",
   "stack": "node",
   "technologies": [
@@ -11,7 +11,7 @@
     "OPC-UA address space"
   ],
   "deployment_target": "cm5",
-  "maturity": "established",
+  "maturity": "functional",
   "family": "Industrial Gateway",
   "parent": "HYDRA-UMC-GATEWAY-INDUSTRIAL",
   "build": "npm install && npm run build",

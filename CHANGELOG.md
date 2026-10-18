@@ -23,6 +23,11 @@ semantic-versioning judgment calls:
 
 ---
 
+## [0.1.9]
+
+- Maturity is functional: nothing here has been verified on real hardware yet.
+- The READMEs say, in the eight languages, what is planned and what has only been tested against fakes, emulators or fixtures, and carry a short safety and security status note.
+
 ## [0.1.8]
 
 - Build version synchronized with `hydra-umc.project.json` and the repository-native version source.
