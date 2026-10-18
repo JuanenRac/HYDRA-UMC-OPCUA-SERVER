@@ -20,6 +20,17 @@
 
 ---
 
+## 📋 速览
+
+| | |
+|---|---|
+| 版本 | `0.1.8` |
+| 成熟度 | 成熟 |
+| 测试 | 37 |
+| 技术栈 | Node.js / node-opcua / OPC-UA address space |
+| 目标 | HYDRA-UMC 工作单元的 Raspberry Pi CM5 |
+| 真实硬件 | 尚未：此版本没有在真实硬件上运行的记录 |
+
 ## 1. 🛠️ 技术概述
 
 **HYDRA-UMC-OPCUA-SERVER** 是网关的核心工业建模模块。它将内部的动态

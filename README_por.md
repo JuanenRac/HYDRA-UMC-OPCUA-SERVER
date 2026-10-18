@@ -20,6 +20,17 @@
 
 ---
 
+## 📋 Num relance
+
+| | |
+|---|---|
+| Versão | `0.1.8` |
+| Maturidade | Estabelecido |
+| Testes | 37 |
+| Tecnologia | Node.js / node-opcua / OPC-UA address space |
+| Destino | O Raspberry Pi CM5 de uma célula HYDRA-UMC |
+| Em hardware real | Ainda não: não há registo de execução em hardware real para esta versão |
+
 ## 1. 🛠️ VISÃO TÉCNICA GERAL
 
 O **HYDRA-UMC-OPCUA-SERVER** é o módulo central de modelação industrial da Gateway. Traduz o HydraState interno e dinâmico (JSON) num espaço de endereços OPC-UA estruturado e descobrível.
