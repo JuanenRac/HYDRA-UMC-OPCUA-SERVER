@@ -47,7 +47,7 @@ echo "========================================"
 if ! npm test; then
   echo ""
   echo "TESTS FAILED."
-  read -p "Press Enter to close..."
+  if [ -t 0 ] && [ "${HYDRA_UMC_CI:-}" != "1" ] && [ -z "${CI:-}" ]; then read -r -p "Press Enter to close..." _ || true; fi
   exit 1
 fi
 
@@ -58,10 +58,10 @@ if npm run build; then
   echo ""
   echo "Build complete! You can now start the production server with:"
   echo "npm start"
-  read -p "Press Enter to close..."
+  if [ -t 0 ] && [ "${HYDRA_UMC_CI:-}" != "1" ] && [ -z "${CI:-}" ]; then read -r -p "Press Enter to close..." _ || true; fi
 else
   echo ""
   echo "Build FAILED."
-  read -p "Press Enter to close..."
+  if [ -t 0 ] && [ "${HYDRA_UMC_CI:-}" != "1" ] && [ -z "${CI:-}" ]; then read -r -p "Press Enter to close..." _ || true; fi
   exit 1
 fi
