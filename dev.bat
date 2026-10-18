@@ -2,7 +2,7 @@
 REM =============================================================================
 REM HYDRA-UMC OPCUA SERVER - Development Server Start Script
 REM Copyright (C) 2026 JuanenRac (Electro Hobby 3D) <electrohobby3d@gmail.com>
-REM GPL-3.0 - see LICENSE
+REM GPL-3.0-or-later - see LICENSE
 REM =============================================================================
 
 echo ========================================
@@ -10,7 +10,7 @@ echo  HYDRA-UMC OPCUA SERVER
 echo  Development Server Start Script - installs dependencies and starts the dev server
 echo  Author: JuanenRac (Electro Hobby 3D)
 echo  E-mail: electrohobby3d@gmail.com
-echo  License: GPL-3.0 - see LICENSE
+echo  License: GPL-3.0-or-later - see LICENSE
 echo ========================================
 echo.
 

@@ -1,7 +1,7 @@
 // =============================================================================
 // HYDRA-UMC OPCUA SERVER - tests/robotSource.integration.test.ts
 // Copyright (C) 2026 JuanenRac (Electro Hobby 3D) <electrohobby3d@gmail.com>
-// GPL-3.0 - see LICENSE
+// GPL-3.0-or-later - see LICENSE
 //
 // End to end: a real HTTP server plays HYDRA-UMC-SERVER (bearer-protected
 // GET /api/settings), the poller reads it with the real fetch, and a real

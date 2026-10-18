@@ -1,7 +1,7 @@
 // =============================================================================
 // HYDRA-UMC OPCUA SERVER - tests/hardening.test.ts
 // Copyright (C) 2026 JuanenRac (Electro Hobby 3D) <electrohobby3d@gmail.com>
-// GPL-3.0 - see LICENSE
+// GPL-3.0-or-later - see LICENSE
 //
 // The pieces that do not need a running OPC-UA server: node keys, the login
 // throttle, the PKI choices, the roster source (URL prefix, size cap, no

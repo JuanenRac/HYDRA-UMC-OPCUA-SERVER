@@ -1,7 +1,7 @@
 // =============================================================================
 // HYDRA-UMC OPCUA SERVER - tests/server.test.ts
 // Copyright (C) 2026 JuanenRac (Electro Hobby 3D) <electrohobby3d@gmail.com>
-// GPL-3.0 - see LICENSE
+// GPL-3.0-or-later - see LICENSE
 //
 // Real protocol-level tests: starts a real OPCUAServer on an ephemeral
 // port and connects a real OPCUAClient against it (node-opcua's own

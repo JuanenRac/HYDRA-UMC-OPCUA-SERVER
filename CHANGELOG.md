@@ -23,6 +23,11 @@ semantic-versioning judgment calls:
 
 ---
 
+## [0.1.8]
+
+- Build version synchronized with `hydra-umc.project.json` and the repository-native version source.
+- The licence is written as GPL-3.0-or-later in every header and in the package metadata.
+
 ## [0.1.7] - Only the administrator can write; the server no longer trusts every client
 
 - **A certificate can no longer write.** Write access was granted to any session whose user name was not "anonymous", and for a session that identifies itself with a certificate the user name is the certificate's common name, so any client with a self-signed certificate could change `MaintenanceMode` and `SwarmOnline` even with no administrator configured. Only a session that logged in with the administrator's user name and password may write now, and the store of user certificates never accepts an unknown certificate. Regression tests present a certificate as the user identity, trusted and untrusted, and confirm nothing is written.

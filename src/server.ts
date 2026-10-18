@@ -1,7 +1,7 @@
 // =============================================================================
 // HYDRA-UMC OPCUA SERVER - OPC-UA Address Space Server: src/server.ts
 // Copyright (C) 2026 JuanenRac (Electro Hobby 3D) <electrohobby3d@gmail.com>
-// GPL-3.0 - see LICENSE
+// GPL-3.0-or-later - see LICENSE
 //
 // Core industrial modeling module for the Gateway (see this project's own
 // README.md for the full rationale). node-opcua does the actual protocol

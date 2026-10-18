@@ -1,7 +1,7 @@
 // =============================================================================
 // HYDRA-UMC OPCUA SERVER - Real package version at runtime: src/version.ts
 // Copyright (C) 2026 JuanenRac (Electro Hobby 3D) <electrohobby3d@gmail.com>
-// GPL-3.0 - see LICENSE
+// GPL-3.0-or-later - see LICENSE
 //
 // Same pattern HYDRA-UMC-SERVER's own src/server.ts uses: read package.json
 // at runtime instead of hardcoding a version string that silently goes

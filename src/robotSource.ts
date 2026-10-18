@@ -1,7 +1,7 @@
 // =============================================================================
 // HYDRA-UMC OPCUA SERVER - OPC-UA Address Space Server: src/robotSource.ts
 // Copyright (C) 2026 JuanenRac (Electro Hobby 3D) <electrohobby3d@gmail.com>
-// GPL-3.0 - see LICENSE
+// GPL-3.0-or-later - see LICENSE
 //
 // Feeds the per-robot address space from HYDRA-UMC-SERVER. The robot roster
 // is controllers[].robots in GET /api/settings (id, name, online). Polling is

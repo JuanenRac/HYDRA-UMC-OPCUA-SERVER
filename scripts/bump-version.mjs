@@ -1,7 +1,7 @@
 // =============================================================================
 // HYDRA-UMC OPCUA SERVER - Build-time version bump: scripts/bump-version.mjs
 // Copyright (C) 2026 JuanenRac (Electro Hobby 3D) <electrohobby3d@gmail.com>
-// GPL-3.0 - see LICENSE
+// GPL-3.0-or-later - see LICENSE
 // =============================================================================
 // Legacy native-only version helper. Root build scripts own the single project
 // increment through bump_manifest_version.py; `npm run build` is deliberately

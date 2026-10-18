@@ -1,7 +1,7 @@
 // =============================================================================
 // HYDRA-UMC OPCUA SERVER - tests/robotSource.test.ts
 // Copyright (C) 2026 JuanenRac (Electro Hobby 3D) <electrohobby3d@gmail.com>
-// GPL-3.0 - see LICENSE
+// GPL-3.0-or-later - see LICENSE
 // =============================================================================
 import { describe, expect, it, vi } from "vitest";
 import { extractRobots, pollerConfigFromEnv, startRobotPolling } from "../src/robotSource.js";

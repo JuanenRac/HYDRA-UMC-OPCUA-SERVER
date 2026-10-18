@@ -9,7 +9,7 @@
 ### 🛠️ Mappatura degli oggetti HydraState su spazi di indirizzamento OPC-UA standardizzati
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Licenza-GPL%203.0-blue.svg" alt="GPL 3.0">
+  <img src="https://img.shields.io/badge/Licenza-GPL%203.0--or--later-blue.svg" alt="GPL 3.0 or later">
   <img src="https://img.shields.io/badge/Standard-OPC--UA-orange.svg" alt="OPC-UA">
   <img src="https://img.shields.io/badge/Funzione-Address%20Space%20Modeling-blue.svg" alt="Modeling">
 </p>
@@ -234,4 +234,4 @@ Questo progetto fa parte dell'ecosistema robotico HYDRA-UMC dello stesso autore 
 📺 [youtube.com/@electrohobby3d](https://youtube.com/@electrohobby3d)
 
 ## 📜 LICENZA
-GPL-3.0 - Vedere LICENSE per i dettagli.
+GPL-3.0-or-later - Vedere LICENSE per i dettagli.

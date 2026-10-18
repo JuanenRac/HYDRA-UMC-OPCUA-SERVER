@@ -9,7 +9,7 @@
 ### 🛠️ Mapeo de Objetos HydraState a Espacios de Direcciones OPC-UA Estandarizados
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Licencia-GPL%203.0-blue.svg" alt="GPL 3.0">
+  <img src="https://img.shields.io/badge/Licencia-GPL%203.0--or--later-blue.svg" alt="GPL 3.0 or later">
   <img src="https://img.shields.io/badge/Estándar-OPC--UA-orange.svg" alt="OPC-UA">
   <img src="https://img.shields.io/badge/Función-Modelado%20de%20Espacio%20de%20Direcciones-blue.svg" alt="Modeling">
 </p>
@@ -234,4 +234,4 @@ Este proyecto es parte del ecosistema de robótica HYDRA-UMC del mismo autor (Ju
 📺 [youtube.com/@electrohobby3d](https://youtube.com/@electrohobby3d)
 
 ## 📜 LICENCIA
-GPL-3.0 - Ver archivo LICENSE para más detalles.
+GPL-3.0-or-later - Ver archivo LICENSE para más detalles.
