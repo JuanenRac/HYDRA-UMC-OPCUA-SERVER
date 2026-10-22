@@ -28,7 +28,7 @@
 |---|---|
 | Versione | `0.1.9` |
 | Maturità | Funzionale |
-| Test | 37 |
+| Test | 53 |
 | Tecnologia | Node.js / node-opcua / OPC-UA address space |
 | Destinazione | Il Raspberry Pi CM5 di una cella HYDRA-UMC |
 | Su hardware reale | Non ancora: per questa versione non risulta alcuna esecuzione su hardware reale |
@@ -44,7 +44,7 @@ Consente ai software di automazione industriale (come Ignition, Siemens TIA Port
 * 🔄 **Elenco dei robot e due indicatori:** l'elenco dei robot (oggetti `Robot_<id>` con `Name` e `Online`) è di sola lettura; `SwarmOnline` e `MaintenanceMode` sono le uniche variabili scrivibili, e solo per l'amministratore autenticato. Nessun nodo comanda un giunto o un effettore.
 * 🔖 **Namespace Versionato e NodeId Stabili:** Un URI di namespace reale ed esplicito, e NodeId di tipo stringa espliciti - un aggiornamento dell'address space non può cambiare silenziosamente il percorso da cui dipende un client. *(implementato)*
 * 🔐 **Autorizzazione di Scrittura per Sessione:** Un controllo reale e dinamico che distingue una sessione anonima da una autenticata - non tutti i client ottengono l'accesso in scrittura per impostazione predefinita. *(implementato)*
-* 📡 **Supporto alle sottoscrizioni:** Aggiornamenti dei dati ad alta efficienza utilizzando i meccanismi publish-subscribe di OPC-UA.
+* 📡 **Supporto alle sottoscrizioni:** Aggiornamenti dei dati ad alta efficienza utilizzando i meccanismi publish-subscribe di OPC-UA. *(non ancora testato: solo letture e scritture sono testate end-to-end)*
 * 🛡️ **Crittografia:** ogni sessione reale richiede Signed o Signed+Encrypted (Basic256Sha256, Aes128_Sha256_RsaOaep o Aes256_Sha256_RsaPss) - una connessione non cifrata `SecurityPolicy.None` viene realmente rifiutata, non solo sconsigliata.
 
 ---

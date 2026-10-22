@@ -28,7 +28,7 @@
 |---|---|
 | Version | `0.1.9` |
 | Reifegrad | Funktionsfähig |
-| Tests | 37 |
+| Tests | 53 |
 | Technik | Node.js / node-opcua / OPC-UA address space |
 | Ziel | Der Raspberry Pi CM5 einer HYDRA-UMC-Zelle |
 | Auf echter Hardware | Noch nicht: für diese Version ist kein Lauf auf echter Hardware vermerkt |
@@ -44,7 +44,7 @@ Er ermöglicht es industrieller Automatisierungssoftware (wie Ignition, Siemens 
 * 🔄 **Roboterliste und zwei Schalter:** Die Roboterliste (`Robot_<id>`-Objekte mit `Name` und `Online`) ist schreibgeschützt; `SwarmOnline` und `MaintenanceMode` sind die einzigen beschreibbaren Variablen, und nur für den authentifizierten Administrator. Kein Knoten steuert ein Gelenk oder einen Effektor.
 * 🔖 **Versionierter Namespace & stabile NodeIds:** Eine echte, explizite Namespace-URI und explizite String-NodeIds - eine Aktualisierung des Address Space kann den Pfad, von dem ein Client abhängt, nicht stillschweigend ändern. *(implementiert)*
 * 🔐 **Sitzungsbasierte Schreibautorisierung:** Eine echte, dynamische Prüfung, die eine anonyme Sitzung von einer authentifizierten unterscheidet - nicht jeder Client erhält standardmäßig Schreibzugriff. *(implementiert)*
-* 📡 **Subscription-Unterstützung:** Hocheffiziente Datenaktualisierungen über OPC-UA-Publish-Subscribe-Mechanismen.
+* 📡 **Subscription-Unterstützung:** Hocheffiziente Datenaktualisierungen über OPC-UA-Publish-Subscribe-Mechanismen. *(noch nicht getestet: nur Lese- und Schreibzugriffe sind Ende-zu-Ende getestet)*
 * 🛡️ **Verschlüsselung:** jede echte Sitzung erfordert Signed oder Signed+Encrypted (Basic256Sha256, Aes128_Sha256_RsaOaep oder Aes256_Sha256_RsaPss) - eine unverschlüsselte `SecurityPolicy.None`-Verbindung wird echt abgelehnt, nicht nur davon abgeraten.
 
 ---
