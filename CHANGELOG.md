@@ -25,6 +25,7 @@ semantic-versioning judgment calls:
 
 ## [Unreleased]
 
+- The banner follows the animated style of the ecosystem banners, with the name, the kind and the technologies of the project.
 - **The test count of the READMEs is the real one** (53 instead of 37 in the table of the eight languages and in the English honesty check).
 - **The READMEs say that the subscription support is not tested yet** (only reads and writes are tested end to end), in the eight languages.
 - **The roadmap in the eight READMEs says what already exists:** the MQTT broker and the MTConnect adapter are repositories of their own (linked); only the broker cluster and the wider multi-vendor integration remain planned.
