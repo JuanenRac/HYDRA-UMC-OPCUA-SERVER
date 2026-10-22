@@ -133,8 +133,8 @@ Portal, ...) pour parcourir l'espace d'adressage.
 
 ## 🚀 FEUILLE DE ROUTE
 * **Phase 1 :** Implémentation d'OPC-UA Pub/Sub pour l'échange de données à haute vitesse et le pontage des protocoles hérités.
-* **Phase 2 :** Cluster de brokers MQTT pour la gestion massive des appareils IoT et une haute simultanéité.
-* **Phase 3 :** Prise en charge de l''adaptateur MTConnect pour l'intégration de machines CNC et d'automates multi-fournisseurs.
+* **Phase 2 :** le broker MQTT existe déjà comme dépôt à part ([HYDRA-UMC-MQTT-BROKER](https://github.com/JuanenRac/HYDRA-UMC-MQTT-BROKER)) ; le cluster pour la gestion massive des appareils IoT et la haute simultanéité reste prévu.
+* **Phase 3 :** l'adaptateur MTConnect existe déjà comme dépôt à part ([HYDRA-UMC-MTCONNECT-ADAPTER](https://github.com/JuanenRac/HYDRA-UMC-MTCONNECT-ADAPTER)) ; l'intégration de machines CNC et d'automates multi-fournisseurs au-delà reste prévue.
 * **Phase 4 :** Conformité totale avec la spécification compagnon OPC UA Robotics et synchronisation de la passerelle industrielle.
 
 ---

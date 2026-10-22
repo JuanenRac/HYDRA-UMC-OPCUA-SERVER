@@ -141,8 +141,8 @@ npm start
 
 ## 🚀 ロードマップ
 * **フェーズ 1：** 高速データ交換とレガシープロトコルブリッジングのための OPC-UA パブリッシュ/サブスクライブ実装。
-* **フェーズ 2：** 大量の IoT デバイス管理と高い並行性のための MQTT Broker クラスター。
-* **フェーズ 3：** マルチベンダーの CNC および PLC 機械統合のための MTConnect アダプターサポート。
+* **フェーズ 2：** MQTT Broker はすでに独立したリポジトリとして存在します（[HYDRA-UMC-MQTT-BROKER](https://github.com/JuanenRac/HYDRA-UMC-MQTT-BROKER)）。大量の IoT デバイス管理と高い並行性のためのクラスターは引き続き計画中です。
+* **フェーズ 3：** MTConnect アダプターはすでに独立したリポジトリとして存在します（[HYDRA-UMC-MTCONNECT-ADAPTER](https://github.com/JuanenRac/HYDRA-UMC-MTCONNECT-ADAPTER)）。それを超える複数ベンダーの CNC・PLC 機器との統合は引き続き計画中です。
 * **フェーズ 4：** OPC UA Robotics コンパニオン仕様への完全準拠と産業用ゲートウェイの同期。
 
 ---

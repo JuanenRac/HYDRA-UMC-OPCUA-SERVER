@@ -137,8 +137,8 @@ npm start
 
 ## 🚀 路线图
 * **第一阶段：** OPC-UA 发布/订阅实现，用于高速数据交换和传统协议桥接。
-* **第二阶段：** 用于海量 IoT 设备管理和高并发的 MQTT Broker 集群。
-* **第三阶段：** MTConnect 适配器支持，用于多厂商 CNC 和 PLC 机械集成。
+* **第二阶段：** MQTT Broker 已作为独立仓库存在（[HYDRA-UMC-MQTT-BROKER](https://github.com/JuanenRac/HYDRA-UMC-MQTT-BROKER)）；面向海量 IoT 设备管理和高并发的集群仍在计划中。
+* **第三阶段：** MTConnect 适配器已作为独立仓库存在（[HYDRA-UMC-MTCONNECT-ADAPTER](https://github.com/JuanenRac/HYDRA-UMC-MTCONNECT-ADAPTER)）；在此之外对多厂商 CNC 和 PLC 设备的集成仍在计划中。
 * **第四阶段：** 完全符合 OPC UA Robotics 配套规范，并实现工业网关同步。
 
 ---

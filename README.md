@@ -133,8 +133,8 @@ browse the address space.
 
 ## 🚀 ROADMAP
 * **Phase 1:** OPC-UA Pub/Sub implementation for high-speed data exchange and legacy protocol bridging.
-* **Phase 2:** MQTT Broker cluster for massive IoT device management and high concurrency.
-* **Phase 3:** MTConnect adapter support for multi-vendor CNC and PLC machinery integration.
+* **Phase 2:** the MQTT broker already exists as its own repository ([HYDRA-UMC-MQTT-BROKER](https://github.com/JuanenRac/HYDRA-UMC-MQTT-BROKER)); the cluster for massive IoT device management and high concurrency is still planned.
+* **Phase 3:** the MTConnect adapter already exists as its own repository ([HYDRA-UMC-MTCONNECT-ADAPTER](https://github.com/JuanenRac/HYDRA-UMC-MTCONNECT-ADAPTER)); the integration of multi-vendor CNC and PLC machinery beyond it is still planned.
 * **Phase 4:** Full compliance with OPC UA Robotics companion specification and industrial gateway synchronization.
 
 ---

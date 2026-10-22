@@ -134,8 +134,8 @@ Adressraum zu durchsuchen.
 
 ## 🚀 FAHRPLAN
 * **Phase 1:** OPC-UA Pub/Sub-Implementierung für Hochgeschwindigkeitsdatenaustausch und Legacy-Protokoll-Bridging.
-* **Phase 2:** MQTT-Broker-Cluster für massives IoT-Gerätemanagement und hohe Parallelität.
-* **Phase 3:** MTConnect-Adapterunterstützung für die Integration von CNC- und SPS-Maschinen verschiedener Hersteller.
+* **Phase 2:** der MQTT-Broker existiert bereits als eigenes Repository ([HYDRA-UMC-MQTT-BROKER](https://github.com/JuanenRac/HYDRA-UMC-MQTT-BROKER)); der Cluster für massives IoT-Gerätemanagement und hohe Parallelität ist weiterhin geplant.
+* **Phase 3:** der MTConnect-Adapter existiert bereits als eigenes Repository ([HYDRA-UMC-MTCONNECT-ADAPTER](https://github.com/JuanenRac/HYDRA-UMC-MTCONNECT-ADAPTER)); die Integration von CNC- und SPS-Maschinen verschiedener Hersteller darüber hinaus ist weiterhin geplant.
 * **Phase 4:** Volle Konformität mit der OPC UA Robotics Companion Specification und Synchronisation des Industrielles Gateways.
 
 ---

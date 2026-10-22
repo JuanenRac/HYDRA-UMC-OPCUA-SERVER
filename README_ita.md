@@ -134,8 +134,8 @@ spazio di indirizzamento.
 
 ## 🚀 TABELLA DI MARCIA
 * **Fase 1:** Implementazione di OPC-UA Pub/Sub per lo scambio di dati ad alta velocità e bridging di protocolli legacy.
-* **Fase 2:** Cluster MQTT Broker per la gestione massiva di dispositivi IoT e alta concorrenza.
-* **Fase 3:** Supporto per l'adattatore MTConnect per l'integrazione di macchinari CNC e PLC multi-vendor.
+* **Fase 2:** il broker MQTT esiste già come repository a sé ([HYDRA-UMC-MQTT-BROKER](https://github.com/JuanenRac/HYDRA-UMC-MQTT-BROKER)); il cluster per la gestione massiva di dispositivi IoT e l'alta concorrenza resta pianificato.
+* **Fase 3:** l'adattatore MTConnect esiste già come repository a sé ([HYDRA-UMC-MTCONNECT-ADAPTER](https://github.com/JuanenRac/HYDRA-UMC-MTCONNECT-ADAPTER)); l'integrazione di macchinari CNC e PLC multi-vendor oltre a esso resta pianificata.
 * **Fase 4:** Piena conformità alla specifica companion OPC UA Robotics e sincronizzazione del gateway industriale.
 
 ---
