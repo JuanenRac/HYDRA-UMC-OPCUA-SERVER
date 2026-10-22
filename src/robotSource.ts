@@ -13,7 +13,7 @@
 // strength of old data.
 // =============================================================================
 
-import type { RobotSnapshot } from "./server.js";
+import type { RobotSnapshot, RosterMeta } from "./server.js";
 
 /** Robots listed in a /api/settings body; anything that is not a usable entry is skipped. */
 export function extractRobots(settings: unknown): RobotSnapshot[] {
@@ -74,7 +74,7 @@ export interface RobotPollerOptions {
   username?: string;
   password?: string;
   intervalMs: number;
-  setRobots: (robots: RobotSnapshot[]) => void;
+  setRobots: (robots: RobotSnapshot[], meta?: RosterMeta) => void;
   /** Called after every poll with whether the source could be read, so the address space can report the swarm as offline when it cannot. */
   onSourceStatus?: (readable: boolean) => void;
   fetchImpl?: typeof fetch;
@@ -121,12 +121,13 @@ export function startRobotPolling(options: RobotPollerOptions): () => void {
       }
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       known = extractRobots(await readJsonCapped(response));
-      setRobots(known);
+      setRobots(known, { stale: false, observedAtMs: Date.now() });
       options.onSourceStatus?.(true);
     } catch (error) {
       console.warn(`[HYDRA-UMC-OPCUA-SERVER] robot source unavailable: ${error instanceof Error ? error.message : String(error)}`);
+      // never online on the strength of old data; the second argument tells the address space to say so in the quality
       known = known.map((robot) => ({ ...robot, online: false }));
-      setRobots(known);
+      setRobots(known, { stale: true });
       options.onSourceStatus?.(false);
     }
   };
@@ -157,16 +158,22 @@ export function startRobotPolling(options: RobotPollerOptions): () => void {
 export function pollerConfigFromEnv(
   env: NodeJS.ProcessEnv = process.env,
 ): { url: string; token?: string; username?: string; password?: string; intervalMs: number } | null {
-  const url = env.HYDRA_SERVER_URL?.trim();
-  const token = env.HYDRA_SERVER_TOKEN?.trim();
-  const username = env.HYDRA_SERVER_USER?.trim();
-  const password = env.HYDRA_SERVER_PASSWORD;
+  // The ecosystem-wide names (HYDRA_UMC_SERVER_*, the ones HYDRA-UMC-MTCONNECT-ADAPTER reads) win; the original
+  // HYDRA_SERVER_* names keep working, so an existing deployment needs no change.
+  const pick = (name: string): string | undefined => {
+    const wide = env[`HYDRA_UMC_SERVER_${name}`];
+    return wide !== undefined && wide !== "" ? wide : env[`HYDRA_SERVER_${name}`];
+  };
+  const url = pick("URL")?.trim();
+  const token = pick("TOKEN")?.trim();
+  const username = pick("USER")?.trim();
+  const password = pick("PASSWORD");
   const hasAccount = Boolean(username) && Boolean(password);
   if (!url || (!token && !hasAccount)) return null;
-  const raw = env.HYDRA_SERVER_POLL_MS?.trim();
+  const raw = pick("POLL_MS")?.trim();
   const parsed = raw ? Number(raw) : 5000;
   if (!Number.isInteger(parsed) || parsed < 1000) {
-    throw new Error(`HYDRA-UMC-OPCUA-SERVER: HYDRA_SERVER_POLL_MS must be an integer of at least 1000, got ${raw}`);
+    throw new Error(`HYDRA-UMC-OPCUA-SERVER: HYDRA_SERVER_POLL_MS (or HYDRA_UMC_SERVER_POLL_MS) must be an integer of at least 1000, got ${raw}`);
   }
   new URL(url);
   // the token wins when both are set, so the account is only carried as the way to renew it

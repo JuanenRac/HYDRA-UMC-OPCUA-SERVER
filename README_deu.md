@@ -16,7 +16,7 @@
 
 ---
 
-**Ehrlichkeitscheck - was heute wirklich läuft:** der OPC-UA-Server und die Adressraum-Zuordnung (`src/server.ts`) sind real und getestet (53 bestandene Tests über `tests/server.test.ts`, `tests/security.test.ts`, `tests/security-policy.test.ts`, `tests/robotSource.test.ts`, `tests/robotSource.integration.test.ts`) - und das sind echte Tests auf Protokollebene: `tests/server.test.ts` verbindet einen echten `OPCUAClient` (node-opcuas eigenen Client, dieselbe Bibliothek, die UAExpert/Ignition verwenden würden) über das echte Binärprotokoll auf einem echten TCP-Port, und `tests/security-policy.test.ts` beweist, dass eine unverschlüsselte `SecurityPolicy.None`-Sitzung standardmäßig tatsächlich abgelehnt wird (nur über das explizite Escape-Hatch `OPCUA_ALLOW_INSECURE=1` akzeptiert). Was absichtlich zurückgestellt ist, keine zufällig gefundene Lücke: der Baum pro Roboter (`Robot_<id>`) folgt der von HYDRA-UMC-SERVER gemeldeten Liste (abgefragt mit einem Token oder einem Konto, siehe `.env.example`), aber der Rest des Adressraums wird einmal beim Start aufgebaut; bisher sind nur Lese-/Schreibvorgänge Ende-zu-Ende getestet, keine OPC-UA-Subscriptions; und Pub/Sub (Roadmap-Phase 1) bleibt unimplementiert, da noch kein Client davon abhängt. Siehe `mejoras_futuras.txt` für die vollständige Liste dessen, was zurückgestellt ist und warum, und `CHANGELOG.md` für das, was bisher genau ausgeliefert wurde.
+**Ehrlichkeitscheck - was heute wirklich läuft:** der OPC-UA-Server und die Adressraum-Zuordnung (`src/server.ts`) sind real und getestet (73 bestandene Tests über `tests/server.test.ts`, `tests/security.test.ts`, `tests/security-policy.test.ts`, `tests/robotSource.test.ts`, `tests/robotSource.integration.test.ts`) - und das sind echte Tests auf Protokollebene: `tests/server.test.ts` verbindet einen echten `OPCUAClient` (node-opcuas eigenen Client, dieselbe Bibliothek, die UAExpert/Ignition verwenden würden) über das echte Binärprotokoll auf einem echten TCP-Port, und `tests/security-policy.test.ts` beweist, dass eine unverschlüsselte `SecurityPolicy.None`-Sitzung standardmäßig tatsächlich abgelehnt wird (nur über das explizite Escape-Hatch `OPCUA_ALLOW_INSECURE=1` akzeptiert). Was absichtlich zurückgestellt ist, keine zufällig gefundene Lücke: der Baum pro Roboter (`Robot_<id>`) folgt der von HYDRA-UMC-SERVER gemeldeten Liste (abgefragt mit einem Token oder einem Konto, siehe `.env.example`), aber der Rest des Adressraums wird einmal beim Start aufgebaut; bisher sind nur Lese-/Schreibvorgänge Ende-zu-Ende getestet, keine OPC-UA-Subscriptions; und Pub/Sub (Roadmap-Phase 1) bleibt unimplementiert, da noch kein Client davon abhängt. Siehe `mejoras_futuras.txt` für die vollständige Liste dessen, was zurückgestellt ist und warum, und `CHANGELOG.md` für das, was bisher genau ausgeliefert wurde.
 
 ---
 
@@ -28,7 +28,7 @@
 |---|---|
 | Version | `0.1.9` |
 | Reifegrad | Funktionsfähig |
-| Tests | 53 |
+| Tests | 73 |
 | Technik | Node.js / node-opcua / OPC-UA address space |
 | Ziel | Der Raspberry Pi CM5 einer HYDRA-UMC-Zelle |
 | Auf echter Hardware | Noch nicht: für diese Version ist kein Lauf auf echter Hardware vermerkt |
@@ -44,7 +44,8 @@ Er ermöglicht es industrieller Automatisierungssoftware (wie Ignition, Siemens 
 * 🔄 **Roboterliste und zwei Schalter:** Die Roboterliste (`Robot_<id>`-Objekte mit `Name` und `Online`) ist schreibgeschützt; `SwarmOnline` und `MaintenanceMode` sind die einzigen beschreibbaren Variablen, und nur für den authentifizierten Administrator. Kein Knoten steuert ein Gelenk oder einen Effektor.
 * 🔖 **Versionierter Namespace & stabile NodeIds:** Eine echte, explizite Namespace-URI und explizite String-NodeIds - eine Aktualisierung des Address Space kann den Pfad, von dem ein Client abhängt, nicht stillschweigend ändern. *(implementiert)*
 * 🔐 **Sitzungsbasierte Schreibautorisierung:** Eine echte, dynamische Prüfung, die eine anonyme Sitzung von einer authentifizierten unterscheidet - nicht jeder Client erhält standardmäßig Schreibzugriff. *(implementiert)*
-* 📡 **Subscription-Unterstützung:** Hocheffiziente Datenaktualisierungen über OPC-UA-Publish-Subscribe-Mechanismen. *(noch nicht getestet: nur Lese- und Schreibzugriffe sind Ende-zu-Ende getestet)*
+* 📡 **Subscription-Unterstützung:** Hocheffiziente Datenaktualisierungen über OPC-UA-Publish-Subscribe-Mechanismen. *(Ende-zu-Ende getestet: eine echte Subscription liefert eine Datenänderungsmeldung)*
+* 🩺 **Betrieb (alles optional):** `OPCUA_HEALTH_PORT` startet einen separaten Listener (nur Loopback, sofern `OPCUA_HEALTH_HOST` nichts anderes sagt) mit `GET /health` und `GET /metrics` (Sitzungen, Subscriptions, fehlgeschlagene Anmeldungen, Roboter, ob die Liste lesbar ist); solange die Liste nicht lesbar ist, sind die `Online`-Variablen der Roboter `false` mit Qualität Uncertain statt eines schlichten `false`; `OPCUA_VIEWER_USERNAME`/`OPCUA_VIEWER_PASSWORD` fügen ein Nur-Lese-Konto hinzu und `OPCUA_ALLOW_ANONYMOUS=0` weist anonyme Sitzungen ab; die Einstellungen der Roboterliste akzeptieren auch die ökosystemweiten Namen `HYDRA_UMC_SERVER_*`. Standardmäßig alles aus oder unverändert. *(implementiert)*
 * 🛡️ **Verschlüsselung:** jede echte Sitzung erfordert Signed oder Signed+Encrypted (Basic256Sha256, Aes128_Sha256_RsaOaep oder Aes256_Sha256_RsaPss) - eine unverschlüsselte `SecurityPolicy.None`-Verbindung wird echt abgelehnt, nicht nur davon abgeraten.
 
 ---
@@ -72,7 +73,7 @@ flowchart LR
 * **Was passiert, wenn sich die echte Quelle von `SpindleTemp` trennt.** Der letzte echte Wert wird weiterhin ausgeliefert - nie zurückgehalten, nie zurückgesetzt - aber sein `statusCode` degradiert von `Good` zu node-opcuas eigenem echten, standardisierten `UncertainLastUsableValue` ("Whatever was updating this value has stopped doing so"), und `sourceTimestamp` zeigt weiterhin auf den echten, zuletzt beobachteten Zeitpunkt statt auf "jetzt". Eine korrekt authentifizierte, verschlüsselte Sitzung ändert daran nichts - sie authentifiziert den Client, nicht die Aktualität der Daten.
 * **Warum die Schreibautorisierung pro Sitzung erfolgt (`isUserWritable`), statt über ein statisches Zugriffsebenen-Flag.** Ein statisches `userAccessLevel` kann die Sitzung eines Clients nicht von der eines anderen unterscheiden - es ist für jede Verbindung dasselbe. Das Überschreiben von `isUserWritable(context)` am Variablenknoten ist node-opcuas eigener dokumentierter Mechanismus für eine Prüfung, die tatsächlich pro Sitzung variiert - real genug, um es mit zwei verschiedenen echten Client-Identitäten zu testen.
 
-Bewusst zurückgestellt, und warum: ein vollständig dynamischer Adressraum (der Baum pro Roboter folgt bereits der von HYDRA-UMC-SERVER gemeldeten Liste; der Rest wird beim Start einmal aufgebaut); echte Testabdeckung für OPC-UA-Subscriptions (bisher sind nur Lese-/Schreibzugriffe Ende-zu-Ende getestet); und der Pub/Sub-Punkt der Roadmap (noch nicht implementiert - kein Client hängt bisher davon ab).
+Bewusst zurückgestellt, und warum: ein vollständig dynamischer Adressraum (der Baum pro Roboter folgt bereits der von HYDRA-UMC-SERVER gemeldeten Liste; der Rest wird beim Start einmal aufgebaut); und der Pub/Sub-Punkt der Roadmap (noch nicht implementiert - kein Client hängt bisher davon ab).
 
 ---
 

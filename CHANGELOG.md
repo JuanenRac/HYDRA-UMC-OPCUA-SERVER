@@ -4,6 +4,11 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+- `OPCUA_HEALTH_PORT` (optional) starts a separate listener with `GET /health` and `GET /metrics`: open sessions and subscriptions, rejected sessions, failed logins, robots, and whether the robot roster can be read. It binds to loopback unless `OPCUA_HEALTH_HOST` says otherwise.
+- While the robot roster cannot be read, `Robot_<id>.Online` is served as `false` with an Uncertain quality (and the time of the last good read as source timestamp) instead of a plain `false`.
+- `OPCUA_VIEWER_USERNAME` / `OPCUA_VIEWER_PASSWORD` add a read-only account, and `OPCUA_ALLOW_ANONYMOUS=0` refuses anonymous sessions; both are off by default.
+- The roster settings are also read as `HYDRA_UMC_SERVER_*`, the names HYDRA-UMC-MTCONNECT-ADAPTER uses; the original `HYDRA_SERVER_*` names keep working.
+- A test creates a real subscription and checks that a data-change notification arrives. The READMEs no longer say that subscriptions are untested and count 73 tests.
 - Building no longer changes the version; raising it is the explicit `bump` command (`python tools/hydra_project_tool.py bump`). The build scripts only report the version they built, and CI fails if a build script runs a bump.
 - The banner follows the animated style of the ecosystem banners, with the name, the kind and the technologies of the project.
 - **The test count of the READMEs is the real one** (53 instead of 37 in the table of the eight languages and in the English honesty check).

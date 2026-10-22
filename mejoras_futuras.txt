@@ -40,14 +40,13 @@ to make sense on its own - this is the one place the full list lives.
    tests/security.test.ts was converted from `SecurityPolicy.None` to a
    real `Basic256Sha256`/`SignAndEncrypt` session in the same pass.
 
-3. Real subscription (publish/subscribe) coverage
-   ------------------------------------------------
-   Same situation as encryption: node-opcua's OPCUAServer supports
-   subscriptions/MonitoredItems out of the box, but no test in this repo
-   creates a real subscription and asserts a data-change notification
-   actually arrives. The README's "Subscription Support" bullet describes
-   library-provided capability, not something this repo has verified with
-   its own protocol-level test yet.
+3. RESOLVED - Real subscription (publish/subscribe) coverage
+   ------------------------------------------------------------
+   tests/observability.test.ts creates a real subscription with a real
+   MonitoredItem on ActiveRobotCount, changes the value on the server and
+   asserts that the data-change notification reaches the client. Several
+   subscriptions at once, sampling-interval limits and the behaviour of a
+   subscription across a server restart are still not covered.
 
 4. Choosing OPC-UA Pub/Sub vs. classic subscriptions for high-speed data
    ----------------------------------------------------------------------

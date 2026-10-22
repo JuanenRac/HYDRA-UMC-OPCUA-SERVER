@@ -37,6 +37,7 @@ import { createHash, timingSafeEqual } from "node:crypto";
 import path from "node:path";
 import { readPackageVersion } from "./version.js";
 import { pollerConfigFromEnv, startRobotPolling } from "./robotSource.js";
+import { healthPortFromEnv, startHealthServer } from "./health.js";
 
 // 4840 is the IANA-registered default OPC-UA TCP port, and node-opcua's
 // own default - kept here explicitly (rather than relying on the library
@@ -120,6 +121,11 @@ export function secretsMatch(provided: string, expected: string): boolean {
  */
 export class LoginThrottle {
   private failures: number[] = [];
+  private total = 0;
+  /** Every failed login since the process started (for the metrics). */
+  get totalFailures(): number {
+    return this.total;
+  }
   constructor(
     private readonly maxFailures: number = 10,
     private readonly windowMs: number = 60_000,
@@ -136,6 +142,7 @@ export class LoginThrottle {
 
   recordFailure(now: number = Date.now()): void {
     this.prune(now);
+    this.total += 1;
     this.failures.push(now);
   }
 }
@@ -160,6 +167,19 @@ export async function buildAddressSpaceServer(port: number = resolvePort()) {
   // an undeployed instance never ships a silent default login.
   const adminUsername = process.env.OPCUA_ADMIN_USERNAME;
   const adminPassword = process.env.OPCUA_ADMIN_PASSWORD;
+  // An optional second account that can log in and read but never write (a SCADA poller that needs an identity for its audit trail, or
+  // that must keep working when anonymous access is switched off). It is never the administrator: isAdminSession compares the user name.
+  const viewerUsername = process.env.OPCUA_VIEWER_USERNAME;
+  const viewerPassword = process.env.OPCUA_VIEWER_PASSWORD;
+  if (viewerUsername && viewerUsername === adminUsername) {
+    // a session is the administrator's by user name, so a viewer with the same name would be one
+    throw new Error("HYDRA-UMC-OPCUA-SERVER: OPCUA_VIEWER_USERNAME must differ from OPCUA_ADMIN_USERNAME");
+  }
+  // OPCUA_ALLOW_ANONYMOUS=0 turns anonymous sessions off: every client must log in (administrator or viewer). Default: anonymous may read, as before.
+  const allowAnonymous = (process.env.OPCUA_ALLOW_ANONYMOUS ?? "").trim() !== "0";
+  if (!allowAnonymous && !(adminUsername && adminPassword) && !(viewerUsername && viewerPassword)) {
+    console.warn("[HYDRA-UMC-OPCUA-SERVER] OPCUA_ALLOW_ANONYMOUS=0 with no administrator or viewer account: nobody can open a session");
+  }
   const maxFailures = Number(process.env.OPCUA_LOGIN_MAX_FAILURES);
   const throttle = new LoginThrottle(Number.isInteger(maxFailures) && maxFailures > 0 ? maxFailures : 10);
   const { serverCertificateManager, userCertificateManager } = createCertificateManagers();
@@ -201,18 +221,26 @@ export async function buildAddressSpaceServer(port: number = resolvePort()) {
     securityPolicies,
     serverCertificateManager,
     userCertificateManager,
+    allowAnonymous,
     ...(alternateHostname ? { alternateHostname } : {}),
     userManager: {
       isValidUser: (username: string, password: string): boolean => {
-        if (!adminUsername || !adminPassword) return false;
+        const accounts: Array<[string, string]> = [];
+        if (adminUsername && adminPassword) accounts.push([adminUsername, adminPassword]);
+        if (viewerUsername && viewerPassword) accounts.push([viewerUsername, viewerPassword]);
+        if (accounts.length === 0) return false;
         if (throttle.isLocked()) {
           console.warn("[HYDRA-UMC-OPCUA-SERVER] too many failed logins: attempts are refused until the window passes");
           return false;
         }
-        // Both comparisons always run, so a wrong user name takes as long as a wrong password.
-        const userOk = secretsMatch(username, adminUsername);
-        const passwordOk = secretsMatch(password, adminPassword);
-        if (userOk && passwordOk) return true;
+        // Every account is always compared, so a wrong user name takes as long as a wrong password.
+        let accepted = false;
+        for (const [expectedUser, expectedPassword] of accounts) {
+          const userOk = secretsMatch(username, expectedUser);
+          const passwordOk = secretsMatch(password, expectedPassword);
+          if (userOk && passwordOk) accepted = true;
+        }
+        if (accepted) return true;
         throttle.recordFailure();
         console.warn("[HYDRA-UMC-OPCUA-SERVER] failed login attempt");
         return false;
@@ -368,8 +396,11 @@ export async function buildAddressSpaceServer(port: number = resolvePort()) {
   // is no longer in the list has its object and variables removed, and
   // ActiveRobotCount follows the number of robots reported online.
   const robotObjects = new Map<string, { object: any; state: RobotSnapshot }>();
+  let rosterMeta: RosterMeta = { stale: false };
 
-  const setRobots = (robots: RobotSnapshot[]): void => {
+  const setRobots = (robots: RobotSnapshot[], meta: RosterMeta = { stale: false }): void => {
+    // the last successful read keeps its time while the roster is stale
+    rosterMeta = { stale: meta.stale, observedAtMs: meta.observedAtMs ?? rosterMeta.observedAtMs };
     const wanted = new Map<string, RobotSnapshot>();
     for (const robot of robots) {
       const key = robotNodeKey(robot.id);
@@ -410,7 +441,16 @@ export async function buildAddressSpaceServer(port: number = resolvePort()) {
         nodeId: `s=Robot_${key}.Online`,
         dataType: "Boolean",
         minimumSamplingInterval: 1000,
-        value: { get: () => new Variant({ dataType: DataType.Boolean, value: entry.state.online }) },
+        // While the roster cannot be read the robot is not claimed online, and the quality says the value is the last one that was usable:
+        // a SCADA that looks at quality sees "uncertain" instead of a plain false it cannot tell from a robot that is really off.
+        value: {
+          timestamped_get: () =>
+            new DataValue({
+              value: new Variant({ dataType: DataType.Boolean, value: entry.state.online }),
+              statusCode: rosterMeta.stale ? StatusCodes.UncertainNoCommunicationLastUsableValue : StatusCodes.Good,
+              ...(rosterMeta.observedAtMs !== undefined ? { sourceTimestamp: new Date(rosterMeta.observedAtMs) } : {}),
+            }),
+        },
       });
       robotObjects.set(key, entry);
     }
@@ -419,7 +459,7 @@ export async function buildAddressSpaceServer(port: number = resolvePort()) {
 
   await server.start();
 
-  return { server, state, setRobots };
+  return { server, state, setRobots, throttle, robotCount: () => robotObjects.size };
 }
 
 /**
@@ -441,9 +481,19 @@ export interface RobotSnapshot {
   online: boolean;
 }
 
+/** How fresh a roster is. Sent with setRobots; omitted means "as good as before this existed" (served as Good). */
+export interface RosterMeta {
+  /** true when the roster could not be read and `online` is only the safe default (false): the Online variables are served with an Uncertain quality. */
+  stale: boolean;
+  /** When (unix milliseconds) the roster was last read successfully; becomes the source timestamp of the Online variables. */
+  observedAtMs?: number;
+}
+
 async function main() {
   const port = resolvePort();
-  const { server, state, setRobots } = await buildAddressSpaceServer(port);
+  const { server, state, setRobots, throttle, robotCount } = await buildAddressSpaceServer(port);
+  const health = healthPortFromEnv();
+  let sourceStatus: "not configured" | "ok" | "unreadable" = "not configured";
   const shutdown = (signal: string) => {
     console.log(`[HYDRA-UMC-OPCUA-SERVER] ${signal} received: closing the sessions`);
     server
@@ -462,9 +512,32 @@ async function main() {
       setRobots,
       onSourceStatus: (readable) => {
         state.swarmOnline = readable;
+        sourceStatus = readable ? "ok" : "unreadable";
       },
     });
+    sourceStatus = "unreadable"; // until the first read works
     console.log(`[HYDRA-UMC-OPCUA-SERVER] reading the robot roster from ${source.url} every ${source.intervalMs} ms`);
+  }
+  if (health) {
+    const listener = startHealthServer({
+      ...health,
+      snapshot: () => ({
+        version: readPackageVersion(),
+        sessions: server.currentSessionCount,
+        subscriptions: server.engine.currentSubscriptionCount,
+        rejectedSessions: Number(server.engine.serverDiagnosticsSummary.rejectedSessionCount ?? 0),
+        cumulatedSessions: Number(server.engine.serverDiagnosticsSummary.cumulatedSessionCount ?? 0),
+        failedLogins: throttle.totalFailures,
+        loginLocked: throttle.isLocked(),
+        robots: robotCount(),
+        activeRobots: state.activeRobotCount,
+        swarmOnline: state.swarmOnline,
+        source: sourceStatus,
+      }),
+    });
+    listener.on("error", (err) => console.error("[HYDRA-UMC-OPCUA-SERVER] health listener error:", err));
+    process.once("exit", () => listener.close());
+    console.log(`[HYDRA-UMC-OPCUA-SERVER] health and metrics on http://${health.host}:${health.port} (GET /health, GET /metrics)`);
   }
   const endpointUrl = server.getEndpointUrl();
   console.log("=================================================");

@@ -16,7 +16,7 @@
 
 ---
 
-**诚实核查 - 今天真正能运行的部分：** OPC-UA 服务器与地址空间映射(`src/server.ts`)都是真实的并经过测试(`tests/server.test.ts`、`tests/security.test.ts`、`tests/security-policy.test.ts`, `tests/robotSource.test.ts`, `tests/robotSource.integration.test.ts` 共 53 个测试通过)——而且这些都是真正的协议级测试：`tests/server.test.ts` 使用一个真实的 `OPCUAClient`(node-opcua 自身的客户端，也是 UAExpert/Ignition 会使用的同一个库)通过真实的二进制协议、在一个真实的 TCP 端口上进行连接；`tests/security-policy.test.ts` 证明了未加密的 `SecurityPolicy.None` 会话默认确实会被拒绝(只有通过明确的 `OPCUA_ALLOW_INSECURE=1` 逃生开关才会被接受)。以下是有意推迟的部分，而非意外发现的缺口：按机器人划分的树（`Robot_<id>`）会跟随 HYDRA-UMC-SERVER 报告的名单（使用令牌或账户轮询，参见 `.env.example`），但地址空间的其余部分仅在启动时构建一次；目前只有读写操作经过了端到端测试，OPC-UA 订阅功能尚未测试；而 Pub/Sub(路线图第 1 阶段)仍未实现，因为目前还没有客户端依赖它。具体推迟了哪些内容以及原因，请见 `mejoras_futuras.txt` 的完整清单；具体已交付的内容请见 `CHANGELOG.md`。
+**诚实核查 - 今天真正能运行的部分：** OPC-UA 服务器与地址空间映射(`src/server.ts`)都是真实的并经过测试(`tests/server.test.ts`、`tests/security.test.ts`、`tests/security-policy.test.ts`, `tests/robotSource.test.ts`, `tests/robotSource.integration.test.ts` 共 73 个测试通过)——而且这些都是真正的协议级测试：`tests/server.test.ts` 使用一个真实的 `OPCUAClient`(node-opcua 自身的客户端，也是 UAExpert/Ignition 会使用的同一个库)通过真实的二进制协议、在一个真实的 TCP 端口上进行连接；`tests/security-policy.test.ts` 证明了未加密的 `SecurityPolicy.None` 会话默认确实会被拒绝(只有通过明确的 `OPCUA_ALLOW_INSECURE=1` 逃生开关才会被接受)。以下是有意推迟的部分，而非意外发现的缺口：按机器人划分的树（`Robot_<id>`）会跟随 HYDRA-UMC-SERVER 报告的名单（使用令牌或账户轮询，参见 `.env.example`），但地址空间的其余部分仅在启动时构建一次；目前只有读写操作经过了端到端测试，OPC-UA 订阅功能尚未测试；而 Pub/Sub(路线图第 1 阶段)仍未实现，因为目前还没有客户端依赖它。具体推迟了哪些内容以及原因，请见 `mejoras_futuras.txt` 的完整清单；具体已交付的内容请见 `CHANGELOG.md`。
 
 ---
 
@@ -28,7 +28,7 @@
 |---|---|
 | 版本 | `0.1.9` |
 | 成熟度 | 可用 |
-| 测试 | 53 |
+| 测试 | 73 |
 | 技术栈 | Node.js / node-opcua / OPC-UA address space |
 | 目标 | HYDRA-UMC 工作单元的 Raspberry Pi CM5 |
 | 真实硬件 | 尚未：此版本没有在真实硬件上运行的记录 |
@@ -47,7 +47,8 @@ FactoryTalk）能够浏览、读取和写入机器人变量，就像它们是标
 * 🔄 **机器人列表与两个标志：** 机器人列表（带有 `Name` 和 `Online` 的 `Robot_<id>` 对象）是只读的；`SwarmOnline` 和 `MaintenanceMode` 是仅有的可写变量，且只有经过认证的管理员可以写入。没有任何节点控制关节或执行器。
 * 🔖 **版本化命名空间与稳定的 NodeId：** 真实、明确的命名空间 URI，以及明确的字符串 NodeId——地址空间的更新不会悄悄改变客户端所依赖的路径。*(已实现)*
 * 🔐 **按会话的写入授权：** 真实、动态的检查，区分匿名会话与已认证会话——并非每个客户端默认都能获得写入权限。*(已实现)*
-* 📡 **订阅支持：** 使用 OPC-UA 发布-订阅机制实现高效的数据更新。*（尚未测试：目前只有读写做了端到端测试）*
+* 📡 **订阅支持：** 使用 OPC-UA 发布-订阅机制实现高效的数据更新。*（已端到端测试：真实订阅会送达数据变更通知）*
+* 🩺 **运维（均为可选）：** `OPCUA_HEALTH_PORT` 启动一个独立的监听器（除非 `OPCUA_HEALTH_HOST` 另有指定，否则仅回环），提供 `GET /health` 与 `GET /metrics`（会话、订阅、登录失败、机器人、能否读取名册）；在无法读取名册期间，机器人的 `Online` 变量为 `false` 且质量为 Uncertain，而不是单纯的 `false`；`OPCUA_VIEWER_USERNAME`/`OPCUA_VIEWER_PASSWORD` 增加只读账户，`OPCUA_ALLOW_ANONYMOUS=0` 拒绝匿名会话；名册设置也接受整个生态系统通用的 `HYDRA_UMC_SERVER_*` 名称。全部默认关闭或保持不变。 *(已实现)*
 * 🛡️ **加密：** 每个真实会话都要求 Signed 或 Signed+Encrypted（Basic256Sha256、Aes128_Sha256_RsaOaep 或 Aes256_Sha256_RsaPss）——未加密的 `SecurityPolicy.None` 连接会被真正拒绝,而不仅仅是不建议使用。
 
 ---
@@ -76,7 +77,7 @@ flowchart LR
 * **`SpindleTemp` 的真实数据源断开连接后会发生什么。** 最后一个真实值仍会继续提供——绝不隐藏，也绝不重置——但其 `statusCode` 会从 `Good` 降级为 node-opcua 自身真实的标准状态码 `UncertainLastUsableValue`("Whatever was updating this value has stopped doing so"，意为"原本更新该值的机制已经停止运作")，`sourceTimestamp` 也会继续指向真实的最后观测时刻，而不是"现在"。一次通过正确认证、加密的会话绝不会改变这一点——它认证的是客户端本身，而不是数据的新鲜度。
 * **为何写入授权按会话进行（`isUserWritable`），而非使用静态的访问级别标志。** 静态的 `userAccessLevel` 无法区分一个客户端的会话与另一个客户端的会话——它对每个连接都是相同的。在变量节点上重写 `isUserWritable(context)` 是 node-opcua 自身文档化的机制，用于实现一个真正按会话变化的检查，真实到足以用两个不同的真实客户端身份进行测试。
 
-有意推迟的内容及原因：按机器人划分的动态地址空间树（目前是静态的，仅在启动时构建一次——之后新增的机器人需要重启才会出现）；OPC-UA 订阅的真实测试覆盖（目前只有读写做了端到端测试）；以及路线图中的 Pub/Sub 事项（尚未实现——目前没有客户端依赖它）。
+有意推迟的内容及原因：按机器人划分的动态地址空间树（目前是静态的，仅在启动时构建一次——之后新增的机器人需要重启才会出现）；以及路线图中的 Pub/Sub 事项（尚未实现——目前没有客户端依赖它）。
 
 ---
 

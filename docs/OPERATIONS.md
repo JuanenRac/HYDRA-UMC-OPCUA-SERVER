@@ -23,6 +23,10 @@ something is not implemented it says so.
 | `OPCUA_LOGIN_MAX_FAILURES` | Failed logins allowed per minute before every login is refused until the minute passes | `10` |
 | `HYDRA_SERVER_URL` + (`HYDRA_SERVER_TOKEN` or `HYDRA_SERVER_USER` + `HYDRA_SERVER_PASSWORD`) | Read the robot roster from HYDRA-UMC-SERVER (`GET /api/settings`, which only a logged-in account may read) and keep one `Robot_<id>` object per robot. An account is logged in with `POST /api/login` and logged in again, once, when the session is refused; a token expires with its session. A response over 4 MiB is refused | off |
 | `HYDRA_SERVER_POLL_MS` | Roster polling interval in milliseconds (at least 1000) | `5000` |
+| `HYDRA_UMC_SERVER_URL`, `_TOKEN`, `_USER`, `_PASSWORD`, `_POLL_MS` | The same five settings under the names the rest of the ecosystem uses (HYDRA-UMC-MTCONNECT-ADAPTER reads these). When both spellings are set, `HYDRA_UMC_SERVER_*` wins | unset |
+| `OPCUA_VIEWER_USERNAME` / `OPCUA_VIEWER_PASSWORD` | An optional second account that can log in and read but never write (it is never the administrator). Its name must differ from `OPCUA_ADMIN_USERNAME` | unset |
+| `OPCUA_ALLOW_ANONYMOUS` | `0` refuses anonymous sessions: every client must log in as the administrator or the viewer | anonymous may read |
+| `OPCUA_HEALTH_PORT` / `OPCUA_HEALTH_HOST` | A separate HTTP listener with `GET /health` (JSON) and `GET /metrics` (Prometheus text): open sessions and subscriptions, sessions rejected, failed logins, login lock, robots and robots online, `SwarmOnline`, whether the roster can be read. It reads numbers only: no secret, no address-space value and no write path | off; host `127.0.0.1` |
 
 The endpoint URL is printed at startup, with resource path
 `/HYDRA-UMC-OPCUA-SERVER` (for example `opc.tcp://<host>:4840/HYDRA-UMC-OPCUA-SERVER`).
@@ -51,6 +55,18 @@ systemd, Docker or the shell. Never commit credentials.
   two Booleans, and writing them changes a value held in this process only: it
   is not sent to HYDRA-UMC-SERVER and does not inhibit any robot or job. There
   is no actuator, setpoint or command node.
+
+- **Quality of the robot `Online` variables.** `Robot_<id>.Online` is read with a
+  `Good` status and, as source timestamp, the time the roster was last read. While
+  HYDRA-UMC-SERVER cannot be read the value is `false` (a robot is never reported
+  online on the strength of old data) and the status is
+  `UncertainNoCommunicationLastUsableValue`, with the time of the last good read
+  still as source timestamp, so a SCADA that looks at quality can tell "unknown"
+  from a robot that is really offline.
+- **Optional read-only account and no anonymous access.** `OPCUA_VIEWER_USERNAME`
+  and `OPCUA_VIEWER_PASSWORD` add a login that can read and never write, for a
+  poller that needs an identity of its own; `OPCUA_ALLOW_ANONYMOUS=0` then
+  refuses anonymous sessions altogether. Both are off by default.
 
 ## Certificates
 
