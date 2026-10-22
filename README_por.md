@@ -128,7 +128,7 @@ OPC-UA (UAExpert, Ignition, Siemens TIA Portal, ...) para ele para
 navegar no espaço de endereços.
 
 ### Versionamento
-`npm run build` apenas empacota o servidor. A versão é incrementada por `build.sh` / `build.bat` (através de `bump_manifest_version.py`), um "conta-quilómetros" em base 10: patch +1 por build, com transporte para minor (e de minor para major) depois de 9, em vez de alguma vez chegar a um segmento de dois dígitos (`0.0.9` -> `0.1.0`, não `0.0.10`).
+`npm run build` apenas empacota o servidor. A versão só é subida por `python tools/hydra_project_tool.py bump` (através de `bump_manifest_version.py`), um "conta-quilómetros" em base 10: patch +1 por bump, com transporte para minor (e de minor para major) depois de 9, em vez de alguma vez chegar a um segmento de dois dígitos (`0.0.9` -> `0.1.0`, não `0.0.10`).
 
 ---
 

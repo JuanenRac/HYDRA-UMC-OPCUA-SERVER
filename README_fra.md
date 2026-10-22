@@ -127,7 +127,7 @@ pointez n'importe quel client OPC-UA (UAExpert, Ignition, Siemens TIA
 Portal, ...) pour parcourir l'espace d'adressage.
 
 ### Gestion des versions
-`npm run build` ne fait que regrouper le serveur. La version est incrémentée par `build.sh` / `build.bat` (via `bump_manifest_version.py`), un « compteur kilométrique » en base 10 : patch +1 par build, avec report sur minor (et de minor sur major) après 9 au lieu d'atteindre un segment à deux chiffres (`0.0.9` -> `0.1.0`, pas `0.0.10`).
+`npm run build` ne fait que regrouper le serveur. La version n'est augmentée que par `python tools/hydra_project_tool.py bump` (via `bump_manifest_version.py`), un « compteur kilométrique » en base 10 : patch +1 par bump, avec report sur minor (et de minor sur major) après 9 au lieu d'atteindre un segment à deux chiffres (`0.0.9` -> `0.1.0`, pas `0.0.10`).
 
 ---
 

@@ -4,6 +4,7 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+- Building no longer changes the version; raising it is the explicit `bump` command (`python tools/hydra_project_tool.py bump`). The build scripts only report the version they built, and CI fails if a build script runs a bump.
 - The banner follows the animated style of the ecosystem banners, with the name, the kind and the technologies of the project.
 - **The test count of the READMEs is the real one** (53 instead of 37 in the table of the eight languages and in the English honesty check).
 - **The READMEs say that the subscription support is not tested yet** (only reads and writes are tested end to end), in the eight languages.

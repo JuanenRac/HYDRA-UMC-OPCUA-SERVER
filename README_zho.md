@@ -131,7 +131,7 @@ npm start
 空间。
 
 ### 版本管理
-`npm run build` 只负责打包服务器。版本由 `build.sh` / `build.bat`（通过 `bump_manifest_version.py`）递增，采用十进制"里程表"方案：每次构建 patch +1，超过 9 时进位到 minor（minor 超过 9 时进位到 major），而不会到达两位数段（`0.0.9` -> `0.1.0`，而非 `0.0.10`）。
+`npm run build` 只负责打包服务器。版本只由 `python tools/hydra_project_tool.py bump`（通过 `bump_manifest_version.py`）提升，采用十进制"里程表"方案：每次 bump patch +1，超过 9 时进位到 minor（minor 超过 9 时进位到 major），而不会到达两位数段（`0.0.9` -> `0.1.0`，而非 `0.0.10`）。
 
 ---
 
