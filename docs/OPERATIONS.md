@@ -41,12 +41,12 @@ systemd, Docker or the shell. Never commit credentials.
   meant for a local smoke test - never for a real deployment.
 - **Anonymous is read-only.** Every client that does not log in is
   `anonymous` and can browse and read.
-- **One write role.** Only a session that logged in with the administrator's
-  user name and password (`OPCUA_ADMIN_USERNAME` / `OPCUA_ADMIN_PASSWORD`) may
-  write `SwarmOnline` and `MaintenanceMode`. A session whose identity is a
-  certificate can never write, whoever signed it; a user certificate is also
-  refused at login unless you put it in `UserPKI/trusted/certs/`. With the
-  credentials unset, nobody can write.
+- **Nothing is writable.** Every variable is read-only for every session,
+  the administrator's included: nothing a client wrote ever reached
+  HYDRA-UMC-SERVER, so a writable flag only gave a false sense of control. The
+  administrator account still logs in (it is the identity for the audit trail);
+  a user certificate is refused at login unless you put it in
+  `UserPKI/trusted/certs/`.
 - **Logins are bounded.** The password is compared in constant time, and after
   `OPCUA_LOGIN_MAX_FAILURES` failures in a minute every login is refused until
   that minute passes (an attacker can therefore also keep the administrator out
@@ -92,14 +92,14 @@ namespace version changes only on a breaking change to this shape.
 | NodeId | Type | Access | Notes |
 | --- | --- | --- | --- |
 | `s=HydraNode_1` | Object | - | Root object |
-| `s=HydraNode_1.SwarmOnline` | Boolean | read; write authenticated | |
+| `s=HydraNode_1.SwarmOnline` | Boolean | read | `BadWaitingForInitialData` until the roster poller has read once (and always when no source is configured) |
 | `s=HydraNode_1.ActiveRobotCount` | UInt32 | read | Robots of the roster whose `online` flag is true |
 | `s=HydraNode_1.SpindleTemp` | Double (°C, range -20..150) | read | `BadWaitingForInitialData` until a real source reports a value (nothing feeds it today); then a real source timestamp, and quality drops to `UncertainLastUsableValue` when the source stops updating - the last value stays readable |
 | `s=Robot_<id>` | Object | - | One per robot of the roster, with `Name` (String) and `Online` (Boolean), both read-only. An id with characters outside letters, digits, `_` and `-` gets them replaced and a short hash appended |
-| `s=HydraNode_1.MaintenanceMode` | Boolean | read; write authenticated | |
+| `s=HydraNode_1.MaintenanceMode` | Boolean | read | Always false: it is not wired to anything |
 
 Honest limits: with `HYDRA_SERVER_URL` set, `SwarmOnline` is true only while
-the last read of HYDRA-UMC-SERVER worked; without it, it is a plain flag.
+the last read of HYDRA-UMC-SERVER worked, and Bad before the first one; without a source it stays Bad.
 `Online` (and so `ActiveRobotCount`) is the `online` flag HYDRA-UMC-SERVER keeps
 for each robot, the one the operator interface toggles: it says the robot is
 enabled there, not that its controller answered. Nothing feeds `SpindleTemp`.

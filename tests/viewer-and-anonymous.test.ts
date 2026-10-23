@@ -81,11 +81,11 @@ describe("a viewer account next to the administrator, anonymous still allowed", 
     expect(value).toBe(false);
   });
 
-  it("the viewer's write is denied, the administrator's is accepted", async () => {
+  it("the viewer's write is denied, and so is the administrator's: the variable is read-only", async () => {
     const viewerStatus = await withSession(endpoint, viewer, write);
     expect(viewerStatus.isGood()).toBe(false);
     const adminStatus = await withSession(endpoint, admin, write);
-    expect(adminStatus.isGood()).toBe(true);
+    expect(adminStatus.isGood()).toBe(false);
   });
 
   it("a wrong viewer password is refused", async () => {
@@ -124,9 +124,9 @@ describe("OPCUA_ALLOW_ANONYMOUS=0", () => {
     await expect(withSession(endpoint, anonymous, read)).rejects.toBeTruthy();
   });
 
-  it("lets the viewer read and the administrator write", async () => {
+  it("lets the viewer and the administrator read, and neither write", async () => {
     expect(await withSession(endpoint, viewer, async (session) => (await read(session)).statusCode.isGood())).toBe(true);
-    expect((await withSession(endpoint, admin, write)).isGood()).toBe(true);
+    expect((await withSession(endpoint, admin, write)).isGood()).toBe(false);
   });
 });
 

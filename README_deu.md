@@ -41,7 +41,7 @@ Er ermöglicht es industrieller Automatisierungssoftware (wie Ignition, Siemens 
 
 ### Hauptmerkmale:
 * 🛠️ **Dynamische Informationsmodellierung:** Generiert automatisch den OPC-UA-Baum basierend auf aktiven Robotern und Werkzeugen.
-* 🔄 **Roboterliste und zwei Schalter:** Die Roboterliste (`Robot_<id>`-Objekte mit `Name` und `Online`) ist schreibgeschützt; `SwarmOnline` und `MaintenanceMode` sind die einzigen beschreibbaren Variablen, und nur für den authentifizierten Administrator. Kein Knoten steuert ein Gelenk oder einen Effektor.
+* 🔄 **Roboterliste und zwei Schalter:** Die Roboterliste (`Robot_<id>`-Objekte mit `Name` und `Online`) ist schreibgeschützt; `SwarmOnline` und `MaintenanceMode` sind ebenfalls schreibgeschützt (eine Schreibaktion hätte keine Wirkung auf den Rest des Systems und wird abgelehnt); `SwarmOnline` ist `BadWaitingForInitialData`, bis der Abruf der Roboterliste einmal gelesen hat. Kein Knoten steuert ein Gelenk oder einen Effektor.
 * 🔖 **Versionierter Namespace & stabile NodeIds:** Eine echte, explizite Namespace-URI und explizite String-NodeIds - eine Aktualisierung des Address Space kann den Pfad, von dem ein Client abhängt, nicht stillschweigend ändern. *(implementiert)*
 * 🔐 **Sitzungsbasierte Schreibautorisierung:** Eine echte, dynamische Prüfung, die eine anonyme Sitzung von einer authentifizierten unterscheidet - nicht jeder Client erhält standardmäßig Schreibzugriff. *(implementiert)*
 * 📡 **Subscription-Unterstützung:** Hocheffiziente Datenaktualisierungen über OPC-UA-Publish-Subscribe-Mechanismen. *(Ende-zu-Ende getestet: eine echte Subscription liefert eine Datenänderungsmeldung)*

@@ -41,7 +41,7 @@ Permite que o software de automação industrial (como o Ignition, o Siemens TIA
 
 ### Funcionalidades principais:
 * 🛠️ **Modelação dinâmica de informação:** gera automaticamente a árvore OPC-UA a partir dos robôs e ferramentas ativos.
-* 🔄 **Lista de robôs e dois indicadores:** a lista de robôs (objetos `Robot_<id>` com `Name` e `Online`) é só de leitura; `SwarmOnline` e `MaintenanceMode` são as únicas variáveis graváveis, e apenas para o administrador autenticado. Nenhum nó controla uma junta nem um efetuador.
+* 🔄 **Lista de robôs e dois indicadores:** a lista de robôs (objetos `Robot_<id>` com `Name` e `Online`) é só de leitura; `SwarmOnline` e `MaintenanceMode` também são só de leitura (uma escrita não teria efeito no resto do sistema e é recusada); `SwarmOnline` é `BadWaitingForInitialData` até o poller da lista ter lido uma vez. Nenhum nó controla uma junta nem um efetuador.
 * 🔖 **Espaço de nomes versionado e NodeIds estáveis:** um URI de espaço de nomes real e explícito e NodeIds de texto explícitos - uma atualização do espaço de endereços não pode alterar em silêncio o caminho de que um cliente depende. *(implementado)*
 * 🔐 **Autorização de escrita por sessão:** uma verificação real e dinâmica que distingue uma sessão anónima de uma autenticada - nem todos os clientes recebem acesso de escrita por omissão. *(implementado)*
 * 📡 **Suporte a subscrições:** atualizações de dados de alta eficiência através de mecanismos de publicação-subscrição do OPC-UA. *(testado de ponta a ponta: uma subscrição real entrega uma notificação de alteração de dados)*

@@ -37,7 +37,7 @@ beforeEach(() => {
   // The protocol endpoint is intentionally shared to avoid starting the
   // heavyweight OPC-UA server once per assertion.  Each test still begins
   // from the same application state as a freshly started server.
-  state.swarmOnline = true;
+  state.swarmOnline = null;
   state.activeRobotCount = 0;
 });
 
@@ -76,7 +76,7 @@ describe("HYDRA-UMC-OPCUA-SERVER address space (real OPC-UA protocol)", () => {
     });
   });
 
-  it("exposes SwarmOnline as a real, readable Boolean variable defaulting to true", async () => {
+  it("serves SwarmOnline as BadWaitingForInitialData while no poller has reported it", async () => {
     const value = await withClient(async (session) => {
       const browsePath = await session.translateBrowsePath({
         startingNode: "ns=0;i=85", // Objects folder
@@ -90,9 +90,20 @@ describe("HYDRA-UMC-OPCUA-SERVER address space (real OPC-UA protocol)", () => {
       const nodeId = browsePath.targets?.[0]?.targetId;
       expect(nodeId).toBeDefined();
       const dataValue = await session.read({ nodeId: nodeId!, attributeId: AttributeIds.Value });
-      return dataValue.value.value as boolean;
+      return dataValue.statusCode.name;
     });
-    expect(value).toBe(true);
+    expect(value).toBe("BadWaitingForInitialData");
+  });
+
+  it("serves SwarmOnline as a Good Boolean once a source has reported it", async () => {
+    state.swarmOnline = true;
+    try {
+      const dataValue = await withClient(async (session) => session.read({ nodeId: "ns=1;s=HydraNode_1.SwarmOnline", attributeId: AttributeIds.Value }));
+      expect(dataValue.statusCode.name).toBe("Good");
+      expect(dataValue.value.value).toBe(true);
+    } finally {
+      state.swarmOnline = null;
+    }
   });
 
   it("reflects a real mutation of activeRobotCount in a real OPC-UA read", async () => {
@@ -141,10 +152,10 @@ describe("HYDRA-UMC-OPCUA-SERVER address space (real OPC-UA protocol)", () => {
       });
       expect(statusCode.name).not.toBe("Good");
       const dataValue = await session.read({ nodeId, attributeId: AttributeIds.Value });
-      return dataValue.value.value as boolean;
+      return dataValue.statusCode.name;
     });
-    expect(finalValue).toBe(true);
-    expect(state.swarmOnline).toBe(true);
+    expect(finalValue).toBe("BadWaitingForInitialData");
+    expect(state.swarmOnline).toBeNull();
   });
 });
 

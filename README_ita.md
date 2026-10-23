@@ -41,7 +41,7 @@ Consente ai software di automazione industriale (come Ignition, Siemens TIA Port
 
 ### Caratteristiche principali:
 * 🛠️ **Modellazione dinamica delle informazioni:** Genera automaticamente l'albero OPC-UA in base ai robot e agli strumenti attivi.
-* 🔄 **Elenco dei robot e due indicatori:** l'elenco dei robot (oggetti `Robot_<id>` con `Name` e `Online`) è di sola lettura; `SwarmOnline` e `MaintenanceMode` sono le uniche variabili scrivibili, e solo per l'amministratore autenticato. Nessun nodo comanda un giunto o un effettore.
+* 🔄 **Elenco dei robot e due indicatori:** l'elenco dei robot (oggetti `Robot_<id>` con `Name` e `Online`) è di sola lettura; anche `SwarmOnline` e `MaintenanceMode` sono di sola lettura (una scrittura non avrebbe effetto sul resto del sistema e viene rifiutata); `SwarmOnline` è `BadWaitingForInitialData` finché il poller dell'elenco non ha letto una volta. Nessun nodo comanda un giunto o un effettore.
 * 🔖 **Namespace Versionato e NodeId Stabili:** Un URI di namespace reale ed esplicito, e NodeId di tipo stringa espliciti - un aggiornamento dell'address space non può cambiare silenziosamente il percorso da cui dipende un client. *(implementato)*
 * 🔐 **Autorizzazione di Scrittura per Sessione:** Un controllo reale e dinamico che distingue una sessione anonima da una autenticata - non tutti i client ottengono l'accesso in scrittura per impostazione predefinita. *(implementato)*
 * 📡 **Supporto alle sottoscrizioni:** Aggiornamenti dei dati ad alta efficienza utilizzando i meccanismi publish-subscribe di OPC-UA. *(testato end-to-end: una vera sottoscrizione consegna una notifica di cambio dati)*

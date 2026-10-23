@@ -59,7 +59,8 @@ export function resolvePort(raw: string | undefined = process.env.PORT): number 
 const NAMESPACE_URI = "urn:hydra-umc:opcua-server:v1";
 
 export interface HydraNodeState {
-  swarmOnline: boolean;
+  /** null until something real reports it: the poller of HYDRA-UMC-SERVER, once its first read has finished. */
+  swarmOnline: boolean | null;
   activeRobotCount: number;
   /** null until a real source has reported a temperature: nothing in this server measures one by itself. */
   spindleTempC: number | null;
@@ -155,7 +156,7 @@ export function isAdminSession(context: ISessionContext, adminUsername: string |
 }
 
 /** Builds and starts a real OPCUAServer with one HydraNode_1 object exposing
- * SwarmOnline (read/write Boolean) and ActiveRobotCount (read-only UInt32).
+ * SwarmOnline (read-only Boolean) and ActiveRobotCount (read-only UInt32).
  * `state` is returned so a caller (main() below, or a test) can mutate
  * activeRobotCount and observe the change reflected in a real OPC-UA read -
  * the get() closures below always read from this same object, never a
@@ -280,7 +281,7 @@ export async function buildAddressSpaceServer(port: number = resolvePort()) {
   });
 
   const state: HydraNodeState = {
-    swarmOnline: true,
+    swarmOnline: null,
     activeRobotCount: 0,
     // Nothing in this server measures a spindle temperature: until a real source reports one the variable is Bad.
     spindleTempC: null,
@@ -289,34 +290,32 @@ export async function buildAddressSpaceServer(port: number = resolvePort()) {
     maintenanceMode: false,
   };
 
-  // Real gap found while auditing the code: this was writable by ANY anonymous
-  // OPC-UA client, unlike MaintenanceMode below (which already has a real
-  // per-session isUserWritable check). SwarmOnline is exactly the kind of
-  // meaningful system state MaintenanceMode's own comment already worries
-  // about - closed the same way, not a new mechanism. See
-  // isUserWritable below (has to be set after addVariable returns the
-  // node - same as maintenanceMode's own).
-  const swarmOnline = namespace.addVariable({
+  // SwarmOnline is read-only: nothing that a client wrote here ever reached HYDRA-UMC-SERVER, so a writable flag only gave a false sense
+  // of control. It is served with BadWaitingForInitialData until the poller has made its first read (and always, when no source is
+  // configured): a literal "true" would be an invented value.
+  namespace.addVariable({
     componentOf: hydraNode,
     browseName: "SwarmOnline",
     nodeId: "s=HydraNode_1.SwarmOnline",
     dataType: "Boolean",
+    accessLevel: "CurrentRead",
+    userAccessLevel: "CurrentRead",
     minimumSamplingInterval: 1000,
     value: {
-      get: () => new Variant({ dataType: DataType.Boolean, value: state.swarmOnline }),
-      set: (variant: Variant) => {
-        state.swarmOnline = Boolean(variant.value);
-        return StatusCodes.Good;
-      },
+      timestamped_get: () =>
+        state.swarmOnline === null
+          ? new DataValue({ value: new Variant({ dataType: DataType.Null }), statusCode: StatusCodes.BadWaitingForInitialData })
+          : new DataValue({ value: new Variant({ dataType: DataType.Boolean, value: state.swarmOnline }), statusCode: StatusCodes.Good }),
     },
   });
-  swarmOnline.isUserWritable = (context: ISessionContext): boolean => isAdminSession(context, adminUsername);
 
   namespace.addVariable({
     componentOf: hydraNode,
     browseName: "ActiveRobotCount",
     nodeId: "s=HydraNode_1.ActiveRobotCount",
     dataType: "UInt32",
+    accessLevel: "CurrentRead",
+    userAccessLevel: "CurrentRead",
     minimumSamplingInterval: 1000,
     value: {
       get: () => new Variant({ dataType: DataType.UInt32, value: state.activeRobotCount }),
@@ -351,6 +350,8 @@ export async function buildAddressSpaceServer(port: number = resolvePort()) {
     browseName: "SpindleTemp",
     nodeId: "s=HydraNode_1.SpindleTemp",
     dataType: "Double",
+    accessLevel: "CurrentRead",
+    userAccessLevel: "CurrentRead",
     minimumSamplingInterval: 1000,
     engineeringUnits: { displayName: "°C", description: "degree Celsius", namespaceUri: "http://www.opcfoundation.org/UA/units/un/cefact", unitId: 4408652 },
     engineeringUnitsRange: { low: -20, high: 150 },
@@ -366,29 +367,21 @@ export async function buildAddressSpaceServer(port: number = resolvePort()) {
     },
   });
 
-  // A real, dynamic per-session write authorization - the review's
-  // own "autorizacion de lectura frente a escritura mediante
-  // cliente de prueba". Overriding isUserWritable is node-opcua's own
-  // documented mechanism for a check that varies per session (the static
-  // userAccessLevel option on addVariable cannot); an anonymous session
-  // (the default for every client) gets read-only, an authenticated one
-  // (see the userManager.isValidUser check above) gets real write access -
-  // same gate SwarmOnline's own isUserWritable above now uses too.
-  const maintenanceMode = namespace.addVariable({
+  // Read-only too: a MaintenanceMode written from a SCADA never inhibited anything in HYDRA-UMC-SERVER, and an operator could believe the
+  // cell was locked out. It stays false until a contract with the server exists that would make a write mean something (and that
+  // contract has to go through the SDK gate and the server's command reservation).
+  namespace.addVariable({
     componentOf: hydraNode,
     browseName: "MaintenanceMode",
     nodeId: "s=HydraNode_1.MaintenanceMode",
     dataType: "Boolean",
+    accessLevel: "CurrentRead",
+    userAccessLevel: "CurrentRead",
     minimumSamplingInterval: 1000,
     value: {
       get: () => new Variant({ dataType: DataType.Boolean, value: state.maintenanceMode }),
-      set: (variant: Variant) => {
-        state.maintenanceMode = Boolean(variant.value);
-        return StatusCodes.Good;
-      },
     },
   });
-  maintenanceMode.isUserWritable = (context: ISessionContext): boolean => isAdminSession(context, adminUsername);
 
   // One object per robot, built from whatever list the caller hands to
   // setRobots(). Node ids are derived from the robot id ("s=Robot_<id>"),
@@ -433,6 +426,8 @@ export async function buildAddressSpaceServer(port: number = resolvePort()) {
         browseName: "Name",
         nodeId: `s=Robot_${key}.Name`,
         dataType: "String",
+        accessLevel: "CurrentRead",
+        userAccessLevel: "CurrentRead",
         value: { get: () => new Variant({ dataType: DataType.String, value: entry.state.name }) },
       });
       namespace.addVariable({
@@ -440,6 +435,8 @@ export async function buildAddressSpaceServer(port: number = resolvePort()) {
         browseName: "Online",
         nodeId: `s=Robot_${key}.Online`,
         dataType: "Boolean",
+        accessLevel: "CurrentRead",
+        userAccessLevel: "CurrentRead",
         minimumSamplingInterval: 1000,
         // While the roster cannot be read the robot is not claimed online, and the quality says the value is the last one that was usable:
         // a SCADA that looks at quality sees "uncertain" instead of a plain false it cannot tell from a robot that is really off.
@@ -505,8 +502,7 @@ async function main() {
   process.once("SIGINT", () => shutdown("SIGINT"));
   const source = pollerConfigFromEnv();
   if (source) {
-    // With a source configured, SwarmOnline follows it: it is true only while the last read of HYDRA-UMC-SERVER worked.
-    state.swarmOnline = false;
+    // With a source configured, SwarmOnline follows it: it is Bad until the first read ends, then true only while the last read of HYDRA-UMC-SERVER worked.
     startRobotPolling({
       ...source,
       setRobots,
@@ -531,7 +527,7 @@ async function main() {
         loginLocked: throttle.isLocked(),
         robots: robotCount(),
         activeRobots: state.activeRobotCount,
-        swarmOnline: state.swarmOnline,
+        swarmOnline: state.swarmOnline === true,
         source: sourceStatus,
       }),
     });

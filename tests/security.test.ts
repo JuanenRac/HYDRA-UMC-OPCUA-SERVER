@@ -201,16 +201,14 @@ describe("real read/write authorization on MaintenanceMode", () => {
     expect(state.maintenanceMode).toBe(false);
   });
 
-  it("an authenticated (correct credentials) client's write succeeds and is reflected in state", async () => {
-    const finalValue = await withSession(admin, async (session) => {
+  it("even the administrator's write is refused: the variable is read-only", async () => {
+    const statusCodeName = await withSession(admin, async (session) => {
       const nodeId = await resolveNodeId(session, ["HydraNode_1", "MaintenanceMode"]);
       const statusCode = await session.write({ nodeId: nodeId!, attributeId: AttributeIds.Value, value: { value: { dataType: DataType.Boolean, value: true } } });
-      expect(statusCode.name).toBe("Good");
-      const dataValue = await session.read({ nodeId: nodeId!, attributeId: AttributeIds.Value });
-      return dataValue.value.value as boolean;
+      return statusCode.name;
     });
-    expect(finalValue).toBe(true);
-    expect(state.maintenanceMode).toBe(true);
+    expect(statusCodeName).not.toBe("Good");
+    expect(state.maintenanceMode).toBe(false);
   });
 
   it("a client presenting the wrong password is rejected, not silently treated as anonymous", async () => {
@@ -233,19 +231,16 @@ describe("real read/write authorization on SwarmOnline", () => {
       return statusCode.name;
     });
     expect(statusCodeName).not.toBe("Good");
-    expect(state.swarmOnline).toBe(true);
+    expect(state.swarmOnline).toBeNull();
   });
 
-  it("an authenticated (correct credentials) client's write succeeds and is reflected in state", async () => {
-    const finalValue = await withSession(admin, async (session) => {
+  it("even the administrator's write is refused: the variable is read-only", async () => {
+    const statusCodeName = await withSession(admin, async (session) => {
       const nodeId = await resolveNodeId(session, ["HydraNode_1", "SwarmOnline"]);
       const statusCode = await session.write({ nodeId: nodeId!, attributeId: AttributeIds.Value, value: { value: { dataType: DataType.Boolean, value: false } } });
-      expect(statusCode.name).toBe("Good");
-      const dataValue = await session.read({ nodeId: nodeId!, attributeId: AttributeIds.Value });
-      return dataValue.value.value as boolean;
+      return statusCode.name;
     });
-    expect(finalValue).toBe(false);
-    expect(state.swarmOnline).toBe(false);
-    state.swarmOnline = true; // restore for any test ordering after this one
+    expect(statusCodeName).not.toBe("Good");
+    expect(state.swarmOnline).toBeNull();
   });
 });

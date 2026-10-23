@@ -41,7 +41,7 @@ It allows industrial automation software (like Ignition, Siemens TIA Portal, or 
 
 ### Key Features:
 * 🛠️ **Dynamic Information Modeling:** Automatically generates the OPC-UA tree based on active robots and tools.
-* 🔄 **Roster and two flags:** the robot roster (`Robot_<id>` objects with `Name` and `Online`) is read-only; `SwarmOnline` and `MaintenanceMode` are the only writable variables, and only for the authenticated administrator. No node controls a joint or an effector.
+* 🔄 **Roster and two flags:** the robot roster (`Robot_<id>` objects with `Name` and `Online`) is read-only; `SwarmOnline` and `MaintenanceMode` are read-only too (a write has no effect on the rest of the system, so it is refused); `SwarmOnline` is `BadWaitingForInitialData` until the roster poller has read once. No node controls a joint or an effector.
 * 🔖 **Versioned Namespace & Stable NodeIds:** A real, explicit namespace URI and explicit string NodeIds - an address-space update can't silently change the path a client depends on. *(implemented)*
 * 🔐 **Per-Session Write Authorization:** A real, dynamic check distinguishing an anonymous session from an authenticated one - not every client gets write access by default. *(implemented)*
 * 📡 **Subscription Support:** High-efficiency data updates using OPC-UA publish-subscribe mechanisms. *(tested end to end: a real subscription delivers a data-change notification)*

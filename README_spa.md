@@ -41,7 +41,7 @@ Permite que el software de automatización industrial (como Ignition, Siemens TI
 
 ### Características Clave:
 * 🛠️ **Modelado de Información Dinámico:** Genera automáticamente el árbol OPC-UA basado en los robots y herramientas activos.
-* 🔄 **Lista de robots y dos indicadores:** la lista de robots (objetos `Robot_<id>` con `Name` y `Online`) es de solo lectura; `SwarmOnline` y `MaintenanceMode` son las únicas variables escribibles, y solo para el administrador autenticado. Ningún nodo controla una articulación ni un efector.
+* 🔄 **Lista de robots y dos indicadores:** la lista de robots (objetos `Robot_<id>` con `Name` y `Online`) es de solo lectura; `SwarmOnline` y `MaintenanceMode` también son de solo lectura (una escritura no tendría efecto en el resto del sistema y se rechaza); `SwarmOnline` es `BadWaitingForInitialData` hasta que el sondeo de la lista haya leído una vez. Ningún nodo controla una articulación ni un efector.
 * 🔖 **Espacio de Nombres Versionado y NodeIds Estables:** Una URI de espacio de nombres real y explícita, y NodeIds de tipo string explícitos - una actualización del espacio de direcciones no puede cambiar silenciosamente la ruta de la que depende un cliente. *(implementado)*
 * 🔐 **Autorización de Escritura por Sesión:** Una comprobación real y dinámica que distingue una sesión anónima de una autenticada - no todos los clientes obtienen acceso de escritura por defecto. *(implementado)*
 * 📡 **Soporte de Suscripción:** Actualizaciones de datos de alta eficiencia usando mecanismos de publicación-suscripción de OPC-UA. *(probado de extremo a extremo: una suscripción real entrega una notificación de cambio de datos)*

@@ -41,7 +41,7 @@ Il permet aux logiciels d'automatisation industrielle (comme Ignition, Siemens T
 
 ### Caractéristiques principales :
 * 🛠️ **Modélisation dynamique des informations :** Génère automatiquement l'arborescence OPC-UA en fonction des robots et des outils actifs.
-* 🔄 **Liste des robots et deux indicateurs :** la liste des robots (objets `Robot_<id>` avec `Name` et `Online`) est en lecture seule ; `SwarmOnline` et `MaintenanceMode` sont les seules variables inscriptibles, et seulement pour l'administrateur authentifié. Aucun nœud ne commande une articulation ni un effecteur.
+* 🔄 **Liste des robots et deux indicateurs :** la liste des robots (objets `Robot_<id>` avec `Name` et `Online`) est en lecture seule ; `SwarmOnline` et `MaintenanceMode` sont aussi en lecture seule (une écriture n'aurait aucun effet sur le reste du système et est refusée) ; `SwarmOnline` vaut `BadWaitingForInitialData` tant que l'interrogation de la liste n'a pas lu une fois. Aucun nœud ne commande une articulation ni un effecteur.
 * 🔖 **Espace de noms versionné & NodeIds stables :** Une URI d'espace de noms réelle et explicite, ainsi que des NodeIds de type chaîne explicites - une mise à jour de l'espace d'adressage ne peut pas changer silencieusement le chemin dont dépend un client. *(implémenté)*
 * 🔐 **Autorisation d'écriture par session :** Une vérification réelle et dynamique distinguant une session anonyme d'une session authentifiée - tous les clients n'obtiennent pas un accès en écriture par défaut. *(implémenté)*
 * 📡 **Prise en charge des abonnements :** Mises à jour des données haute efficacité à l'aide des mécanismes de publication-abonnement OPC-UA. *(testé de bout en bout : un vrai abonnement livre une notification de changement de données)*

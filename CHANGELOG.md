@@ -4,6 +4,8 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+- **Every variable is read-only, for every session.** `SwarmOnline` and `MaintenanceMode` no longer accept a write, not even from the administrator: nothing a client wrote ever reached the rest of the system. The access level is `CurrentRead` on all variables.
+- **`SwarmOnline` is no longer an invented `true`.** It is served as `BadWaitingForInitialData` until the roster poller has read once (and always when no source is configured), then follows the last read.
 - `OPCUA_HEALTH_PORT` (optional) starts a separate listener with `GET /health` and `GET /metrics`: open sessions and subscriptions, rejected sessions, failed logins, robots, and whether the robot roster can be read. It binds to loopback unless `OPCUA_HEALTH_HOST` says otherwise.
 - While the robot roster cannot be read, `Robot_<id>.Online` is served as `false` with an Uncertain quality (and the time of the last good read as source timestamp) instead of a plain `false`.
 - `OPCUA_VIEWER_USERNAME` / `OPCUA_VIEWER_PASSWORD` add a read-only account, and `OPCUA_ALLOW_ANONYMOUS=0` refuses anonymous sessions; both are off by default.
