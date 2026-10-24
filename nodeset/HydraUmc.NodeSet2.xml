@@ -1,0 +1,241 @@
+<?xml version="1.0"?>
+<UANodeSet xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd" xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd" xmlns:ns1="urn:hydra-umc:opcua-server:v1/Type.xsd">
+    <NamespaceUris>
+        <Uri>urn:hydra-umc:opcua-server:v1</Uri>
+    </NamespaceUris>
+    <Models>
+        <Model ModelUri="urn:hydra-umc:opcua-server:v1" Version="0.0.0" PublicationDate="1900-01-01T00:00:00.000Z">
+            <RequiredModel ModelUri="http://opcfoundation.org/UA/" Version="1.05.07" PublicationDate="2026-05-01T00:00:00.000Z"/>
+        </Model>
+    </Models>
+    <Aliases>
+        <Alias Alias="Boolean">i=1</Alias>
+        <Alias Alias="DateTime">i=13</Alias>
+        <Alias Alias="Double">i=11</Alias>
+        <Alias Alias="EUInformation">i=887</Alias>
+        <Alias Alias="HasComponent">i=47</Alias>
+        <Alias Alias="HasModellingRule">i=37</Alias>
+        <Alias Alias="HasProperty">i=46</Alias>
+        <Alias Alias="HasSubtype">i=45</Alias>
+        <Alias Alias="HasTypeDefinition">i=40</Alias>
+        <Alias Alias="Organizes">i=35</Alias>
+        <Alias Alias="Range">i=884</Alias>
+        <Alias Alias="String">i=12</Alias>
+        <Alias Alias="UInt32">i=7</Alias>
+    </Aliases>
+<!--ReferenceTypes-->
+<!--ObjectTypes-->
+<!--ObjectType - 1:HydraCellType {{{{ -->
+    <UAObjectType NodeId="ns=1;s=HydraCellType" BrowseName="1:HydraCellType">
+        <DisplayName>HydraCellType</DisplayName>
+        <References>
+            <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
+            <Reference ReferenceType="HasComponent">ns=1;s=HydraCellType.ActiveRobotCount</Reference>
+            <Reference ReferenceType="HasComponent">ns=1;s=HydraCellType.MaintenanceMode</Reference>
+            <Reference ReferenceType="HasComponent">ns=1;s=HydraCellType.SpindleTemp</Reference>
+            <Reference ReferenceType="HasComponent">ns=1;s=HydraCellType.SwarmOnline</Reference>
+        </References>
+    </UAObjectType>
+    <UAVariable NodeId="ns=1;s=HydraCellType.ActiveRobotCount" BrowseName="1:ActiveRobotCount" ParentNodeId="ns=1;s=HydraCellType" DataType="UInt32">
+        <DisplayName>ActiveRobotCount</DisplayName>
+        <References>
+            <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+            <Reference ReferenceType="HasModellingRule">i=78</Reference>
+        </References>
+    </UAVariable>
+    <UAVariable NodeId="ns=1;s=HydraCellType.MaintenanceMode" BrowseName="1:MaintenanceMode" ParentNodeId="ns=1;s=HydraCellType" DataType="Boolean">
+        <DisplayName>MaintenanceMode</DisplayName>
+        <References>
+            <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+            <Reference ReferenceType="HasModellingRule">i=78</Reference>
+        </References>
+    </UAVariable>
+    <UAVariable NodeId="ns=1;s=HydraCellType.SpindleTemp" BrowseName="1:SpindleTemp" ParentNodeId="ns=1;s=HydraCellType" DataType="Double">
+        <DisplayName>SpindleTemp</DisplayName>
+        <References>
+            <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+            <Reference ReferenceType="HasModellingRule">i=78</Reference>
+        </References>
+    </UAVariable>
+    <UAVariable NodeId="ns=1;s=HydraCellType.SwarmOnline" BrowseName="1:SwarmOnline" ParentNodeId="ns=1;s=HydraCellType" DataType="Boolean">
+        <DisplayName>SwarmOnline</DisplayName>
+        <References>
+            <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+            <Reference ReferenceType="HasModellingRule">i=78</Reference>
+        </References>
+    </UAVariable>
+<!--ObjectType - 1:HydraCellType }}}}-->
+<!--ObjectType - 1:HydraRobotType {{{{ -->
+    <UAObjectType NodeId="ns=1;s=HydraRobotType" BrowseName="1:HydraRobotType">
+        <DisplayName>HydraRobotType</DisplayName>
+        <References>
+            <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
+            <Reference ReferenceType="HasComponent">ns=1;s=HydraRobotType.LastUpdate</Reference>
+            <Reference ReferenceType="HasComponent">ns=1;s=HydraRobotType.Live</Reference>
+            <Reference ReferenceType="HasComponent">ns=1;s=HydraRobotType.Name</Reference>
+            <Reference ReferenceType="HasComponent">ns=1;s=HydraRobotType.Online</Reference>
+        </References>
+    </UAObjectType>
+    <UAVariable NodeId="ns=1;s=HydraRobotType.LastUpdate" BrowseName="1:LastUpdate" ParentNodeId="ns=1;s=HydraRobotType" DataType="DateTime">
+        <DisplayName>LastUpdate</DisplayName>
+        <References>
+            <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+            <Reference ReferenceType="HasModellingRule">i=78</Reference>
+        </References>
+    </UAVariable>
+    <UAVariable NodeId="ns=1;s=HydraRobotType.Live" BrowseName="1:Live" ParentNodeId="ns=1;s=HydraRobotType" DataType="Boolean">
+        <DisplayName>Live</DisplayName>
+        <References>
+            <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+            <Reference ReferenceType="HasModellingRule">i=78</Reference>
+        </References>
+    </UAVariable>
+    <UAVariable NodeId="ns=1;s=HydraRobotType.Name" BrowseName="1:Name" ParentNodeId="ns=1;s=HydraRobotType" DataType="String">
+        <DisplayName>Name</DisplayName>
+        <References>
+            <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+            <Reference ReferenceType="HasModellingRule">i=78</Reference>
+        </References>
+    </UAVariable>
+    <UAVariable NodeId="ns=1;s=HydraRobotType.Online" BrowseName="1:Online" ParentNodeId="ns=1;s=HydraRobotType" DataType="Boolean">
+        <DisplayName>Online</DisplayName>
+        <References>
+            <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+            <Reference ReferenceType="HasModellingRule">i=78</Reference>
+        </References>
+    </UAVariable>
+<!--ObjectType - 1:HydraRobotType }}}}-->
+<!--VariableTypes-->
+<!--Other Nodes-->
+<!--Object - 1:HydraNode_1 {{{{ -->
+    <UAObject NodeId="ns=1;s=HydraNode_1" BrowseName="1:HydraNode_1">
+        <DisplayName>HydraNode_1</DisplayName>
+        <References>
+            <Reference ReferenceType="Organizes" IsForward="false">i=85</Reference>
+            <Reference ReferenceType="HasTypeDefinition">ns=1;s=HydraCellType</Reference>
+            <Reference ReferenceType="HasComponent">ns=1;s=HydraNode_1.ActiveRobotCount</Reference>
+            <Reference ReferenceType="HasComponent">ns=1;s=HydraNode_1.MaintenanceMode</Reference>
+            <Reference ReferenceType="HasComponent">ns=1;s=HydraNode_1.SpindleTemp</Reference>
+            <Reference ReferenceType="HasComponent">ns=1;s=HydraNode_1.SwarmOnline</Reference>
+        </References>
+        <RolePermissions>
+            <RolePermission Permissions="35">i=15656</RolePermission>
+            <RolePermission Permissions="35">i=15668</RolePermission>
+            <RolePermission Permissions="35">i=15716</RolePermission>
+            <RolePermission Permissions="35">i=15644</RolePermission>
+        </RolePermissions>
+    </UAObject>
+    <UAVariable NodeId="ns=1;s=HydraNode_1.ActiveRobotCount" BrowseName="1:ActiveRobotCount" ParentNodeId="ns=1;s=HydraNode_1" MinimumSamplingInterval="1000" DataType="UInt32">
+        <DisplayName>ActiveRobotCount</DisplayName>
+        <References>
+            <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+        </References>
+        <RolePermissions>
+            <RolePermission Permissions="35">i=15656</RolePermission>
+            <RolePermission Permissions="35">i=15668</RolePermission>
+            <RolePermission Permissions="35">i=15716</RolePermission>
+            <RolePermission Permissions="35">i=15644</RolePermission>
+        </RolePermissions>
+    </UAVariable>
+    <UAVariable NodeId="ns=1;s=HydraNode_1.MaintenanceMode" BrowseName="1:MaintenanceMode" ParentNodeId="ns=1;s=HydraNode_1" MinimumSamplingInterval="1000" DataType="Boolean">
+        <DisplayName>MaintenanceMode</DisplayName>
+        <References>
+            <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+        </References>
+        <RolePermissions>
+            <RolePermission Permissions="35">i=15656</RolePermission>
+            <RolePermission Permissions="35">i=15668</RolePermission>
+            <RolePermission Permissions="35">i=15716</RolePermission>
+            <RolePermission Permissions="35">i=15644</RolePermission>
+        </RolePermissions>
+        <Value>
+            <uax:Boolean>false</uax:Boolean>
+        </Value>
+    </UAVariable>
+    <UAVariable NodeId="ns=1;s=HydraNode_1.SpindleTemp" BrowseName="1:SpindleTemp" ParentNodeId="ns=1;s=HydraNode_1" MinimumSamplingInterval="1000" DataType="Double">
+        <DisplayName>SpindleTemp</DisplayName>
+        <References>
+            <Reference ReferenceType="HasTypeDefinition">i=2368</Reference>
+            <Reference ReferenceType="HasProperty">ns=1;s=HydraNode_1.SpindleTemp-EURange</Reference>
+            <Reference ReferenceType="HasProperty">ns=1;s=HydraNode_1.SpindleTemp-EngineeringUnits</Reference>
+        </References>
+        <RolePermissions>
+            <RolePermission Permissions="35">i=15656</RolePermission>
+            <RolePermission Permissions="35">i=15668</RolePermission>
+            <RolePermission Permissions="35">i=15716</RolePermission>
+            <RolePermission Permissions="35">i=15644</RolePermission>
+        </RolePermissions>
+    </UAVariable>
+    <UAVariable NodeId="ns=1;s=HydraNode_1.SpindleTemp-EURange" BrowseName="EURange" ParentNodeId="ns=1;s=HydraNode_1.SpindleTemp" AccessLevel="3" DataType="Range">
+        <DisplayName>EURange</DisplayName>
+        <References>
+            <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+        </References>
+        <Value>
+            <ExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                <TypeId>
+                    <Identifier>i=885</Identifier>
+                </TypeId>
+                <Body>
+                    <Range>
+                        <Low>-20</Low>
+                        <High>150</High>
+                    </Range>
+                </Body>
+            </ExtensionObject>
+        </Value>
+    </UAVariable>
+    <UAVariable NodeId="ns=1;s=HydraNode_1.SpindleTemp-EngineeringUnits" BrowseName="EngineeringUnits" ParentNodeId="ns=1;s=HydraNode_1.SpindleTemp" DataType="EUInformation">
+        <DisplayName>EngineeringUnits</DisplayName>
+        <References>
+            <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+        </References>
+        <Value>
+            <ExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                <TypeId>
+                    <Identifier>i=888</Identifier>
+                </TypeId>
+                <Body>
+                    <EUInformation>
+                        <NamespaceUri>http://www.opcfoundation.org/UA/units/un/cefact</NamespaceUri>
+                        <UnitId>4408652</UnitId>
+                        <DisplayName>
+                            <Text>°C</Text>
+                        </DisplayName>
+                        <Description>
+                            <Text>degree Celsius</Text>
+                        </Description>
+                    </EUInformation>
+                </Body>
+            </ExtensionObject>
+        </Value>
+    </UAVariable>
+    <UAVariable NodeId="ns=1;s=HydraNode_1.SwarmOnline" BrowseName="1:SwarmOnline" ParentNodeId="ns=1;s=HydraNode_1" MinimumSamplingInterval="1000" DataType="Boolean">
+        <DisplayName>SwarmOnline</DisplayName>
+        <References>
+            <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+        </References>
+        <RolePermissions>
+            <RolePermission Permissions="35">i=15656</RolePermission>
+            <RolePermission Permissions="35">i=15668</RolePermission>
+            <RolePermission Permissions="35">i=15716</RolePermission>
+            <RolePermission Permissions="35">i=15644</RolePermission>
+        </RolePermissions>
+    </UAVariable>
+<!--Object - 1:HydraNode_1 }}}} -->
+<!--Object - 1:Robots {{{{ -->
+    <UAObject NodeId="ns=1;s=Robots" BrowseName="1:Robots">
+        <DisplayName>Robots</DisplayName>
+        <References>
+            <Reference ReferenceType="HasTypeDefinition">i=61</Reference>
+            <Reference ReferenceType="Organizes" IsForward="false">i=85</Reference>
+        </References>
+        <RolePermissions>
+            <RolePermission Permissions="35">i=15656</RolePermission>
+            <RolePermission Permissions="35">i=15668</RolePermission>
+            <RolePermission Permissions="35">i=15716</RolePermission>
+            <RolePermission Permissions="35">i=15644</RolePermission>
+        </RolePermissions>
+    </UAObject>
+<!--Object - 1:Robots }}}} -->
+</UANodeSet>

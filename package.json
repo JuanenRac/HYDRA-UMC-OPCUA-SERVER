@@ -9,7 +9,8 @@
     "build": "esbuild src/server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
     "start": "node dist/server.cjs",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "nodeset": "tsx scripts/export_nodeset.ts"
   },
   "dependencies": {
     "node-opcua": "^2.178.0"

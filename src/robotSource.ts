@@ -154,6 +154,17 @@ export function startRobotPolling(options: RobotPollerOptions): () => void {
   };
 }
 
+/**
+ * How the robots are followed: `poll` (default) reads GET /api/settings every interval; `stream` keeps a WebSocket to the server open, which
+ * gives the roster without polling and a "last seen" time for each robot (the Live variable). HYDRA_UMC_OPCUA_SOURCE.
+ */
+export function sourceModeFromEnv(env: NodeJS.ProcessEnv = process.env): "poll" | "stream" {
+  const raw = env.HYDRA_UMC_OPCUA_SOURCE?.trim().toLowerCase();
+  if (!raw || raw === "poll") return "poll";
+  if (raw === "stream") return "stream";
+  throw new Error(`HYDRA-UMC-OPCUA-SERVER: HYDRA_UMC_OPCUA_SOURCE must be poll or stream, got ${raw}`);
+}
+
 /** Polling settings from the environment, or null when polling is not configured. */
 export function pollerConfigFromEnv(
   env: NodeJS.ProcessEnv = process.env,

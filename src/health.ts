@@ -22,6 +22,7 @@ export interface HealthSnapshot {
   loginLocked: boolean;
   robots: number;
   activeRobots: number;
+  liveRobots: number;
   swarmOnline: boolean;
   source: SourceStatus;
 }
@@ -57,6 +58,7 @@ export function renderMetrics(s: HealthSnapshot): string {
     metric("hydra_opcua_login_locked", "1 while every login is refused after too many failures.", "gauge", s.loginLocked ? 1 : 0) +
     metric("hydra_opcua_robots", "Robot objects in the address space.", "gauge", s.robots) +
     metric("hydra_opcua_robots_online", "Robots of the roster reported online.", "gauge", s.activeRobots) +
+    metric("hydra_opcua_robots_live", "Robots that sent a patch to the server within the live window (needs the live source).", "gauge", s.liveRobots) +
     metric("hydra_opcua_swarm_online", "1 while SwarmOnline is true.", "gauge", s.swarmOnline ? 1 : 0) +
     metric("hydra_opcua_source_readable", "1 when the robot roster was read at the last poll, 0 when it could not be, 1 when no source is configured.", "gauge", s.source === "unreadable" ? 0 : 1) +
     metric("hydra_opcua_uptime_seconds", "Seconds since the process started.", "gauge", Math.floor((Date.now() - startedAt) / 1000))

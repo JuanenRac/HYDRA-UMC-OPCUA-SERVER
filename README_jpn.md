@@ -16,7 +16,7 @@
 
 ---
 
-**正直な現状確認 - 今日実際に動くもの:** OPC-UA サーバーとアドレス空間のマッピング(`src/server.ts`)は本物であり、テスト済みである(`tests/server.test.ts`、`tests/security.test.ts`、`tests/security-policy.test.ts`, `tests/robotSource.test.ts`, `tests/robotSource.integration.test.ts` 全体で 73 件のテストが成功)。しかもこれらは本物のプロトコルレベルのテストである: `tests/server.test.ts` は本物の `OPCUAClient`(node-opcua 自身のクライアントであり、UAExpert/Ignition が使うのと同じライブラリ)を、本物のバイナリプロトコルで本物の TCP ポートに接続しており、`tests/security-policy.test.ts` は暗号化されていない `SecurityPolicy.None` セッションがデフォルトで実際に拒否されることを証明している(明示的な `OPCUA_ALLOW_INSECURE=1` という抜け道を使った場合のみ受け入れられる)。以下は偶然見つかったギャップではなく、意図的に先送りされているものである: ロボットごとのツリー（`Robot_<id>`）は HYDRA-UMC-SERVER が報告する一覧に追従する（トークンまたはアカウントで取得。`.env.example` を参照）が、アドレス空間のそれ以外の部分は起動時に一度だけ構築される。今のところエンドツーエンドでテストされているのは読み書きのみであり、OPC-UA のサブスクリプションはテストされていない。そして Pub/Sub(ロードマップのフェーズ 1)はまだ実装されていない、依存するクライアントがまだ存在しないためである。何が先送りされ、なぜそうなのかの完全なリストは `mejoras_futuras.txt` を、これまでに何が実際に出荷されたかは `CHANGELOG.md` を参照。
+**正直な現状確認 - 今日実際に動くもの:** OPC-UA サーバーとアドレス空間のマッピング(`src/server.ts`)は本物であり、テスト済みである(`tests/server.test.ts`、`tests/security.test.ts`、`tests/security-policy.test.ts`, `tests/robotSource.test.ts`, `tests/robotSource.integration.test.ts` 全体で 98 件のテストが成功)。しかもこれらは本物のプロトコルレベルのテストである: `tests/server.test.ts` は本物の `OPCUAClient`(node-opcua 自身のクライアントであり、UAExpert/Ignition が使うのと同じライブラリ)を、本物のバイナリプロトコルで本物の TCP ポートに接続しており、`tests/security-policy.test.ts` は暗号化されていない `SecurityPolicy.None` セッションがデフォルトで実際に拒否されることを証明している(明示的な `OPCUA_ALLOW_INSECURE=1` という抜け道を使った場合のみ受け入れられる)。以下は偶然見つかったギャップではなく、意図的に先送りされているものである: ロボットごとのツリー（`Robot_<id>`）は HYDRA-UMC-SERVER が報告する一覧に追従する（トークンまたはアカウントで取得。`.env.example` を参照）が、アドレス空間のそれ以外の部分は起動時に一度だけ構築される。今のところエンドツーエンドでテストされているのは読み書きのみであり、OPC-UA のサブスクリプションはテストされていない。そして Pub/Sub(ロードマップのフェーズ 1)はまだ実装されていない、依存するクライアントがまだ存在しないためである。何が先送りされ、なぜそうなのかの完全なリストは `mejoras_futuras.txt` を、これまでに何が実際に出荷されたかは `CHANGELOG.md` を参照。
 
 ---
 
@@ -46,6 +46,7 @@ Ignition、Siemens TIA Portal、Rockwell FactoryTalk のような産業用
 ### 主な機能：
 * 🛠️ **動的な情報モデリング：** アクティブなロボットと工具に基づいて OPC-UA ツリーを自動生成します。
 * 🔄 **ロボット一覧と 2 つのフラグ：** ロボット一覧（`Name` と `Online` を持つ `Robot_<id>` オブジェクト）は読み取り専用です。`SwarmOnline` と `MaintenanceMode` も読み取り専用です（書き込みはシステムの他の部分に効果がないため拒否されます）。`SwarmOnline` は、一覧の取得が一度完了するまで `BadWaitingForInitialData` です。関節やエフェクターを制御するノードはありません。
+* 🧭 **型付きモデル、ロール、ライブ信号:** セルは `HydraCellType`、各ロボットは `Objects/Robots` フォルダー下の `HydraRobotType` です(名前空間 1 の NodeId は変わりません。モデルはファイル `nodeset/HydraUmc.NodeSet2.xml` で、テストがコードと同一に保ちます)。`Online` はオペレーター画面のスイッチにすぎません。`Live` はロボットが `HYDRA_UMC_OPCUA_LIVE_WINDOW_MS` 以内に HYDRA-UMC-SERVER へパッチを送ったかどうか、`LastUpdate` はその時刻を示し、`HYDRA_UMC_OPCUA_SOURCE=stream`(ポーリングの代わりに WebSocket)が必要で、それ以外は `BadWaitingForInitialData` です。セッションは OPC UA のロールを持ちます。匿名は `Anonymous`、閲覧者は `Observer`、管理者はさらに `ConfigureAdmin` で、書き込めるロールはありません。*(node-opcua のクライアントで試験済み、SCADA では未検証)*
 * 🔖 **バージョン管理された名前空間と安定した NodeId：** 実際の明示的な名前空間 URI と、明示的な文字列 NodeId——アドレス空間の更新によって、クライアントが依存するパスが密かに変わることはありません。*(実装済み)*
 * 🔐 **セッションごとの書き込み認可：** 匿名セッションと認証済みセッションを区別する、実際の動的なチェック——すべてのクライアントがデフォルトで書き込みアクセス権を得られるわけではありません。*(実装済み)*
 * 📡 **サブスクリプションサポート：** OPC-UA のパブリッシュ・サブスクライブ機構を用いた高効率なデータ更新。*（エンドツーエンドでテスト済み：実際のサブスクリプションがデータ変更通知を届ける）*

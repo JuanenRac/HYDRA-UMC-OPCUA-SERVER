@@ -30,13 +30,16 @@ import {
   MessageSecurityMode,
   SecurityPolicy,
   UserNameIdentityToken,
+  PermissionType,
+  makeRoles,
   getDefaultCertificateManager,
   type ISessionContext,
 } from "node-opcua";
 import { createHash, timingSafeEqual } from "node:crypto";
 import path from "node:path";
 import { readPackageVersion } from "./version.js";
-import { pollerConfigFromEnv, startRobotPolling } from "./robotSource.js";
+import { pollerConfigFromEnv, sourceModeFromEnv, startRobotPolling } from "./robotSource.js";
+import { startRobotStream } from "./liveSource.js";
 import { healthPortFromEnv, startHealthServer } from "./health.js";
 
 // 4840 is the IANA-registered default OPC-UA TCP port, and node-opcua's
@@ -57,6 +60,17 @@ export function resolvePort(raw: string | undefined = process.env.PORT): number 
 // silenciosamente la ruta que consume un cliente industrial". Bumped only
 // on a real breaking change to the address space shape.
 const NAMESPACE_URI = "urn:hydra-umc:opcua-server:v1";
+
+/**
+ * What a role may do with the nodes of this server: browse, read and read the role permissions. Nothing is writable by any role (not the
+ * administrator's either): the variables are read-only, and no role carries the Write permission. The Anonymous role is listed only when
+ * anonymous sessions are allowed, so switching them off (OPCUA_ALLOW_ANONYMOUS=0) is also visible in the permissions a client reads.
+ */
+export function readOnlyRolePermissions(allowAnonymous: boolean): Array<{ roleId: ReturnType<typeof makeRoles>[number]; permissions: number }> {
+  const permissions = PermissionType.Browse | PermissionType.Read | PermissionType.ReadRolePermissions;
+  const roles = ["AuthenticatedUser", "Observer", "ConfigureAdmin", ...(allowAnonymous ? ["Anonymous"] : [])];
+  return roles.map((role) => ({ roleId: makeRoles(role)[0], permissions }));
+}
 
 export interface HydraNodeState {
   /** null until something real reports it: the poller of HYDRA-UMC-SERVER, once its first read has finished. */
@@ -225,6 +239,13 @@ export async function buildAddressSpaceServer(port: number = resolvePort()) {
     allowAnonymous,
     ...(alternateHostname ? { alternateHostname } : {}),
     userManager: {
+      // The roles of a logged-in user (OPC UA Part 18). The administrator is ConfigureAdmin, the viewer an Observer; any other identity (a
+      // user certificate) is only an AuthenticatedUser. Anonymous sessions get the Anonymous role from the server itself.
+      getUserRoles: (username: string) => {
+        if (adminUsername && secretsMatch(username, adminUsername)) return makeRoles("AuthenticatedUser;Observer;ConfigureAdmin");
+        if (viewerUsername && secretsMatch(username, viewerUsername)) return makeRoles("AuthenticatedUser;Observer");
+        return makeRoles("AuthenticatedUser");
+      },
       isValidUser: (username: string, password: string): boolean => {
         const accounts: Array<[string, string]> = [];
         if (adminUsername && adminPassword) accounts.push([adminUsername, adminPassword]);
@@ -274,11 +295,40 @@ export async function buildAddressSpaceServer(port: number = resolvePort()) {
   // give this project's own address-space paths real stability - adding a
   // future DataItem before these in the file can never silently renumber
   // an existing one, the exact risk the review called out.
+  const rolePermissions = readOnlyRolePermissions(allowAnonymous);
+
+  // The information model of this namespace (exported as nodeset/HydraUmc.NodeSet2.xml by tools/export_nodeset.ts): a type for the cell and a
+  // type for a robot, so a client that understands types can tell what an object is from its type and not from its name. The members of a type
+  // are declared Mandatory; an instance below has each of them under a stable, explicit NodeId.
+  const declareMember = (type: any, name: string, dataType: string) =>
+    namespace.addVariable({
+      componentOf: type,
+      browseName: name,
+      nodeId: `s=${type.browseName.name}.${name}`,
+      dataType,
+      accessLevel: "CurrentRead",
+      userAccessLevel: "CurrentRead",
+      modellingRule: "Mandatory",
+    });
+  const cellType = namespace.addObjectType({ browseName: "HydraCellType", nodeId: "s=HydraCellType" });
+  declareMember(cellType, "SwarmOnline", "Boolean");
+  declareMember(cellType, "ActiveRobotCount", "UInt32");
+  declareMember(cellType, "SpindleTemp", "Double");
+  declareMember(cellType, "MaintenanceMode", "Boolean");
+  const robotType = namespace.addObjectType({ browseName: "HydraRobotType", nodeId: "s=HydraRobotType" });
+  declareMember(robotType, "Name", "String");
+  declareMember(robotType, "Online", "Boolean");
+  declareMember(robotType, "Live", "Boolean");
+  declareMember(robotType, "LastUpdate", "DateTime");
+
   const hydraNode = namespace.addObject({
     organizedBy: addressSpace.rootFolder.objects,
     browseName: "HydraNode_1",
     nodeId: "s=HydraNode_1",
+    typeDefinition: cellType,
+    rolePermissions,
   });
+  const robotsFolder = namespace.addFolder(addressSpace.rootFolder.objects, { browseName: "Robots", nodeId: "s=Robots", rolePermissions });
 
   const state: HydraNodeState = {
     swarmOnline: null,
@@ -297,6 +347,7 @@ export async function buildAddressSpaceServer(port: number = resolvePort()) {
     componentOf: hydraNode,
     browseName: "SwarmOnline",
     nodeId: "s=HydraNode_1.SwarmOnline",
+    rolePermissions,
     dataType: "Boolean",
     accessLevel: "CurrentRead",
     userAccessLevel: "CurrentRead",
@@ -313,6 +364,7 @@ export async function buildAddressSpaceServer(port: number = resolvePort()) {
     componentOf: hydraNode,
     browseName: "ActiveRobotCount",
     nodeId: "s=HydraNode_1.ActiveRobotCount",
+    rolePermissions,
     dataType: "UInt32",
     accessLevel: "CurrentRead",
     userAccessLevel: "CurrentRead",
@@ -349,6 +401,7 @@ export async function buildAddressSpaceServer(port: number = resolvePort()) {
     componentOf: hydraNode,
     browseName: "SpindleTemp",
     nodeId: "s=HydraNode_1.SpindleTemp",
+    rolePermissions,
     dataType: "Double",
     accessLevel: "CurrentRead",
     userAccessLevel: "CurrentRead",
@@ -374,6 +427,7 @@ export async function buildAddressSpaceServer(port: number = resolvePort()) {
     componentOf: hydraNode,
     browseName: "MaintenanceMode",
     nodeId: "s=HydraNode_1.MaintenanceMode",
+    rolePermissions,
     dataType: "Boolean",
     accessLevel: "CurrentRead",
     userAccessLevel: "CurrentRead",
@@ -388,8 +442,20 @@ export async function buildAddressSpaceServer(port: number = resolvePort()) {
   // so a robot keeps the same path for as long as it exists. A robot that
   // is no longer in the list has its object and variables removed, and
   // ActiveRobotCount follows the number of robots reported online.
-  const robotObjects = new Map<string, { object: any; state: RobotSnapshot }>();
+  const robotObjects = new Map<string, { object: any; state: RobotSnapshot; seenAtMs?: number }>();
   let rosterMeta: RosterMeta = { stale: false };
+  // How recent a patch from a robot must be for it to count as Live (HYDRA_UMC_OPCUA_LIVE_WINDOW_MS, at least one second).
+  const liveWindowMs = liveWindowFromEnv();
+  const seenBeforeListed = new Map<string, number>();
+
+  // A robot sent something to HYDRA-UMC-SERVER (a patch on the live stream): this is the liveness signal, which the Online flag of the
+  // operator interface is not. A robot that is not in the tree yet keeps the time until it is.
+  const markRobotSeen = (id: string | number, atMs: number): void => {
+    const key = robotNodeKey(id);
+    const entry = robotObjects.get(key);
+    if (entry) entry.seenAtMs = Math.max(entry.seenAtMs ?? 0, atMs);
+    else seenBeforeListed.set(key, atMs);
+  };
 
   const setRobots = (robots: RobotSnapshot[], meta: RosterMeta = { stale: false }): void => {
     // the last successful read keeps its time while the roster is stale
@@ -415,16 +481,21 @@ export async function buildAddressSpaceServer(port: number = resolvePort()) {
       }
       const entry = {
         object: namespace.addObject({
-          organizedBy: addressSpace.rootFolder.objects,
+          organizedBy: robotsFolder,
           browseName: `Robot_${key}`,
           nodeId: `s=Robot_${key}`,
+          typeDefinition: robotType,
+          rolePermissions,
         }),
         state: { ...robot },
+        seenAtMs: seenBeforeListed.get(key),
       };
+      seenBeforeListed.delete(key);
       namespace.addVariable({
         componentOf: entry.object,
         browseName: "Name",
         nodeId: `s=Robot_${key}.Name`,
+        rolePermissions,
         dataType: "String",
         accessLevel: "CurrentRead",
         userAccessLevel: "CurrentRead",
@@ -434,6 +505,7 @@ export async function buildAddressSpaceServer(port: number = resolvePort()) {
         componentOf: entry.object,
         browseName: "Online",
         nodeId: `s=Robot_${key}.Online`,
+        rolePermissions,
         dataType: "Boolean",
         accessLevel: "CurrentRead",
         userAccessLevel: "CurrentRead",
@@ -449,6 +521,50 @@ export async function buildAddressSpaceServer(port: number = resolvePort()) {
             }),
         },
       });
+      // Live: the robot sent a patch to the server within the window. It needs the live stream (HYDRA_UMC_OPCUA_SOURCE=stream); with polling
+      // there is nothing that says a robot is alive, so the value stays BadWaitingForInitialData instead of being guessed from Online.
+      namespace.addVariable({
+        componentOf: entry.object,
+        browseName: "Live",
+        nodeId: `s=Robot_${key}.Live`,
+        rolePermissions,
+        dataType: "Boolean",
+        accessLevel: "CurrentRead",
+        userAccessLevel: "CurrentRead",
+        minimumSamplingInterval: 1000,
+        value: {
+          timestamped_get: () => {
+            if (entry.seenAtMs === undefined) {
+              return new DataValue({ value: new Variant({ dataType: DataType.Null }), statusCode: StatusCodes.BadWaitingForInitialData });
+            }
+            return new DataValue({
+              value: new Variant({ dataType: DataType.Boolean, value: !rosterMeta.stale && Date.now() - (entry.seenAtMs ?? 0) <= liveWindowMs }),
+              statusCode: rosterMeta.stale ? StatusCodes.UncertainNoCommunicationLastUsableValue : StatusCodes.Good,
+              sourceTimestamp: new Date(entry.seenAtMs),
+            });
+          },
+        },
+      });
+      namespace.addVariable({
+        componentOf: entry.object,
+        browseName: "LastUpdate",
+        nodeId: `s=Robot_${key}.LastUpdate`,
+        rolePermissions,
+        dataType: "DateTime",
+        accessLevel: "CurrentRead",
+        userAccessLevel: "CurrentRead",
+        minimumSamplingInterval: 1000,
+        value: {
+          timestamped_get: () =>
+            entry.seenAtMs === undefined
+              ? new DataValue({ value: new Variant({ dataType: DataType.Null }), statusCode: StatusCodes.BadWaitingForInitialData })
+              : new DataValue({
+                  value: new Variant({ dataType: DataType.DateTime, value: new Date(entry.seenAtMs) }),
+                  statusCode: StatusCodes.Good,
+                  sourceTimestamp: new Date(entry.seenAtMs),
+                }),
+        },
+      });
       robotObjects.set(key, entry);
     }
     state.activeRobotCount = [...robotObjects.values()].filter((e) => e.state.online).length;
@@ -456,7 +572,18 @@ export async function buildAddressSpaceServer(port: number = resolvePort()) {
 
   await server.start();
 
-  return { server, state, setRobots, throttle, robotCount: () => robotObjects.size };
+  return { server, state, setRobots, markRobotSeen, throttle, robotCount: () => robotObjects.size, liveRobotCount: () => [...robotObjects.values()].filter((e) => e.seenAtMs !== undefined && !rosterMeta.stale && Date.now() - e.seenAtMs <= liveWindowMs).length };
+}
+
+/** The window (milliseconds) within which a patch from a robot keeps it Live; HYDRA_UMC_OPCUA_LIVE_WINDOW_MS, at least 1000, default 30000. */
+export function liveWindowFromEnv(env: NodeJS.ProcessEnv = process.env): number {
+  const raw = env.HYDRA_UMC_OPCUA_LIVE_WINDOW_MS?.trim();
+  if (!raw) return 30_000;
+  const value = Number(raw);
+  if (!Number.isInteger(value) || value < 1000) {
+    throw new Error(`HYDRA-UMC-OPCUA-SERVER: HYDRA_UMC_OPCUA_LIVE_WINDOW_MS must be an integer of at least 1000, got ${raw}`);
+  }
+  return value;
 }
 
 /**
@@ -488,7 +615,7 @@ export interface RosterMeta {
 
 async function main() {
   const port = resolvePort();
-  const { server, state, setRobots, throttle, robotCount } = await buildAddressSpaceServer(port);
+  const { server, state, setRobots, markRobotSeen, throttle, robotCount, liveRobotCount } = await buildAddressSpaceServer(port);
   const health = healthPortFromEnv();
   let sourceStatus: "not configured" | "ok" | "unreadable" = "not configured";
   const shutdown = (signal: string) => {
@@ -503,16 +630,18 @@ async function main() {
   const source = pollerConfigFromEnv();
   if (source) {
     // With a source configured, SwarmOnline follows it: it is Bad until the first read ends, then true only while the last read of HYDRA-UMC-SERVER worked.
-    startRobotPolling({
-      ...source,
-      setRobots,
-      onSourceStatus: (readable) => {
-        state.swarmOnline = readable;
-        sourceStatus = readable ? "ok" : "unreadable";
-      },
-    });
+    const onSourceStatus = (readable: boolean): void => {
+      state.swarmOnline = readable;
+      sourceStatus = readable ? "ok" : "unreadable";
+    };
+    if (sourceModeFromEnv() === "stream") {
+      startRobotStream({ ...source, setRobots, onRobotSeen: markRobotSeen, onSourceStatus });
+      console.log(`[HYDRA-UMC-OPCUA-SERVER] following the robots live on ${source.url} (WebSocket), Live = a patch within the window`);
+    } else {
+      startRobotPolling({ ...source, setRobots, onSourceStatus });
+      console.log(`[HYDRA-UMC-OPCUA-SERVER] reading the robot roster from ${source.url} every ${source.intervalMs} ms`);
+    }
     sourceStatus = "unreadable"; // until the first read works
-    console.log(`[HYDRA-UMC-OPCUA-SERVER] reading the robot roster from ${source.url} every ${source.intervalMs} ms`);
   }
   if (health) {
     const listener = startHealthServer({
@@ -527,6 +656,7 @@ async function main() {
         loginLocked: throttle.isLocked(),
         robots: robotCount(),
         activeRobots: state.activeRobotCount,
+        liveRobots: liveRobotCount(),
         swarmOnline: state.swarmOnline === true,
         source: sourceStatus,
       }),

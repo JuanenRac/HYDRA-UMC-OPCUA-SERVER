@@ -180,6 +180,7 @@ describe("health and metrics", () => {
     loginLocked: false,
     robots: 5,
     activeRobots: 4,
+    liveRobots: 3,
     swarmOnline: true,
     source: "ok",
     ...over,

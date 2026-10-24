@@ -25,6 +25,8 @@ something is not implemented it says so.
 | `HYDRA_SERVER_POLL_MS` | Roster polling interval in milliseconds (at least 1000) | `5000` |
 | `HYDRA_UMC_SERVER_URL`, `_TOKEN`, `_USER`, `_PASSWORD`, `_POLL_MS` | The same five settings under the names the rest of the ecosystem uses (HYDRA-UMC-MTCONNECT-ADAPTER reads these). When both spellings are set, `HYDRA_UMC_SERVER_*` wins | unset |
 | `OPCUA_VIEWER_USERNAME` / `OPCUA_VIEWER_PASSWORD` | An optional second account that can log in and read but never write (it is never the administrator). Its name must differ from `OPCUA_ADMIN_USERNAME` | unset |
+| `HYDRA_UMC_OPCUA_SOURCE` | `poll` reads `GET /api/settings` every interval; `stream` keeps a WebSocket (`/ws`, schema 2, the token as the `hydra.bearer` subprotocol) open instead: the roster arrives when the connection opens and each patch of a robot is its "last seen" time. The connection comes back with a growing pause; while it is down the robots are shown offline with an uncertain quality. Needs Node 22 or newer | `poll` |
+| `HYDRA_UMC_OPCUA_LIVE_WINDOW_MS` | How long after its last patch a robot is `Live` (at least 1000) | `30000` |
 | `OPCUA_ALLOW_ANONYMOUS` | `0` refuses anonymous sessions: every client must log in as the administrator or the viewer | anonymous may read |
 | `OPCUA_HEALTH_PORT` / `OPCUA_HEALTH_HOST` | A separate HTTP listener with `GET /health` (JSON) and `GET /metrics` (Prometheus text): open sessions and subscriptions, sessions rejected, failed logins, login lock, robots and robots online, `SwarmOnline`, whether the roster can be read. It reads numbers only: no secret, no address-space value and no write path | off; host `127.0.0.1` |
 
@@ -91,11 +93,12 @@ namespace version changes only on a breaking change to this shape.
 
 | NodeId | Type | Access | Notes |
 | --- | --- | --- | --- |
-| `s=HydraNode_1` | Object | - | Root object |
+| `s=HydraNode_1` | `HydraCellType` object | - | Root object |
+| `s=Robots` | Folder | - | Under `Objects`; holds the robot objects. NodeIds are the same as before; the browse path of a robot is now `Objects/Robots/Robot_<id>` |
 | `s=HydraNode_1.SwarmOnline` | Boolean | read | `BadWaitingForInitialData` until the roster poller has read once (and always when no source is configured) |
 | `s=HydraNode_1.ActiveRobotCount` | UInt32 | read | Robots of the roster whose `online` flag is true |
 | `s=HydraNode_1.SpindleTemp` | Double (°C, range -20..150) | read | `BadWaitingForInitialData` until a real source reports a value (nothing feeds it today); then a real source timestamp, and quality drops to `UncertainLastUsableValue` when the source stops updating - the last value stays readable |
-| `s=Robot_<id>` | Object | - | One per robot of the roster, with `Name` (String) and `Online` (Boolean), both read-only. An id with characters outside letters, digits, `_` and `-` gets them replaced and a short hash appended |
+| `s=Robot_<id>` | `HydraRobotType` object under `s=Robots` | - | One per robot of the roster, with `Name` (String), `Online` (Boolean: the switch of the operator interface, not a measure of connectivity), `Live` (Boolean) and `LastUpdate` (DateTime), all read-only; the last two need `HYDRA_UMC_OPCUA_SOURCE=stream` and are `BadWaitingForInitialData` until the first patch of the robot. An id with characters outside letters, digits, `_` and `-` gets them replaced and a short hash appended |
 | `s=HydraNode_1.MaintenanceMode` | Boolean | read | Always false: it is not wired to anything |
 
 Honest limits: with `HYDRA_SERVER_URL` set, `SwarmOnline` is true only while
@@ -129,3 +132,9 @@ running container.
 | Login refused | `OPCUA_ADMIN_*` not set, wrong credentials, or too many failed logins in the last minute |
 | Write refused | Session is anonymous or certificate-based, not the administrator's user name and password |
 | `PORT must be an integer` at startup | Invalid `PORT` value |
+
+## Information model and roles
+
+`nodeset/HydraUmc.NodeSet2.xml` is the model of the namespace as a NodeSet2 file (`HydraCellType` and `HydraRobotType` with their mandatory members, then the static cell); `npm run nodeset` writes it and a test fails when it differs from what the code builds. The members of the types are read-only.
+
+Sessions hold OPC UA roles (Part 18): anonymous gets `Anonymous`, the viewer account `AuthenticatedUser` and `Observer`, the administrator also `ConfigureAdmin`, and any other identity (a user certificate) only `AuthenticatedUser`. Every node grants those roles Browse, Read and ReadRolePermissions and no role Write: the roles tell a SCADA who is who and make the absence of writes visible in `UserRolePermissions`. `Anonymous` is listed only while anonymous sessions are allowed.
