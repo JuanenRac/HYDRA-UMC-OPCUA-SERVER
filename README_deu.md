@@ -97,10 +97,12 @@ Bewusst zurückgestellt, und warum: ein vollständig dynamischer Adressraum (der
 HYDRA-UMC-OPCUA-SERVER/
 ├── src/         # Quellcode (Node/TypeScript - Modell, Server, Mapper)
 ├── tests/       # Vitest-Suite - Server- und Sicherheitsverhalten
+├── docs/        # OPERATIONS.md: was ein Integrator braucht, um diesen Server zu betreiben, anzubinden und sicher freizugeben
+├── nodeset/     # HydraUmc.NodeSet2.xml: das Informationsmodell des Namensraums als NodeSet2-Datei (scripts/export_nodeset.ts schreibt und prüft sie)
 ├── dist/       # Kompilierte Ausgabe (npm run build)
 ├── images/      # Medien und Diagramme
-├── scripts/     # Utility-Skripte (bump-version.mjs)
-├── tools/       # ci_validate.py - Manifest-/CHANGELOG-/Doku-Validierung, von der CI genutzt
+├── scripts/     # Hilfsskripte (bump-version.mjs, export_nodeset.ts)
+├── tools/       # build_test.py (Build-Prüfung ohne Versionierung), ci_validate.py (Manifest-/CHANGELOG-/Doku-Validierung der CI), hydra_project_tool.py und die gemeinsamen _doc_policy.py und _readme_parity.py
 ├── mejoras_futuras.txt  # Die vollständige, ehrliche Liste dessen, was bewusst zurückgestellt wurde und warum
 └── README.md
 ```

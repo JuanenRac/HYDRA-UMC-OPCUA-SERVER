@@ -97,10 +97,12 @@ Deliberadamente diferido, y por qué: un espacio de direcciones totalmente diná
 HYDRA-UMC-OPCUA-SERVER/
 ├── src/         # Código fuente (Node/TypeScript - Modelo, Servidor, Mapeador)
 ├── tests/       # Suite Vitest - comportamiento de servidor y seguridad
+├── docs/        # OPERATIONS.md: lo que un integrador necesita para ejecutar, conectarse y exponer con seguridad este servidor
+├── nodeset/     # HydraUmc.NodeSet2.xml: el modelo de información del espacio de nombres como fichero NodeSet2 (scripts/export_nodeset.ts lo escribe y lo comprueba)
 ├── dist/       # Salida compilada (npm run build)
 ├── images/      # Medios y diagramas
-├── scripts/     # Scripts de utilidad (bump-version.mjs)
-├── tools/       # ci_validate.py - validación de manifest/CHANGELOG/docs usada por la CI
+├── scripts/     # Scripts de utilidad (bump-version.mjs, export_nodeset.ts)
+├── tools/       # build_test.py (comprobación de compilación sin versionar), ci_validate.py (validación de manifiesto/CHANGELOG/docs usada por la CI), hydra_project_tool.py y los compartidos _doc_policy.py y _readme_parity.py
 ├── mejoras_futuras.txt  # La lista completa y honesta de lo que queda deliberadamente diferido, y por qué
 └── README.md
 ```

@@ -97,10 +97,12 @@ Deliberately deferred, and why: a fully dynamic address space (the per-robot tre
 HYDRA-UMC-OPCUA-SERVER/
 ├── src/         # Source code (Node/TypeScript - Model, Server, Mapper)
 ├── tests/       # Vitest suite - server and security behavior
+├── docs/        # OPERATIONS.md: what an integrator needs to run, connect to and safely expose this server
+├── nodeset/     # HydraUmc.NodeSet2.xml: the information model of the namespace as a NodeSet2 file (scripts/export_nodeset.ts writes and checks it)
 ├── dist/       # Compiled output (npm run build)
 ├── images/      # Media and diagrams
-├── scripts/     # Utility scripts (bump-version.mjs)
-├── tools/       # ci_validate.py - manifest/CHANGELOG/docs validation used by CI
+├── scripts/     # Utility scripts (bump-version.mjs, export_nodeset.ts)
+├── tools/       # build_test.py (non-versioning build check), ci_validate.py (manifest/CHANGELOG/docs validation used by CI), hydra_project_tool.py, and the shared _doc_policy.py and _readme_parity.py
 ├── mejoras_futuras.txt  # The complete, honest list of what's deliberately deferred and why
 └── README.md
 ```

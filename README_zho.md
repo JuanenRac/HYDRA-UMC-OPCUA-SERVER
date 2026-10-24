@@ -101,10 +101,12 @@ flowchart LR
 HYDRA-UMC-OPCUA-SERVER/
 ├── src/         # 源代码（Node/TypeScript —— 模型、服务器、映射器）
 ├── tests/       # Vitest 测试套件——服务器与安全行为
+├── docs/        # OPERATIONS.md: 集成人员运行、连接并安全暴露此服务器所需的内容
+├── nodeset/     # HydraUmc.NodeSet2.xml: 以 NodeSet2 文件表示的命名空间信息模型 (由 scripts/export_nodeset.ts 写出并校验)
 ├── dist/       # 编译输出（npm run build）
 ├── images/      # 媒体与图表
-├── scripts/     # 实用脚本（bump-version.mjs）
-├── tools/       # ci_validate.py——CI 使用的 manifest/CHANGELOG/docs 校验
+├── scripts/     # 实用脚本 (bump-version.mjs、export_nodeset.ts)
+├── tools/       # build_test.py (不改版本的构建检查)、ci_validate.py (CI 使用的清单/CHANGELOG/文档校验)、hydra_project_tool.py,以及共享的 _doc_policy.py 和 _readme_parity.py
 ├── mejoras_futuras.txt  # 完整、诚实地列出哪些内容被有意推迟及原因
 └── README.md
 ```

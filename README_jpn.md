@@ -102,10 +102,12 @@ flowchart LR
 HYDRA-UMC-OPCUA-SERVER/
 ├── src/         # ソースコード（Node/TypeScript —— モデル、サーバー、マッパー）
 ├── tests/       # Vitest スイート —— サーバーとセキュリティの動作
+├── docs/        # OPERATIONS.md: インテグレーターがこのサーバーを動かし、接続し、安全に公開するために必要なこと
+├── nodeset/     # HydraUmc.NodeSet2.xml: 名前空間の情報モデルを NodeSet2 ファイルにしたもの (scripts/export_nodeset.ts が書き出して検査)
 ├── dist/       # コンパイル出力（npm run build）
 ├── images/      # メディアと図表
-├── scripts/     # ユーティリティスクリプト（bump-version.mjs）
-├── tools/       # ci_validate.py —— CI が使用する manifest/CHANGELOG/docs の検証
+├── scripts/     # 補助スクリプト (bump-version.mjs、export_nodeset.ts)
+├── tools/       # build_test.py (バージョンを変えないビルド確認)、ci_validate.py (CI が使うマニフェスト/CHANGELOG/ドキュメントの検証)、hydra_project_tool.py、共有の _doc_policy.py と _readme_parity.py
 ├── mejoras_futuras.txt  # 意図的に後回しにした内容とその理由を完全にまとめた正直なリスト
 └── README.md
 ```

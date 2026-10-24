@@ -97,10 +97,12 @@ Délibérément reporté, et pourquoi : un espace d'adressage entièrement dynam
 HYDRA-UMC-OPCUA-SERVER/
 ├── src/         # Code source (Node/TypeScript - Modèle, Serveur, Mappeur)
 ├── tests/       # Suite Vitest - comportement serveur et sécurité
+├── docs/        # OPERATIONS.md : ce dont un intégrateur a besoin pour exécuter, joindre et exposer en sécurité ce serveur
+├── nodeset/     # HydraUmc.NodeSet2.xml : le modèle d'information de l'espace de noms en fichier NodeSet2 (scripts/export_nodeset.ts l'écrit et le vérifie)
 ├── dist/       # Sortie compilée (npm run build)
 ├── images/      # Médias et diagrammes
-├── scripts/     # Scripts utilitaires (bump-version.mjs)
-├── tools/       # ci_validate.py - validation manifest/CHANGELOG/docs utilisée par la CI
+├── scripts/     # Scripts utilitaires (bump-version.mjs, export_nodeset.ts)
+├── tools/       # build_test.py (contrôle de build sans version), ci_validate.py (validation manifeste/CHANGELOG/docs utilisée par la CI), hydra_project_tool.py et les partagés _doc_policy.py et _readme_parity.py
 ├── mejoras_futuras.txt  # La liste complète et honnête de ce qui est délibérément reporté, et pourquoi
 └── README.md
 ```

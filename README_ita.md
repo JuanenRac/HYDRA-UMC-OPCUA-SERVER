@@ -97,10 +97,12 @@ Deliberatamente rimandato, e perché: uno spazio degli indirizzi completamente d
 HYDRA-UMC-OPCUA-SERVER/
 ├── src/         # Codice sorgente (Node/TypeScript - Modello, Server, Mapper)
 ├── tests/       # Suite Vitest - comportamento di server e sicurezza
+├── docs/        # OPERATIONS.md: ciò di cui un integratore ha bisogno per eseguire, collegarsi ed esporre in sicurezza questo server
+├── nodeset/     # HydraUmc.NodeSet2.xml: il modello informativo del namespace come file NodeSet2 (scripts/export_nodeset.ts lo scrive e lo verifica)
 ├── dist/       # Output compilato (npm run build)
 ├── images/      # Media e diagrammi
-├── scripts/     # Script di utilità (bump-version.mjs)
-├── tools/       # ci_validate.py - validazione manifest/CHANGELOG/docs usata dalla CI
+├── scripts/     # Script di utilità (bump-version.mjs, export_nodeset.ts)
+├── tools/       # build_test.py (controllo di build senza versionamento), ci_validate.py (validazione manifest/CHANGELOG/docs usata dalla CI), hydra_project_tool.py e i condivisi _doc_policy.py e _readme_parity.py
 ├── mejoras_futuras.txt  # L'elenco completo e onesto di ciò che è deliberatamente rimandato, e perché
 └── README.md
 ```
