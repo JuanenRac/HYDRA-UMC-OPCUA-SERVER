@@ -26,7 +26,7 @@
 
 | | |
 |---|---|
-| Version | `0.1.9` |
+| Version | `0.2.0` |
 | Maturity | Functional |
 | Tests | 73 |
 | Stack | Node.js / node-opcua / OPC-UA address space |

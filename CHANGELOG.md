@@ -2,22 +2,36 @@
 
 All notable changes to this project are documented here.
 
-## [Unreleased]
+## [0.2.0] - A typed information model, roles and a live signal and every variable is read-only, for every session
+
+### Firmware and protocol
+
+- `OPCUA_HEALTH_PORT` (optional) starts a separate listener with `GET /health` and `GET /metrics`: open sessions and subscriptions, rejected sessions, failed logins, robots, and whether the robot roster can be read. It binds to loopback unless `OPCUA_HEALTH_HOST` says otherwise.
+
+### Programs and windows
 
 - **A typed information model, roles and a live signal.** The cell is a `HydraCellType` and each robot a `HydraRobotType` hanging from a `Robots` folder under `Objects` (NodeIds unchanged; the browse path of a robot gains the folder), described by `nodeset/HydraUmc.NodeSet2.xml` (`npm run nodeset`; a test keeps it equal to the code). Robots get `Live` and `LastUpdate`, set when a robot sends a patch to HYDRA-UMC-SERVER; they need the new `HYDRA_UMC_OPCUA_SOURCE=stream`, which follows the server on a WebSocket (token as the `hydra.bearer` subprotocol, reconnection with a growing pause, robots shown offline and stale while it is down) instead of polling, and are `BadWaitingForInitialData` otherwise; `Online` is documented as the switch of the operator interface it is. Sessions hold OPC UA roles (anonymous `Anonymous`, viewer `Observer`, administrator `ConfigureAdmin`) and every node grants them Browse and Read only. `HYDRA_UMC_OPCUA_LIVE_WINDOW_MS` sets how long a robot stays `Live`; `/metrics` gains `hydra_opcua_robots_live`.
+
+### Tests, builds and checks
+
+- A test creates a real subscription and checks that a data-change notification arrives. The READMEs no longer say that subscriptions are untested and count 73 tests.
+- Building no longer changes the version; raising it is the explicit `bump` command (`python tools/hydra_project_tool.py bump`). The build scripts only report the version they built, and CI fails if a build script runs a bump.
+- **The test count of the READMEs is the real one** (53 instead of 37 in the table of the eight languages and in the English honesty check).
+- Added `tools/hydra_project_tool.py`: the same `validate`, `test`, `version`, `status` and `bump` commands in every repository. The checks run with `HYDRA_UMC_CI=1` and fail if the version changes; only `bump` changes it.
+
+### Documentation
+
+- **The READMEs say that the subscription support is not tested yet** (only reads and writes are tested end to end), in the eight languages.
+- **The roadmap in the eight READMEs says what already exists:** the MQTT broker and the MTConnect adapter are repositories of their own (linked); only the broker cluster and the wider multi-vendor integration remain planned.
+
+### Other changes
+
 - **Every variable is read-only, for every session.** `SwarmOnline` and `MaintenanceMode` no longer accept a write, not even from the administrator: nothing a client wrote ever reached the rest of the system. The access level is `CurrentRead` on all variables.
 - **`SwarmOnline` is no longer an invented `true`.** It is served as `BadWaitingForInitialData` until the roster poller has read once (and always when no source is configured), then follows the last read.
-- `OPCUA_HEALTH_PORT` (optional) starts a separate listener with `GET /health` and `GET /metrics`: open sessions and subscriptions, rejected sessions, failed logins, robots, and whether the robot roster can be read. It binds to loopback unless `OPCUA_HEALTH_HOST` says otherwise.
 - While the robot roster cannot be read, `Robot_<id>.Online` is served as `false` with an Uncertain quality (and the time of the last good read as source timestamp) instead of a plain `false`.
 - `OPCUA_VIEWER_USERNAME` / `OPCUA_VIEWER_PASSWORD` add a read-only account, and `OPCUA_ALLOW_ANONYMOUS=0` refuses anonymous sessions; both are off by default.
 - The roster settings are also read as `HYDRA_UMC_SERVER_*`, the names HYDRA-UMC-MTCONNECT-ADAPTER uses; the original `HYDRA_SERVER_*` names keep working.
-- A test creates a real subscription and checks that a data-change notification arrives. The READMEs no longer say that subscriptions are untested and count 73 tests.
-- Building no longer changes the version; raising it is the explicit `bump` command (`python tools/hydra_project_tool.py bump`). The build scripts only report the version they built, and CI fails if a build script runs a bump.
 - The banner follows the animated style of the ecosystem banners, with the name, the kind and the technologies of the project.
-- **The test count of the READMEs is the real one** (53 instead of 37 in the table of the eight languages and in the English honesty check).
-- **The READMEs say that the subscription support is not tested yet** (only reads and writes are tested end to end), in the eight languages.
-- **The roadmap in the eight READMEs says what already exists:** the MQTT broker and the MTConnect adapter are repositories of their own (linked); only the broker cluster and the wider multi-vendor integration remain planned.
-- Added `tools/hydra_project_tool.py`: the same `validate`, `test`, `version`, `status` and `bump` commands in every repository. The checks run with `HYDRA_UMC_CI=1` and fail if the version changes; only `bump` changes it.
 
 ## [0.1.9]
 

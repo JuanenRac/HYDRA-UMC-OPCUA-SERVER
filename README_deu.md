@@ -26,7 +26,7 @@
 
 | | |
 |---|---|
-| Version | `0.1.9` |
+| Version | `0.2.0` |
 | Reifegrad | Funktionsfähig |
 | Tests | 73 |
 | Technik | Node.js / node-opcua / OPC-UA address space |
