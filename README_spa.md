@@ -1,3 +1,9 @@
+<!-- =============================================================================
+HYDRA-UMC-OPCUA-SERVER - OPC-UA address space of the robot roster
+Copyright (C) JuanenRac (Electro Hobby 3D) <electrohobby3d@gmail.com>
+GPL-3.0-or-later - see LICENSE
+============================================================================= -->
+
 <p align="center">
   <img src="images/HYDRA_UMC_BANNER.svg" alt="HYDRA-UMC-OPCUA-SERVER banner" width="100%">
 </p>
@@ -9,9 +15,12 @@
 ### 🛠️ Mapeo de Objetos HydraState a Espacios de Direcciones OPC-UA Estandarizados
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Licencia-GPL%203.0--or--later-blue.svg" alt="GPL 3.0 or later">
-  <img src="https://img.shields.io/badge/Estándar-OPC--UA-orange.svg" alt="OPC-UA">
-  <img src="https://img.shields.io/badge/Función-Modelado%20de%20Espacio%20de%20Direcciones-blue.svg" alt="Modeling">
+  <img src="https://img.shields.io/badge/License-GPL%203.0--or--later-blue.svg" alt="GPL 3.0 or later">
+  <img src="https://img.shields.io/badge/Standard-OPC--UA-orange.svg" alt="Standard">
+  <img src="https://img.shields.io/badge/Feature-Address%20Space%20Modeling-blue.svg" alt="Feature">
+  <img src="https://img.shields.io/badge/Tests-98%20passing-2ea44f.svg" alt="Tests">
+  <img src="https://img.shields.io/badge/Version-0.2.0-0f6cbd.svg" alt="Version">
+  <img src="https://img.shields.io/badge/Maturity-functional-0F6CBD.svg" alt="Maturity">
 </p>
 
 ---
@@ -22,16 +31,20 @@
 
 > **Estado de seguridad física y de ciberseguridad:** este ecosistema no es un sistema de seguridad certificado. Todavía no existe una ruta de E-STOP por hardware, ni límites ni enclavamientos aplicados por el firmware, ni un comando de movimiento verificado; las imágenes de firmware se comprueban con CRC32 y un HMAC-SHA256 de clave compartida, no con una firma asimétrica; TLS y TLS mutuo son opcionales y están desactivados por defecto; aún no se ha poblado ni probado ninguna placa propia. Lee la [línea base de seguridad](https://github.com/JuanenRac/HYDRA-UMC-DOCS/blob/main/docs/SECURITY_BASELINE.md) y el [modelo de amenazas](https://github.com/JuanenRac/HYDRA-UMC-DOCS/blob/main/docs/THREAT_MODEL.md) antes de fiarte de cualquier afirmación de aquí para la seguridad de una persona.
 
+---
+
 ## 📋 De un vistazo
 
 | | |
 |---|---|
 | Versión | `0.2.0` |
 | Madurez | Funcional |
-| Tests | 73 |
+| Tests | 98 (`npm test`) |
 | Tecnología | Node.js / node-opcua / OPC-UA address space |
 | Destino | La Raspberry Pi CM5 de una celda HYDRA-UMC |
 | En hardware real | Todavía no: no consta ninguna ejecución en hardware real para esta versión |
+
+**Ir a:** [Resumen](#-resumen) · [Arquitectura](#-arquitectura) · [Inicio rápido](#-inicio-rápido) · [Pruebas](#-pruebas) · [Estructura del repositorio](#-estructura-del-repositorio) · [Proyectos relacionados](#-proyectos-relacionados)
 
 ## 🚦 Estado del proyecto
 
@@ -42,11 +55,11 @@ Cada línea es una parte de este repositorio y la luz dice hasta dónde llega ho
 | Área | Estado | Qué significa aquí |
 |---|---|---|
 | Software | 🟡 | Funciona para su propósito principal; la comprobación de honestidad de arriba lista lo que aún falta |
-| Pruebas | 🟢 | 73 pruebas automáticas, ejecutadas en cada cambio |
+| Pruebas | 🟢 | 98 pruebas automáticas, ejecutadas en cada cambio |
 | Hardware real | 🔴 | Todavía no: no consta ninguna ejecución en hardware real para esta versión |
 | Documentación | 🟢 | README en ocho idiomas, comprobado contra el manifiesto en cada cambio |
 
-## 1. 🛠️ VISIÓN GENERAL TÉCNICA
+## 🎯 Resumen
 
 **HYDRA-UMC-OPCUA-SERVER** es el módulo de modelado industrial central para el Gateway. Traduce el HydraState interno y dinámico (JSON) en un espacio de direcciones OPC-UA estructurado y descubrible.
 
@@ -62,9 +75,18 @@ Permite que el software de automatización industrial (como Ignition, Siemens TI
 * 🩺 **Operación (todo opcional):** `OPCUA_HEALTH_PORT` abre un listener aparte (solo loopback salvo que `OPCUA_HEALTH_HOST` diga otra cosa) con `GET /health` y `GET /metrics` (sesiones, suscripciones, inicios de sesión fallidos, robots, si se puede leer la lista); mientras no se puede leer la lista, las variables `Online` de los robots valen `false` con calidad Uncertain en lugar de un `false` sin más; `OPCUA_VIEWER_USERNAME`/`OPCUA_VIEWER_PASSWORD` añaden una cuenta de solo lectura y `OPCUA_ALLOW_ANONYMOUS=0` rechaza las sesiones anónimas; los ajustes de la lista aceptan también los nombres `HYDRA_UMC_SERVER_*` comunes a todo el ecosistema. Todo desactivado o sin cambios por defecto. *(implementado)*
 * 🛡️ **Cifrado:** toda sesión real exige Signed o Signed+Encrypted (Basic256Sha256, Aes128_Sha256_RsaOaep o Aes256_Sha256_RsaPss) - una conexión sin cifrar con `SecurityPolicy.None` es rechazada de verdad, no solo desaconsejada.
 
----
+## 🧩 Papel en HYDRA-UMC
 
-## 2. 🔄 FLUJO DEL ESPACIO DE DIRECCIONES OPC-UA
+**HYDRA-UMC-OPCUA-SERVER** publica la lista de robots de `HYDRA-UMC-SERVER` como un espacio de direcciones OPC-UA que el software SCADA y de automatización puede explorar. Las sesiones llevan roles OPC UA y ningún rol puede escribir: ningún nodo controla una articulación ni un efector.
+
+## 🏛️ Arquitectura
+
+<p align="center">
+  <img src="images/architecture.svg" alt="HYDRA-UMC-OPCUA-SERVER architecture" width="100%">
+</p>
+
+<details>
+<summary>Versión en texto del diagrama (Mermaid)</summary>
 
 ```mermaid
 flowchart LR
@@ -74,9 +96,9 @@ flowchart LR
     TAGS --> CLIENT["PLC / SCADA Externo"]
 ```
 
----
+</details>
 
-## 3. 🧱 ARQUITECTURA Y DECISIONES DE DISEÑO
+### ARQUITECTURA Y DECISIONES DE DISEÑO
 
 * **Por qué es hermano, no un submódulo, de HYDRA-UMC-GATEWAY-INDUSTRIAL.** Cada adaptador de protocolo es un proceso desplegable/reiniciable por separado - un problema en la librería cliente de OPC-UA nunca tumba los adaptadores de MQTT o MTConnect que corren junto a él.
 * **Por qué un espacio de direcciones OPC-UA, no un simple passthrough REST.** Los clientes OPC-UA (SCADA/históricos) esperan un espacio de direcciones real y navegable con nodos tipados - un passthrough REST plano expondría técnicamente los datos pero anularía el sentido de hablar OPC-UA.
@@ -89,30 +111,24 @@ flowchart LR
 
 Deliberadamente diferido, y por qué: un espacio de direcciones totalmente dinámico (el árbol por robot ya sigue la lista que informa HYDRA-UMC-SERVER; el resto se construye una sola vez al arrancar); y el punto de Pub/Sub del roadmap (todavía sin implementar - ningún cliente depende de él por ahora).
 
----
+## 🚀 Inicio rápido
 
-## 📂 ESTRUCTURA DE DIRECTORIOS
+Requiere Node.js 20 o superior con npm.
 
-```text
-HYDRA-UMC-OPCUA-SERVER/
-├── src/         # Código fuente (Node/TypeScript - Modelo, Servidor, Mapeador)
-├── tests/       # Suite Vitest - comportamiento de servidor y seguridad
-├── docs/        # OPERATIONS.md: lo que un integrador necesita para ejecutar, conectarse y exponer con seguridad este servidor
-├── nodeset/     # HydraUmc.NodeSet2.xml: el modelo de información del espacio de nombres como fichero NodeSet2 (scripts/export_nodeset.ts lo escribe y lo comprueba)
-├── dist/       # Salida compilada (npm run build)
-├── images/      # Medios y diagramas
-├── scripts/     # Scripts de utilidad (bump-version.mjs, export_nodeset.ts)
-├── tools/       # build_test.py (comprobación de compilación sin versionar), ci_validate.py (validación de manifiesto/CHANGELOG/docs usada por la CI), hydra_project_tool.py y los compartidos _doc_policy.py y _readme_parity.py
-├── mejoras_futuras.txt  # La lista completa y honesta de lo que queda deliberadamente diferido, y por qué
-└── README.md
+```bash
+npm install
+npm test
+npm run build
+npm start
 ```
 
-Servicio de red puro, sin hardware propio - `hardware/`, `firmware/` y
-`os/` se omiten según la política de estructura del repositorio.
+## 🧪 Pruebas
 
----
+98 pruebas automáticas se ejecutan con `npm test`. No necesitan hardware ni nada fuera de esta máquina.
 
-## 🛠️ ENTORNO DE DESARROLLO
+El CI ejecuta `HYDRA_UMC_CI=1 python tools/ci_validate.py`, que comprueba el manifiesto, los documentos, los ocho README y las imágenes.
+
+## 🏗️ Compilación y publicación
 
 ### Requisitos
 - [Node.js](https://nodejs.org/) (v20 o superior recomendado)
@@ -147,17 +163,53 @@ espacio de direcciones.
 ### Versionado
 `npm run build` solo empaqueta el servidor. La versión solo la sube `python tools/hydra_project_tool.py bump` (mediante `bump_manifest_version.py`), un "cuentakilómetros" en base 10: patch +1 por bump, con acarreo a minor (y de minor a major) al pasar de 9 en vez de llegar nunca a un segmento de dos dígitos (`0.0.9` -> `0.1.0`, no `0.0.10`).
 
----
+## 📂 Estructura del repositorio
 
-## 🚀 HOJA DE RUTA
+<p align="center">
+  <img src="images/repository-structure.svg" alt="Repository structure of HYDRA-UMC-OPCUA-SERVER" width="100%">
+</p>
+
+<details>
+<summary>Versión en texto del árbol</summary>
+
+```text
+HYDRA-UMC-OPCUA-SERVER/
+├── src/                       Código fuente (Node/TypeScript - Modelo, Servidor, Mapeador)
+├── tests/                     Suite Vitest - comportamiento de servidor y seguridad
+├── docs/                      OPERATIONS.md: lo que un integrador necesita para ejecutar, conectarse y exponer con seguridad este servidor
+├── nodeset/                   HydraUmc.NodeSet2.xml: el modelo de información del espacio de nombres como fichero NodeSet2 (scripts/export_nodeset.ts lo escribe y lo comprueba)
+├── images/                    Medios y diagramas
+├── scripts/                   Scripts de utilidad (bump-version.mjs, export_nodeset.ts)
+├── tools/                     build_test.py (comprobación de compilación sin versionar), ci_validate.py (validación de manifiesto/CHANGELOG/docs usada por la CI), hydra_project_tool.py y los compartidos _doc_policy.py y _readme_parity.py
+├── .github/                   flujo de CI y plantillas de incidencias
+├── mejoras_futuras.txt        La lista completa y honesta de lo que queda deliberadamente diferido, y por qué
+├── CHANGELOG.md               qué cambió en cada versión
+├── Dockerfile                 imagen de contenedor
+├── build-test.sh              comprobación de compilación sin cambios
+├── build.sh                   compila y comprueba; nunca cambia la versión
+├── bump_manifest_version.py   sincroniza la versión del manifiesto
+├── dev.sh                     modo de desarrollo
+├── hydra-umc.project.json     manifiesto: versión, madurez, familia
+├── package.json               metadatos y scripts del paquete
+└── test.sh                    ejecuta las pruebas
+```
+
+</details>
+
+## 🗺️ Hoja de ruta y límites conocidos
+
+**Límites conocidos hoy**
+
 * **Fase 1:** Implementación de OPC-UA Pub/Sub para intercambio de datos de alta velocidad y puente de protocolos heredados.
 * **Fase 2:** el broker MQTT ya existe como repositorio propio ([HYDRA-UMC-MQTT-BROKER](https://github.com/JuanenRac/HYDRA-UMC-MQTT-BROKER)); el clúster para la gestión masiva de dispositivos IoT y la alta concurrencia sigue planificado.
 * **Fase 3:** el adaptador MTConnect ya existe como repositorio propio ([HYDRA-UMC-MTCONNECT-ADAPTER](https://github.com/JuanenRac/HYDRA-UMC-MTCONNECT-ADAPTER)); la integración de maquinaria CNC y PLC multi-vendedor más allá de él sigue planificada.
 * **Fase 4:** Cumplimiento total con la especificación compañera OPC UA Robotics y sincronización con el industrial gateway.
 
----
+## 🌍 Idiomas
 
-## 🔗 Proyectos Relacionados
+Este README y los documentos del repositorio existen en ocho idiomas: inglés, español, alemán, francés, italiano, japonés, chino y portugués (Portugal). Se escriben a la vez y el CI comprueba que los ocho ficheros tengan las mismas secciones y los mismos enlaces. Este repositorio no tiene pantalla ni catálogo de mensajes propios, así que no hay cadenas de interfaz que traducir.
+
+## 🔗 Proyectos relacionados
 
 Este proyecto es parte del ecosistema de robótica HYDRA-UMC del mismo autor (JuanenRac / Electro Hobby 3D). Vale la pena conocerlo, ya que una petición podría en realidad ser sobre alguno de estos en vez de sobre este repositorio.
 
@@ -248,21 +300,26 @@ Este proyecto es parte del ecosistema de robótica HYDRA-UMC del mismo autor (Ju
 - **[HYDRA-UMC-OPS-AGENT](https://github.com/JuanenRac/HYDRA-UMC-OPS-AGENT)** — coordinador de incidencias de mantenimiento: un rol edge de bajo privilegio recopila un snapshot de inventario/salud saneado, un rol control-plane lo renderiza de solo lectura y pide a un proveedor de IA que sugiera un diagnóstico - nunca aplica un parche ni despliega nada.
 - **[HYDRA-UMC-DEV-SERVER](https://github.com/JuanenRac/HYDRA-UMC-DEV-SERVER)** — host de desarrollo reproducible (Raspberry Pi 5 / CM5) que almacena el código del ecosistema y ejecuta tareas acotadas de compilación/pruebas bajo una cola duradera; un rol de desarrollo dedicado, explícitamente distinto de un CM5 operativo.
 
+## 📚 Documentación
 
----
+Dónde leer más:
 
-## 📚 Documentación y Comunidad
+* [Base de seguridad del ecosistema](https://github.com/JuanenRac/HYDRA-UMC-DOCS/blob/main/docs/SECURITY_BASELINE.md)
+* [Modelo de amenazas del ecosistema](https://github.com/JuanenRac/HYDRA-UMC-DOCS/blob/main/docs/THREAT_MODEL.md)
+* [Historial de cambios de este repositorio](CHANGELOG.md)
+* [Licencia de este repositorio](LICENSE.md)
 
-- **[CONTRIBUTING.md](CONTRIBUTING.md)** — stack tecnológico y pautas de codificación para un pull request.
-- **[CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)** — los estándares de comportamiento esperados en esta comunidad.
-- **[SECURITY.md](SECURITY.md)** — cómo reportar una vulnerabilidad, y las áreas reales de enfoque en seguridad de este proyecto.
-- **[SUPPORT.md](SUPPORT.md)** — dónde hacer preguntas y reportar errores.
-- **[LICENSE.md](LICENSE.md)** — la licencia propia de este proyecto.
+## 🤝 Contribuir y comunidad
+
+* Antes de un pull request ejecuta `HYDRA_UMC_CI=1 py -3 tools/ci_validate.py` (o `HYDRA_UMC_CI=1 python3 tools/ci_validate.py`): debe imprimir `CI_VALIDATION=PASS`. No ejecutes `build.sh` ni `build.bat` para esta comprobación; compilar no es comprobar.
+* Los ocho README se escriben desde una sola fuente en HYDRA-UMC-DOCS; no los edites a mano. Cambia la fuente y vuelve a escribirlos con `tools/make_readmes.py`.
+* No afirmes en un README lo que no se ha ejecutado: di «simulado» o «sin probar en hardware» cuando esa sea la verdad.
+* Mira [CONTRIBUTING.md](CONTRIBUTING.md), el [código de conducta](CODE_OF_CONDUCT.md), [SECURITY.md](SECURITY.md) y [SUPPORT.md](SUPPORT.md).
 
 ## 👤 AUTOR
-**JuanenRac** (Electro Hobby 3D)
-📧 electrohobby3d@gmail.com
-📺 [youtube.com/@electrohobby3d](https://youtube.com/@electrohobby3d)
+
+**JuanenRac (Electro Hobby 3D)** · electrohobby3d@gmail.com
 
 ## 📜 LICENCIA
-GPL-3.0-or-later - Ver archivo LICENSE para más detalles.
+
+GPL-3.0-or-later - [LICENSE](LICENSE).

@@ -1,0 +1,147 @@
+{
+  "repo": "HYDRA-UMC-OPCUA-SERVER",
+  "ecosystem": "hydra",
+  "tagline": "The robot roster as a typed OPC-UA address space; sessions can browse and read, never write.",
+  "description": "HYDRA-UMC-OPCUA-SERVER builds a typed OPC-UA address space from the robot roster that it polls or streams from HYDRA-UMC-SERVER, applies roles to sessions and reports its own health.",
+  "columns": [
+    "WHO USES IT",
+    "THIS REPOSITORY",
+    "DATA SOURCE"
+  ],
+  "nodes": [
+    {
+      "id": "scada",
+      "column": 0,
+      "level": "external",
+      "title": "OPC-UA clients",
+      "lines": [
+        "UAExpert, Ignition, TIA",
+        "Portal; port 4840"
+      ]
+    },
+    {
+      "id": "gw",
+      "column": 0,
+      "level": "external",
+      "title": "GATEWAY-INDUSTRIAL",
+      "lines": [
+        "probes that the server",
+        "answers"
+      ]
+    },
+    {
+      "id": "srv",
+      "column": 1,
+      "level": "tested",
+      "title": "server.ts",
+      "lines": [
+        "address space, typed model,",
+        "roles, security policies"
+      ],
+      "code": [
+        "src/server.ts"
+      ]
+    },
+    {
+      "id": "src",
+      "column": 1,
+      "level": "tested",
+      "title": "robotSource.ts",
+      "lines": [
+        "reads the roster by polling;",
+        "the stream is optional"
+      ],
+      "code": [
+        "src/robotSource.ts"
+      ]
+    },
+    {
+      "id": "live",
+      "column": 1,
+      "level": "tested",
+      "title": "liveSource.ts",
+      "lines": [
+        "WebSocket source for the",
+        "Live and LastUpdate nodes"
+      ],
+      "code": [
+        "src/liveSource.ts"
+      ]
+    },
+    {
+      "id": "health",
+      "column": 1,
+      "level": "tested",
+      "title": "health.ts",
+      "lines": [
+        "optional /health and",
+        "/metrics listener"
+      ],
+      "code": [
+        "src/health.ts"
+      ]
+    },
+    {
+      "id": "hs",
+      "column": 2,
+      "level": "external",
+      "title": "HYDRA-UMC-SERVER",
+      "lines": [
+        "REST roster and",
+        "WebSocket stream"
+      ]
+    },
+    {
+      "id": "ns",
+      "column": 2,
+      "level": "config",
+      "title": "NodeSet2 file",
+      "lines": [
+        "nodeset/HydraUmc.NodeSet2.xml,",
+        "kept equal to the code"
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "from": "scada",
+      "to": "srv",
+      "level": "tested",
+      "label": "OPC UA"
+    },
+    {
+      "from": "gw",
+      "to": "srv",
+      "level": "external",
+      "label": "probe"
+    },
+    {
+      "from": "srv",
+      "to": "src",
+      "level": "tested"
+    },
+    {
+      "from": "srv",
+      "to": "live",
+      "level": "tested"
+    },
+    {
+      "from": "src",
+      "to": "hs",
+      "level": "external",
+      "label": "REST"
+    },
+    {
+      "from": "live",
+      "to": "hs",
+      "level": "external",
+      "label": "WS"
+    },
+    {
+      "from": "srv",
+      "to": "ns",
+      "level": "config"
+    }
+  ],
+  "footer": "Tried with the node-opcua client; never against a real SCADA."
+}

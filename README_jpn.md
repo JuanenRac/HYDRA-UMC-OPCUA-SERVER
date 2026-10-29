@@ -1,3 +1,9 @@
+<!-- =============================================================================
+HYDRA-UMC-OPCUA-SERVER - OPC-UA address space of the robot roster
+Copyright (C) JuanenRac (Electro Hobby 3D) <electrohobby3d@gmail.com>
+GPL-3.0-or-later - see LICENSE
+============================================================================= -->
+
 <p align="center">
   <img src="images/HYDRA_UMC_BANNER.svg" alt="HYDRA-UMC-OPCUA-SERVER banner" width="100%">
 </p>
@@ -9,9 +15,12 @@
 ### 🛠️ HydraState オブジェクトを標準化された OPC-UA アドレス空間へマッピング
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Licencia-GPL%203.0--or--later-blue.svg" alt="GPL 3.0 or later">
-  <img src="https://img.shields.io/badge/Standard-OPC--UA-orange.svg" alt="OPC-UA">
-  <img src="https://img.shields.io/badge/Feature-Address%20Space%20Modeling-blue.svg" alt="Modeling">
+  <img src="https://img.shields.io/badge/License-GPL%203.0--or--later-blue.svg" alt="GPL 3.0 or later">
+  <img src="https://img.shields.io/badge/Standard-OPC--UA-orange.svg" alt="Standard">
+  <img src="https://img.shields.io/badge/Feature-Address%20Space%20Modeling-blue.svg" alt="Feature">
+  <img src="https://img.shields.io/badge/Tests-98%20passing-2ea44f.svg" alt="Tests">
+  <img src="https://img.shields.io/badge/Version-0.2.0-0f6cbd.svg" alt="Version">
+  <img src="https://img.shields.io/badge/Maturity-functional-0F6CBD.svg" alt="Maturity">
 </p>
 
 ---
@@ -22,16 +31,20 @@
 
 > **安全性とセキュリティの現状:** このエコシステムは認証された安全システムではありません。ハードウェアの E-STOP 経路、ファームウェアが強制する制限やインターロック、検証済みの動作コマンドはまだありません。ファームウェアイメージは CRC32 と共有鍵の HMAC-SHA256 で検査しており、非対称署名ではありません。TLS と相互 TLS は任意で、既定では無効です。独自基板はまだ実装も試験もされていません。ここに書かれた内容を人の安全のために頼る前に、[セキュリティベースライン](https://github.com/JuanenRac/HYDRA-UMC-DOCS/blob/main/docs/SECURITY_BASELINE.md)と[脅威モデル](https://github.com/JuanenRac/HYDRA-UMC-DOCS/blob/main/docs/THREAT_MODEL.md)をお読みください。
 
+---
+
 ## 📋 ひと目で
 
 | | |
 |---|---|
 | バージョン | `0.2.0` |
 | 成熟度 | 機能する |
-| テスト | 73 |
+| テスト | 98 (`npm test`) |
 | 技術 | Node.js / node-opcua / OPC-UA address space |
 | 対象 | HYDRA-UMC セルの Raspberry Pi CM5 |
 | 実機での確認 | まだです：このバージョンについて実機での動作記録はありません |
+
+**移動：** [概要](#-概要) · [アーキテクチャ](#-アーキテクチャ) · [クイックスタート](#-クイックスタート) · [テスト](#-テスト) · [リポジトリの構成](#-リポジトリの構成) · [関連プロジェクト](#-関連プロジェクト)
 
 ## 🚦 プロジェクトの状況
 
@@ -42,11 +55,11 @@
 | 領域 | 状態 | ここでの意味 |
 |---|---|---|
 | ソフトウェア | 🟡 | 主な目的では動作します。足りない点は上の正直さの確認に書かれています |
-| テスト | 🟢 | 自動テスト 73 件。変更のたびに実行されます |
+| テスト | 🟢 | 自動テスト 98 件。変更のたびに実行されます |
 | 実機 | 🔴 | まだです：このバージョンについて実機での動作記録はありません |
 | ドキュメント | 🟢 | 8 言語の README。変更のたびにマニフェストと照合されます |
 
-## 1. 🛠️ 技術概要
+## 🎯 概要
 
 **HYDRA-UMC-OPCUA-SERVER** は、ゲートウェイの中核となる産業モデリング
 モジュールです。内部の動的な HydraState（JSON）を、構造化された発見
@@ -66,9 +79,18 @@ Ignition、Siemens TIA Portal、Rockwell FactoryTalk のような産業用
 * 🩺 **運用(すべて任意):** `OPCUA_HEALTH_PORT` は別のリスナーを起動します(`OPCUA_HEALTH_HOST` で変えない限りループバックのみ)。`GET /health` と `GET /metrics`(セッション、サブスクリプション、ログイン失敗、ロボット、一覧を読めるか)を提供します。一覧を読めない間、ロボットの `Online` 変数は単なる `false` ではなく Uncertain 品質の `false` になります。`OPCUA_VIEWER_USERNAME`/`OPCUA_VIEWER_PASSWORD` は読み取り専用アカウントを追加し、`OPCUA_ALLOW_ANONYMOUS=0` は匿名セッションを拒否します。一覧の設定はエコシステム共通の `HYDRA_UMC_SERVER_*` の名前も受け付けます。すべて既定では無効または変更なしです。 *(実装済み)*
 * 🛡️ **暗号化：** すべての実際のセッションで Signed または Signed+Encrypted（Basic256Sha256、Aes128_Sha256_RsaOaep、または Aes256_Sha256_RsaPss）が必須です - 暗号化されていない `SecurityPolicy.None` 接続は単に非推奨なのではなく、実際に拒否されます。
 
----
+## 🧩 HYDRA-UMC での役割
 
-## 2. 🔄 OPC-UA アドレス空間フロー
+**HYDRA-UMC-OPCUA-SERVER** は `HYDRA-UMC-SERVER` のロボット一覧を、SCADA やオートメーションのソフトウェアが閲覧できる OPC-UA アドレス空間として公開します。セッションは OPC UA のロールを持ち、書き込みできるロールはありません。関節やエンドエフェクターを制御するノードはありません。
+
+## 🏛️ アーキテクチャ
+
+<p align="center">
+  <img src="images/architecture.svg" alt="HYDRA-UMC-OPCUA-SERVER architecture" width="100%">
+</p>
+
+<details>
+<summary>図のテキスト版（Mermaid）</summary>
 
 ```mermaid
 flowchart LR
@@ -78,9 +100,9 @@ flowchart LR
     TAGS --> CLIENT["External PLC / SCADA"]
 ```
 
----
+</details>
 
-## 3. 🧱 アーキテクチャと設計上の決定
+### アーキテクチャと設計上の決定
 
 * **HYDRA-UMC-GATEWAY-INDUSTRIAL のサブモジュールではなく兄弟プロジェクトである理由。** 各プロトコルアダプターは個別にデプロイ/再起動可能なプロセスです——OPC-UA クライアントライブラリの問題が、それと並行して動作する MQTT や MTConnect アダプターをダウンさせることは決してありません。
 * **フラットな REST パススルーではなく OPC-UA アドレス空間である理由。** OPC-UA クライアント（SCADA/ヒストリアン）は、型付けされたノードを持つ実際の参照可能なアドレス空間を期待します——フラットな REST パススルーは技術的にはデータを公開できますが、そもそも OPC-UA を話す意味を失わせます。
@@ -94,31 +116,24 @@ flowchart LR
 
 意図的に後回しにしたものとその理由:ロボットごとの動的なアドレス空間ツリー(現状は起動時に一度だけ構築される静的なツリーで、後から追加したロボットを表示するには再起動が必要)、ロードマップの Pub/Sub 項目(まだ未実装 - 依存するクライアントはまだない)。
 
----
+## 🚀 クイックスタート
 
-## 📂 リポジトリ構成
+Node.js 20 以上と npm が必要です。
 
-```text
-HYDRA-UMC-OPCUA-SERVER/
-├── src/         # ソースコード（Node/TypeScript —— モデル、サーバー、マッパー）
-├── tests/       # Vitest スイート —— サーバーとセキュリティの動作
-├── docs/        # OPERATIONS.md: インテグレーターがこのサーバーを動かし、接続し、安全に公開するために必要なこと
-├── nodeset/     # HydraUmc.NodeSet2.xml: 名前空間の情報モデルを NodeSet2 ファイルにしたもの (scripts/export_nodeset.ts が書き出して検査)
-├── dist/       # コンパイル出力（npm run build）
-├── images/      # メディアと図表
-├── scripts/     # 補助スクリプト (bump-version.mjs、export_nodeset.ts)
-├── tools/       # build_test.py (バージョンを変えないビルド確認)、ci_validate.py (CI が使うマニフェスト/CHANGELOG/ドキュメントの検証)、hydra_project_tool.py、共有の _doc_policy.py と _readme_parity.py
-├── mejoras_futuras.txt  # 意図的に後回しにした内容とその理由を完全にまとめた正直なリスト
-└── README.md
+```bash
+npm install
+npm test
+npm run build
+npm start
 ```
 
-純粋なネットワークサービスであり、独自の専用ハードウェアを持ちません
-——`hardware/`、`firmware/`、`os/` は元のプロジェクトテンプレートから
-省略されており、リポジトリ構造ポリシーに従っています。
+## 🧪 テスト
 
----
+`npm test` で自動テスト 98 件を実行します。 ハードウェアも、このマシンの外にあるものも必要ありません。
 
-## 🛠️ 開発環境
+CI は `HYDRA_UMC_CI=1 python tools/ci_validate.py` を実行し、マニフェスト、文書、8 つの README、図を検査します。
+
+## 🏗️ ビルドとリリース
 
 ### 必要条件
 - [Node.js](https://nodejs.org/)（v20 以上を推奨）
@@ -152,17 +167,53 @@ npm start
 エンドポイントに向けることで、アドレス空間を参照できます。
 
 ### バージョン管理
-`npm run build` はサーバーをバンドルするだけです。バージョンを上げるのは `python tools/hydra_project_tool.py bump`（`bump_manifest_version.py` 経由）だけで、ビルドは変更しません。10 進法の「オドメーター」方式で、bump のたびに patch を +1 し、9 を超えると minor に繰り上がり（minor が 9 を超えると major に繰り上がる）、2 桁のセグメントに到達することはありません（`0.0.9` -> `0.1.0`、`0.0.10` にはなりません）。
+`npm run build` はサーバーをバンドルするだけです。バージョンを上げるのは `python tools/hydra_project_tool.py bump`（`bump_manifest_version.py` 経由）だけで、ビルドは変更しません。
 
----
+## 📂 リポジトリの構成
 
-## 🚀 ロードマップ
+<p align="center">
+  <img src="images/repository-structure.svg" alt="Repository structure of HYDRA-UMC-OPCUA-SERVER" width="100%">
+</p>
+
+<details>
+<summary>ツリーのテキスト版</summary>
+
+```text
+HYDRA-UMC-OPCUA-SERVER/
+├── src/                       ソースコード（Node/TypeScript —— モデル、サーバー、マッパー）
+├── tests/                     Vitest スイート —— サーバーとセキュリティの動作
+├── docs/                      OPERATIONS.md: インテグレーターがこのサーバーを動かし、接続し、安全に公開するために必要なこと
+├── nodeset/                   HydraUmc.NodeSet2.xml: 名前空間の情報モデルを NodeSet2 ファイルにしたもの (scripts/export_nodeset.ts が書き出して検査)
+├── images/                    メディアと図表
+├── scripts/                   補助スクリプト (bump-version.mjs、export_nodeset.ts)
+├── tools/                     build_test.py (バージョンを変えないビルド確認)、ci_validate.py (CI が使うマニフェスト/CHANGELOG/ドキュメントの検証)、hydra_project_tool.py、共有の _doc_policy.py と _readme_parity.py
+├── .github/                   CI ワークフローと Issue テンプレート
+├── mejoras_futuras.txt        意図的に後回しにした内容とその理由を完全にまとめた正直なリスト
+├── CHANGELOG.md               各バージョンの変更点
+├── Dockerfile                 コンテナイメージ
+├── build-test.sh              変更を伴わないビルド確認
+├── build.sh                   ビルドと検査。バージョンは変更しない
+├── bump_manifest_version.py   マニフェストのバージョンを同期
+├── dev.sh                     開発モード
+├── hydra-umc.project.json     マニフェスト：バージョン、成熟度、ファミリー
+├── package.json               パッケージのメタデータとスクリプト
+└── test.sh                    テストを実行
+```
+
+</details>
+
+## 🗺️ ロードマップと既知の制限
+
+**現時点の既知の制限**
+
 * **フェーズ 1：** 高速データ交換とレガシープロトコルブリッジングのための OPC-UA パブリッシュ/サブスクライブ実装。
 * **フェーズ 2：** MQTT Broker はすでに独立したリポジトリとして存在します（[HYDRA-UMC-MQTT-BROKER](https://github.com/JuanenRac/HYDRA-UMC-MQTT-BROKER)）。大量の IoT デバイス管理と高い並行性のためのクラスターは引き続き計画中です。
 * **フェーズ 3：** MTConnect アダプターはすでに独立したリポジトリとして存在します（[HYDRA-UMC-MTCONNECT-ADAPTER](https://github.com/JuanenRac/HYDRA-UMC-MTCONNECT-ADAPTER)）。それを超える複数ベンダーの CNC・PLC 機器との統合は引き続き計画中です。
 * **フェーズ 4：** OPC UA Robotics コンパニオン仕様への完全準拠と産業用ゲートウェイの同期。
 
----
+## 🌍 言語
+
+この README とリポジトリの文書は、英語・スペイン語・ドイツ語・フランス語・イタリア語・日本語・中国語・ポルトガル語（ポルトガル）の 8 言語で提供されています。8 つのファイルは同時に書かれ、同じ節と同じリンクを持つことを CI が確認します。 このリポジトリには独自の画面もメッセージカタログもないため、翻訳すべきインターフェース文字列はありません。
 
 ## 🔗 関連プロジェクト
 
@@ -255,21 +306,26 @@ npm start
 - **[HYDRA-UMC-OPS-AGENT](https://github.com/JuanenRac/HYDRA-UMC-OPS-AGENT)** — 保守インシデントコーディネーター: 低権限のエッジ役割がサニタイズされたインベントリ/ヘルスのスナップショットを収集し、コントロールプレーン役割がそれを読み取り専用でレンダリングして AI プロバイダーに診断の提案を依頼します - パッチを適用することも、何かをデプロイすることも決してありません。
 - **[HYDRA-UMC-DEV-SERVER](https://github.com/JuanenRac/HYDRA-UMC-DEV-SERVER)** — 再現可能な開発ホスト（Raspberry Pi 5 / CM5）。エコシステムのソースコードを保管し、永続キューのもとで境界の明確なビルド/テストタスクを実行する。運用中の CM5 とは明確に異なる、開発専用の役割。
 
+## 📚 ドキュメント
 
----
+さらに読むには：
 
-## 📚 ドキュメント & コミュニティ
+* [エコシステムのセキュリティ基準](https://github.com/JuanenRac/HYDRA-UMC-DOCS/blob/main/docs/SECURITY_BASELINE.md)
+* [エコシステムの脅威モデル](https://github.com/JuanenRac/HYDRA-UMC-DOCS/blob/main/docs/THREAT_MODEL.md)
+* [このリポジトリの変更履歴](CHANGELOG.md)
+* [このリポジトリのライセンス](LICENSE.md)
 
-- **[CONTRIBUTING.md](CONTRIBUTING.md)** —— プルリクエストのための技術スタックとコーディング指針。
-- **[CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)** —— このコミュニティで期待される行動規範。
-- **[SECURITY.md](SECURITY.md)** —— 脆弱性の報告方法と、このプロジェクトの実際のセキュリティ重点領域。
-- **[SUPPORT.md](SUPPORT.md)** —— 質問の投稿先とバグの報告先。
-- **[LICENSE.md](LICENSE.md)** —— このプロジェクト自身のライセンス。
+## 🤝 コントリビュートとコミュニティ
+
+* プルリクエストの前に `HYDRA_UMC_CI=1 py -3 tools/ci_validate.py`（または `HYDRA_UMC_CI=1 python3 tools/ci_validate.py`）を実行してください。`CI_VALIDATION=PASS` と表示される必要があります。この確認に `build.sh` や `build.bat` は使わないでください。ビルドは検査ではありません。
+* 8 つの README は HYDRA-UMC-DOCS の 1 つのソースから書かれます。手で編集しないでください。ソースを変更し、`tools/make_readmes.py` で書き直します。
+* 実行していないことを README に書かないでください。事実であれば「シミュレーションのみ」「実機では未確認」と書きます。
+* [CONTRIBUTING.md](CONTRIBUTING.md)、[行動規範](CODE_OF_CONDUCT.md)、[SECURITY.md](SECURITY.md)、[SUPPORT.md](SUPPORT.md) を参照してください。
 
 ## 👤 作者
-**JuanenRac** (Electro Hobby 3D)
-📧 electrohobby3d@gmail.com
-📺 [youtube.com/@electrohobby3d](https://youtube.com/@electrohobby3d)
+
+**JuanenRac (Electro Hobby 3D)** · electrohobby3d@gmail.com
 
 ## 📜 ライセンス
-GPL-3.0-or-later —— 詳細は LICENSE を参照してください。
+
+GPL-3.0-or-later - [LICENSE](LICENSE).
