@@ -12,6 +12,7 @@
   ],
   "deployment_target": "cm5",
   "maturity": "functional",
+  "evidence": "none",
   "family": "Industrial Gateway",
   "parent": "HYDRA-UMC-GATEWAY-INDUSTRIAL",
   "build": "npm install && npm run build",
