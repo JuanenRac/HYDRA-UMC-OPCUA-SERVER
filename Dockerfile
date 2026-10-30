@@ -39,5 +39,5 @@ RUN npm ci --omit=dev && mkdir -p /data/pki && chown -R node:node /data
 USER node
 EXPOSE 4840
 HEALTHCHECK --interval=15s --timeout=3s --start-period=20s --retries=3 \
-  CMD node -e "require('node:net').connect(process.env.PORT||4840,'127.0.0.1').on('connect',()=>process.exit(0)).on('error',()=>process.exit(1))"
+  CMD node -e "require('node:net').connect(process.env.HYDRA_UMC_OPCUA_PORT||process.env.PORT||4840,'127.0.0.1').on('connect',()=>process.exit(0)).on('error',()=>process.exit(1))"
 CMD ["node", "dist/server.cjs"]

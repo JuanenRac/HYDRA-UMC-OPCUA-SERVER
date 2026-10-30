@@ -41,10 +41,17 @@ import { readPackageVersion } from "./version.js";
 import { pollerConfigFromEnv, sourceModeFromEnv, startRobotPolling } from "./robotSource.js";
 import { startRobotStream } from "./liveSource.js";
 import { healthPortFromEnv, startHealthServer } from "./health.js";
+import { resolveListenPort, type ResolvedPort } from "./portConfig.js";
 
 // 4840 is the IANA-registered default OPC-UA TCP port, and node-opcua's
 // own default - kept here explicitly (rather than relying on the library
-// default) so it's obvious at a glance and overridable via PORT.
+// default) so it's obvious at a glance and overridable via HYDRA_UMC_OPCUA_PORT
+// (first) or the shared PORT (last resort, with a warning).
+export function resolveListenPortOf(env: NodeJS.ProcessEnv = process.env): ResolvedPort {
+  return resolveListenPort(env, "HYDRA-UMC-OPCUA-SERVER", "HYDRA_UMC_OPCUA_PORT", 4840);
+}
+
+/** The shared `PORT` text on its own: the default is 4840, a value that is set but not a port is an error. */
 export function resolvePort(raw: string | undefined = process.env.PORT): number {
   if (raw === undefined || raw.trim() === "") return 4840;
   const port = Number(raw);
@@ -175,7 +182,7 @@ export function isAdminSession(context: ISessionContext, adminUsername: string |
  * activeRobotCount and observe the change reflected in a real OPC-UA read -
  * the get() closures below always read from this same object, never a
  * value captured at construction time. */
-export async function buildAddressSpaceServer(port: number = resolvePort()) {
+export async function buildAddressSpaceServer(port: number = resolveListenPortOf().port) {
   // Real username/password credentials for the one authenticated role this
   // v0 defines (see MaintenanceMode below) - sourced from real env vars,
   // never hardcoded. Unset means isValidUser rejects every credential, so
@@ -614,7 +621,9 @@ export interface RosterMeta {
 }
 
 async function main() {
-  const port = resolvePort();
+  const listen = resolveListenPortOf();
+  if (listen.warning) console.warn(`[HYDRA-UMC-OPCUA-SERVER] ${listen.warning}`);
+  const port = listen.port;
   const { server, state, setRobots, markRobotSeen, throttle, robotCount, liveRobotCount } = await buildAddressSpaceServer(port);
   const health = healthPortFromEnv();
   let sourceStatus: "not configured" | "ok" | "unreadable" = "not configured";

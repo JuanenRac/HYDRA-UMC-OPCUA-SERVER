@@ -14,7 +14,8 @@ something is not implemented it says so.
 
 | Setting | Meaning | Default |
 | --- | --- | --- |
-| `PORT` | OPC-UA TCP port (1-65535, otherwise startup fails) | `4840` |
+| `HYDRA_UMC_OPCUA_PORT` | OPC-UA TCP port (1-65535, otherwise startup fails); wins over the shared `PORT` | `4840` |
+| `PORT` | Last resort when `HYDRA_UMC_OPCUA_PORT` is not set (prints a warning, because several services of one machine read this variable) | unset |
 | `OPCUA_ADMIN_USERNAME` / `OPCUA_ADMIN_PASSWORD` | The one authenticated account | unset = **no one can log in** |
 | `OPCUA_ALLOW_INSECURE` | `1` also exposes an unencrypted `SecurityPolicy.None` endpoint | off |
 | `OPCUA_AUTO_ACCEPT` | `1` accepts the application certificate of any client that connects (lab use). User certificates are never auto-accepted | off: unknown clients wait in `rejected/` until you trust them |

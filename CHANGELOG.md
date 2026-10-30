@@ -4,6 +4,7 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+- **The listen port has a variable of its own:** `HYDRA_UMC_OPCUA_PORT` wins over the shared `PORT`, which several services of one machine read (a shared environment file could silently move this service onto another one's port). `PORT` still works as a last resort and prints a warning; a value that is set but not a valid port still stops the start, and the container health check follows the same order.
 - **README in the universal layout:** the README and its seven translations follow the layout that the four families share (22 sections in a fixed order), with an architecture picture and a repository-structure picture drawn from `docs/architecture.json` and `docs/structure.json`; the CI validator checks both pictures and the file tree.
 
 - **The layout of the README is checked in the CI:** the validator runs `tools/universal_readme_check.py` and lists, as a warning, what differs from the universal layout of the README.

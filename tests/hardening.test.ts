@@ -9,7 +9,7 @@
 // =============================================================================
 
 import { describe, expect, it, vi } from "vitest";
-import { LoginThrottle, createCertificateManagers, resolvePort, robotNodeKey, secretsMatch } from "../src/server.js";
+import { LoginThrottle, createCertificateManagers, resolveListenPortOf, resolvePort, robotNodeKey, secretsMatch } from "../src/server.js";
 import { apiUrl, readJsonCapped, startRobotPolling } from "../src/robotSource.js";
 import { readPackageVersion } from "../src/version.js";
 
@@ -70,6 +70,17 @@ describe("resolvePort", () => {
   it("does not run at import time: a bad PORT only fails when it is asked for", () => {
     expect(() => resolvePort("nope")).toThrow(/PORT/);
     expect(resolvePort(undefined)).toBe(4840);
+  });
+
+  it("reads the variable of its own before the shared PORT, and only PORT earns a warning", () => {
+    expect(resolveListenPortOf({ HYDRA_UMC_OPCUA_PORT: "4850", PORT: "3000" }).port).toBe(4850);
+    expect(resolveListenPortOf({ HYDRA_UMC_OPCUA_PORT: "4850", PORT: "3000" }).warning).toBeUndefined();
+    const shared = resolveListenPortOf({ PORT: "3000" });
+    expect(shared.port).toBe(3000);
+    expect(shared.warning).toContain("HYDRA_UMC_OPCUA_PORT");
+    expect(resolveListenPortOf({}).port).toBe(4840);
+    expect(() => resolveListenPortOf({ HYDRA_UMC_OPCUA_PORT: "abc", PORT: "3000" })).toThrow(/HYDRA_UMC_OPCUA_PORT/);
+    expect(() => resolveListenPortOf({ PORT: "70000" })).toThrow(/PORT must be an integer/);
   });
 });
 
