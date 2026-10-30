@@ -18,14 +18,14 @@ GPL-3.0-or-later - see LICENSE
   <img src="https://img.shields.io/badge/License-GPL%203.0--or--later-blue.svg" alt="GPL 3.0 or later">
   <img src="https://img.shields.io/badge/Standard-OPC--UA-orange.svg" alt="Standard">
   <img src="https://img.shields.io/badge/Feature-Address%20Space%20Modeling-blue.svg" alt="Feature">
-  <img src="https://img.shields.io/badge/Tests-98%20passing-2ea44f.svg" alt="Tests">
+  <img src="https://img.shields.io/badge/Tests-99%20passing-2ea44f.svg" alt="Tests">
   <img src="https://img.shields.io/badge/Version-0.2.0-0f6cbd.svg" alt="Version">
   <img src="https://img.shields.io/badge/Maturity-functional-0F6CBD.svg" alt="Maturity">
 </p>
 
 ---
 
-**Verificação de honestidade - o que realmente funciona hoje:** o servidor OPC-UA e o mapeamento do espaço de endereços (`src/server.ts`) são reais e testados (98 testes a passar em `tests/server.test.ts`, `tests/security.test.ts`, `tests/security-policy.test.ts`, `tests/robotSource.test.ts`, `tests/robotSource.integration.test.ts`) - e são testes reais ao nível do protocolo: o `tests/server.test.ts` liga um `OPCUAClient` real (o próprio cliente do node-opcua, a mesma biblioteca que o UAExpert/Ignition usariam) pelo protocolo binário real numa porta TCP real, e o `tests/security-policy.test.ts` prova que uma sessão `SecurityPolicy.None` sem cifra é genuinamente recusada por omissão (aceite apenas através da válvula de escape explícita `OPCUA_ALLOW_INSECURE=1`). O que está deliberadamente adiado, e não é uma lacuna encontrada por acaso: a árvore por robô (`Robot_<id>`) segue a lista que o HYDRA-UMC-SERVER reporta (consultada com um token ou uma conta, veja `.env.example`), mas o resto do espaço de endereços é construído uma só vez no arranque; só as leituras/escritas estão testadas de ponta a ponta até agora, não as subscrições OPC-UA; e o Pub/Sub (Fase 1 do roteiro) continua por implementar, já que nenhum cliente depende dele ainda. Veja o `mejoras_futuras.txt` para a lista completa do que está adiado e porquê, e o `CHANGELOG.md` para saber exatamente o que foi entregue até agora.
+**Verificação de honestidade - o que realmente funciona hoje:** o servidor OPC-UA e o mapeamento do espaço de endereços (`src/server.ts`) são reais e testados (99 testes a passar em `tests/server.test.ts`, `tests/security.test.ts`, `tests/security-policy.test.ts`, `tests/robotSource.test.ts`, `tests/robotSource.integration.test.ts`) - e são testes reais ao nível do protocolo: o `tests/server.test.ts` liga um `OPCUAClient` real (o próprio cliente do node-opcua, a mesma biblioteca que o UAExpert/Ignition usariam) pelo protocolo binário real numa porta TCP real, e o `tests/security-policy.test.ts` prova que uma sessão `SecurityPolicy.None` sem cifra é genuinamente recusada por omissão (aceite apenas através da válvula de escape explícita `OPCUA_ALLOW_INSECURE=1`). O que está deliberadamente adiado, e não é uma lacuna encontrada por acaso: a árvore por robô (`Robot_<id>`) segue a lista que o HYDRA-UMC-SERVER reporta (consultada com um token ou uma conta, veja `.env.example`), mas o resto do espaço de endereços é construído uma só vez no arranque; só as leituras/escritas estão testadas de ponta a ponta até agora, não as subscrições OPC-UA; e o Pub/Sub (Fase 1 do roteiro) continua por implementar, já que nenhum cliente depende dele ainda. Veja o `mejoras_futuras.txt` para a lista completa do que está adiado e porquê, e o `CHANGELOG.md` para saber exatamente o que foi entregue até agora.
 
 ---
 
@@ -39,12 +39,12 @@ GPL-3.0-or-later - see LICENSE
 |---|---|
 | Versão | `0.2.0` |
 | Maturidade | Funcional |
-| Testes | 98 (`npm test`) |
+| Testes | 99 (`npm test`) |
 | Tecnologia | Node.js / node-opcua / OPC-UA address space |
 | Destino | O Raspberry Pi CM5 de uma célula HYDRA-UMC |
 | Em hardware real | Ainda não: não há registo de execução em hardware real para esta versão |
 
-**Ir para:** [Visão geral](#-visão-geral) · [Arquitetura](#-arquitetura) · [Início rápido](#-início-rápido) · [Testes](#-testes) · [Estrutura do repositório](#-estrutura-do-repositório) · [Projetos relacionados](#-projetos-relacionados)
+**Ir para:** [Visão geral](#-visão-geral) · [Arquitetura](#-arquitetura) · [Configuração](#-configuração) · [Início rápido](#-início-rápido) · [Testes](#-testes) · [Estrutura do repositório](#-estrutura-do-repositório) · [Projetos relacionados](#-projetos-relacionados)
 
 ## 🚦 Estado do projeto
 
@@ -55,7 +55,7 @@ Cada linha é uma parte deste repositório e a luz diz até onde chega hoje. É 
 | Área | Estado | O que significa aqui |
 |---|---|---|
 | Software | 🟡 | Funciona para o seu propósito principal; a verificação de honestidade acima lista o que ainda falta |
-| Testes | 🟢 | 98 testes automáticos, executados a cada alteração |
+| Testes | 🟢 | 99 testes automáticos, executados a cada alteração |
 | Hardware real | 🔴 | Ainda não: não há registo de execução em hardware real para esta versão |
 | Documentação | 🟢 | README em oito idiomas, verificado contra o manifesto a cada alteração |
 
@@ -112,6 +112,10 @@ flowchart LR
 
 Deliberadamente adiado, e porquê: um espaço de endereços totalmente dinâmico (a árvore por robô já segue a lista que o HYDRA-UMC-SERVER reporta; o resto é construído uma só vez no arranque); e o item de Pub/Sub do roteiro (ainda por implementar - nenhum cliente depende dele ainda).
 
+## ⚙️ Configuração
+
+A porta de escuta é lida primeiro de `HYDRA_UMC_OPCUA_PORT` (4840 por predefinição). O `PORT` partilhado continua a valer como último recurso e mostra um aviso, para que um ficheiro de ambiente partilhado por vários serviços não possa mudar o servidor para a porta de outro serviço por acidente; um valor definido mas que não é uma porta válida interrompe o arranque, e a verificação de saúde do contentor segue a mesma ordem.
+
 ## 🚀 Início rápido
 
 Requer Node.js 20 ou superior com npm.
@@ -125,7 +129,7 @@ npm start
 
 ## 🧪 Testes
 
-98 testes automáticos correm com `npm test`. Não precisam de hardware nem de nada fora desta máquina.
+99 testes automáticos correm com `npm test`. Não precisam de hardware nem de nada fora desta máquina.
 
 A CI executa `HYDRA_UMC_CI=1 python tools/ci_validate.py`, que verifica o manifesto, os documentos, os oito README e as imagens.
 
