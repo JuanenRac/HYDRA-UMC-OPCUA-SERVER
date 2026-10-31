@@ -4,7 +4,7 @@
 // GPL-3.0-or-later - see LICENSE
 //
 // Processed history (HistoryRead with ReadProcessedDetails): the time domain is cut into intervals and one aggregate is computed for each, from
-// the raw points of HYDRA-UMC-DATALAKE. It is OFF unless HYDRA_UMC_OPCUA_HISTORY_AGGREGATES=1 (and HYDRA_UMC_OPCUA_HISTORY=1); when it is off a
+// the raw points of HYDRA-UMC-DATALAKE (or, with HYDRA_UMC_OPCUA_HISTORY_USE_DATALAKE_WINDOWS=1, from its windows and rollups; see historyWindows.ts). It is OFF unless HYDRA_UMC_OPCUA_HISTORY_AGGREGATES=1 (and HYDRA_UMC_OPCUA_HISTORY=1); when it is off a
 // processed read answers BadHistoryOperationUnsupported, as before.
 //
 // Supported aggregates (OPC UA Part 13 names): Average, Minimum, Maximum, Count and Interpolative. Every other aggregate answers
@@ -20,6 +20,7 @@
 // =============================================================================
 
 import { AggregateFunction, DataType, DataValue, HistoryData, HistoryReadResult, StatusCode, StatusCodes, Variant, type ReadProcessedDetails } from "node-opcua";
+import { readProcessedFromWindows } from "./historyWindows.js";
 import { fetchHistory, isUnspecified, type HistoryConfig, type HistoryPoint, type SeriesRef } from "./history.js";
 
 export type AggregateKind = "average" | "minimum" | "maximum" | "count" | "interpolative";
@@ -127,7 +128,7 @@ export function computeAggregate(kind: AggregateKind, points: HistoryPoint[], in
   }
 }
 
-function dataValueOf(kind: AggregateKind, interval: Interval, outcome: AggregateOutcome): DataValue {
+export function dataValueOf(kind: AggregateKind, interval: Interval, outcome: AggregateOutcome): DataValue {
   const when = new Date(interval.stamp);
   if (outcome.value === undefined) return new DataValue({ value: new Variant({ dataType: DataType.Null }), statusCode: outcome.status, sourceTimestamp: when, serverTimestamp: when });
   const value = kind === "count" ? new Variant({ dataType: DataType.UInt32, value: outcome.value }) : new Variant({ dataType: DataType.Double, value: outcome.value });
@@ -146,6 +147,12 @@ export async function readProcessed(config: HistoryConfig, series: SeriesRef, de
   if (isUnspecified(details.startTime) || isUnspecified(details.endTime)) return failure(StatusCodes.BadInvalidArgument);
   const plan = planIntervals(details.startTime!.getTime(), details.endTime!.getTime(), details.processingInterval ?? 0, config.aggregates?.maxIntervals ?? DEFAULT_MAX_INTERVALS);
   if (!("intervals" in plan)) return failure(plan);
+
+  // With the switch on, the data lake's own windows and rollups answer first; null means it could not, and the raw points are used as before.
+  if (config.useDatalakeWindows) {
+    const fromWindows = await readProcessedFromWindows(config, series, kind, plan);
+    if (fromWindows) return fromWindows;
+  }
 
   let result;
   try {

@@ -156,6 +156,7 @@ A SCADA client can read the past of a variable (HistoryRead, raw values) and the
 | `HYDRA_UMC_OPCUA_HISTORY_TIMEOUT_MS` | Timeout of each request to the data lake | `10000` |
 | `HYDRA_UMC_OPCUA_HISTORY_ANONYMOUS` | `1` lets anonymous sessions read history too | off |
 | `HYDRA_UMC_OPCUA_HISTORY_AGGREGATES`, `HYDRA_UMC_OPCUA_HISTORY_MAX_INTERVALS` | Processed reads (see "Processed history" below) | off, `1000` |
+| `HYDRA_UMC_OPCUA_HISTORY_USE_DATALAKE_WINDOWS` | Processed reads use the windows and rollups of the data lake, with a fallback to the raw points | off |
 | `HYDRA_UMC_OPCUA_HISTORY_EVENTS`, `HYDRA_UMC_OPCUA_HISTORY_EVENTS_MAP` | Event history (see "Event history" below) | off |
 
 The map names a variable by its NodeId without `s=` and gives the series of the data lake that holds its values:
@@ -190,6 +191,19 @@ Off unless `HYDRA_UMC_OPCUA_HISTORY_AGGREGATES=1` (it needs `HYDRA_UMC_OPCUA_HIS
 - **Interpolative** gives, at the start of each interval, the raw value when a point sits exactly there, otherwise the straight line between the nearest point before and the nearest point after (simple bounding values, `HistorianInterpolated`); with no point on one side the value is `BadNoData`.
 - **Nothing is computed over part of the data:** a domain with more points than `HYDRA_UMC_OPCUA_HISTORY_MAX_POINTS` answers `BadResponseTooLarge`, as does one with more intervals than the limit above. A data lake that cannot be read answers `BadResourceUnavailable`.
 - The permission is the one of raw history: anonymous sessions have no processed history unless `HYDRA_UMC_OPCUA_HISTORY_ANONYMOUS=1`.
+
+#### Using the windows and rollups of the data lake
+
+Off unless `HYDRA_UMC_OPCUA_HISTORY_USE_DATALAKE_WINDOWS=1` (it needs `HYDRA_UMC_OPCUA_HISTORY_AGGREGATES=1`; with only that switch the service refuses to start). With it, the average, minimum, maximum and count of a **forward** read are not computed from the raw points: the server asks the data lake for `GET /windows` (count, min, max and sum per interval, one request however many points there are) and for `GET /rollups` (the same numbers for data that downsampling already replaced), and combines them. The answers are the same as the raw calculation (a differential test compares them over random data), and a domain with more points than `HYDRA_UMC_OPCUA_HISTORY_MAX_POINTS` no longer needs to be refused.
+
+| Setting | Meaning | Default |
+| --- | --- | --- |
+| `HYDRA_UMC_OPCUA_HISTORY_USE_DATALAKE_WINDOWS` | `1` asks the windows and rollups of the data lake first | off (raw points, as before) |
+
+- **Not served this way:** Interpolative (it needs the bounding raw values) and a backwards read (its intervals are open at the early end and do not line up with the windows of the data lake). They use the raw points as before.
+- **Fallback:** if `/windows` is not offered (`404`) or fails, if `/rollups` fails with anything but `404`, if the rollups cannot be trusted (more than one bucket width in the domain, which would count a point twice, or a list as long as the limit of 200000 rows) or a window does not line up with an interval, the console says so and the raw calculation answers. `/rollups` answering `404` means downsampling is off there, so there are no rollups and the windows are enough. A data lake that is really down still answers `BadResourceUnavailable`.
+- **Rollups only when whole:** a rollup bucket is added to an interval only if it lies entirely inside it. A bucket that straddles the edge of an interval cannot be split, so that interval is answered from what can be used and carries `UncertainDataSubNormal` (with `HistorianCalculated` and `HistorianPartial`) instead of looking complete.
+- **Limit:** percentiles do not exist in rollups, but none of the five aggregates needs them. The data lake has to run with `--enable-window-stats` for `/windows` (and `--enable-downsampling` for `/rollups`); otherwise the fallback applies. Not tried against a data lake on the CM5, only against a stand-in and the real data lake code in its own tests.
 
 ### Event history
 

@@ -12,15 +12,58 @@ export interface FakePoint {
   value: number;
 }
 
+export interface FakeRollup {
+  sourceId: string;
+  bucketMs: number;
+  bucketStart: number;
+  count: number;
+  min: number;
+  max: number;
+  sum: number;
+  avg: number;
+}
+
+/** What the stand-in offers beyond GET /history. A number is the HTTP status the route answers with; `true` serves it; absent: 404 (not offered). */
+export interface FakeOptions {
+  windows?: boolean | number;
+  rollups?: FakeRollup[] | number;
+}
+
 export const LAKE_TOKEN = "lake-token-lake";
 
 /** Serves `GET /history` the way HYDRA-UMC-DATALAKE does, for every series the same points (or the points of the series the test names). */
-export function fakeDatalake(seriesPoints: FakePoint[] | Record<string, FakePoint[]>): { server: http.Server; requests: string[]; url: () => string } {
+export function fakeDatalake(seriesPoints: FakePoint[] | Record<string, FakePoint[]>, options: FakeOptions = {}): { server: http.Server; requests: string[]; url: () => string } {
   const requests: string[] = [];
   const pointsOf = (field: string): FakePoint[] => (Array.isArray(seriesPoints) ? seriesPoints : (seriesPoints[field] ?? []));
   const server = http.createServer((req, res) => {
     requests.push(req.url ?? "");
     const url = new URL(req.url ?? "/", "http://x");
+    if (url.pathname === "/windows" && req.headers.authorization === `Bearer ${LAKE_TOKEN}` && options.windows !== undefined) {
+      if (typeof options.windows === "number") return void res.writeHead(options.windows).end("{}");
+      const q = url.searchParams;
+      const width = Number(q.get("bucketMs"));
+      const start = Number(q.get("start"));
+      const before = q.has("before") ? Number(q.get("before")) : Number(q.get("end")) + 1;
+      const buckets = new Map<number, { count: number; min: number; max: number; sum: number }>();
+      for (const p of pointsOf(q.get("field") ?? "")) {
+        if (p.timestamp < start || p.timestamp >= before) continue;
+        const key = start + Math.floor((p.timestamp - start) / width) * width;
+        const b = buckets.get(key) ?? { count: 0, min: Infinity, max: -Infinity, sum: 0 };
+        b.count += 1;
+        b.min = Math.min(b.min, p.value);
+        b.max = Math.max(b.max, p.value);
+        b.sum += p.value;
+        buckets.set(key, b);
+      }
+      const rows = [...buckets.entries()].sort((a, b) => a[0] - b[0]).map(([bucketStart, b]) => ({ bucketStart, ...b }));
+      return void res.writeHead(200, { "Content-Type": "application/json" }).end(JSON.stringify({ stats: (q.get("stats") ?? "").split(","), buckets: rows }));
+    }
+    if (url.pathname === "/rollups" && req.headers.authorization === `Bearer ${LAKE_TOKEN}` && options.rollups !== undefined) {
+      if (typeof options.rollups === "number") return void res.writeHead(options.rollups).end("{}");
+      const before = url.searchParams.has("before") ? Number(url.searchParams.get("before")) : Infinity;
+      const rows = options.rollups.filter((r) => r.bucketStart < before);
+      return void res.writeHead(200, { "Content-Type": "application/json" }).end(JSON.stringify(rows));
+    }
     if (url.pathname !== "/history" || req.headers.authorization !== `Bearer ${LAKE_TOKEN}`) {
       res.writeHead(url.pathname === "/history" ? 401 : 404).end("{}");
       return;

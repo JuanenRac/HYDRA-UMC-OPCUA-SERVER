@@ -16,6 +16,8 @@
 //   HYDRA_UMC_OPCUA_HISTORY_ANONYMOUS=1  lets anonymous sessions read history too (default: only sessions that logged in or use a certificate)
 //   HYDRA_UMC_OPCUA_HISTORY_AGGREGATES=1 also answers processed reads (Average, Minimum, Maximum, Count, Interpolative); see historyProcessed.ts (default off)
 //   HYDRA_UMC_OPCUA_HISTORY_MAX_INTERVALS  most intervals one processed read may ask for (default 1000, at most 100000)
+//   HYDRA_UMC_OPCUA_HISTORY_USE_DATALAKE_WINDOWS=1  processed reads use GET /windows and GET /rollups of the data lake, falling back to the raw points
+//                                        when it cannot answer; needs HYDRA_UMC_OPCUA_HISTORY_AGGREGATES=1; see historyWindows.ts (default off)
 //   HYDRA_UMC_OPCUA_HISTORY_EVENTS=1     also answers event history, derived from limit rules in a JSON file; see historyEvents.ts (default off)
 //   HYDRA_UMC_OPCUA_HISTORY_EVENTS_MAP   path of that file (required with the switch above)
 //
@@ -46,6 +48,8 @@ export interface HistoryConfig {
   allowAnonymous: boolean;
   /** Present when processed reads are switched on. */
   aggregates?: { maxIntervals: number };
+  /** Processed reads ask the data lake for its windows and rollups first (only meaningful together with `aggregates`). */
+  useDatalakeWindows?: boolean;
   /** Present when event history is switched on: the rules by object (the NodeId without `s=`). */
   events?: Record<string, EventRule[]>;
   fetchImpl?: typeof fetch;
@@ -90,6 +94,10 @@ export function historyConfigFromEnv(env: NodeJS.ProcessEnv = process.env): Hist
     if (!eventsFile) throw new Error("HYDRA-UMC-OPCUA-SERVER: HYDRA_UMC_OPCUA_HISTORY_EVENTS=1 needs HYDRA_UMC_OPCUA_HISTORY_EVENTS_MAP (a JSON file)");
     events = parseEventsMap(readFileSync(eventsFile, "utf-8"));
   }
+  const useDatalakeWindows = on("HYDRA_UMC_OPCUA_HISTORY_USE_DATALAKE_WINDOWS");
+  if (useDatalakeWindows && !on("HYDRA_UMC_OPCUA_HISTORY_AGGREGATES")) {
+    throw new Error("HYDRA-UMC-OPCUA-SERVER: HYDRA_UMC_OPCUA_HISTORY_USE_DATALAKE_WINDOWS=1 needs HYDRA_UMC_OPCUA_HISTORY_AGGREGATES=1");
+  }
   return {
     url,
     token: env.HYDRA_UMC_OPCUA_HISTORY_TOKEN?.trim() || undefined,
@@ -99,7 +107,18 @@ export function historyConfigFromEnv(env: NodeJS.ProcessEnv = process.env): Hist
     allowAnonymous: on("HYDRA_UMC_OPCUA_HISTORY_ANONYMOUS"),
     aggregates: on("HYDRA_UMC_OPCUA_HISTORY_AGGREGATES") ? { maxIntervals: intIn("HYDRA_UMC_OPCUA_HISTORY_MAX_INTERVALS", DEFAULT_MAX_INTERVALS, 1, MAX_INTERVALS_LIMIT) } : undefined,
     events,
+    useDatalakeWindows: useDatalakeWindows || undefined,
   };
+}
+
+/** One GET to the data lake with its read token and the configured timeout; the caller looks at the status. */
+export function fetchWithToken(config: HistoryConfig, apiPath: string, params: Record<string, string>): Promise<Response> {
+  const url = apiUrl(config.url, apiPath);
+  for (const [name, value] of Object.entries(params)) url.searchParams.set(name, value);
+  return (config.fetchImpl ?? fetch)(url, {
+    headers: config.token ? { Authorization: `Bearer ${config.token}` } : {},
+    signal: AbortSignal.timeout(config.timeoutMs),
+  });
 }
 
 export interface HistoryPoint {
