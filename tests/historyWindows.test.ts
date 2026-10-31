@@ -150,13 +150,14 @@ describe("processed history from the windows of the data lake", () => {
     });
   });
 
-  it("uses the raw points for Interpolative and for a backwards read", async () => {
+  it("uses the raw points for Interpolative, and the windows for a backwards read", async () => {
     await start(RAMP, { windows: true });
     await withServer(historyConfig(lake.url(), { useDatalakeWindows: true }), async (read) => {
       expect(numbers(await read(AggregateFunction.Interpolative, 500, 3500, 1000))).toEqual([20.5, 21.5, 22.5]);
+      expect(paths(lake.requests).includes("/windows")).toBe(false);
       expect(numbers(await read(AggregateFunction.Count, 10_000, 0, 5000))).toEqual([4, 5]);
     });
-    expect(paths(lake.requests).includes("/windows")).toBe(false);
+    expect(paths(lake.requests).includes("/windows")).toBe(true);
   });
 
   it.each([

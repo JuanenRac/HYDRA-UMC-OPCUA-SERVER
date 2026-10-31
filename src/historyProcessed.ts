@@ -20,7 +20,7 @@
 // =============================================================================
 
 import { AggregateFunction, DataType, DataValue, HistoryData, HistoryReadResult, StatusCode, StatusCodes, Variant, type ReadProcessedDetails } from "node-opcua";
-import { readProcessedFromWindows } from "./historyWindows.js";
+import { readProcessedFromWindows, rolledUpSpans, type Span } from "./historyWindows.js";
 import { fetchHistory, isUnspecified, type HistoryConfig, type HistoryPoint, type SeriesRef } from "./history.js";
 
 export type AggregateKind = "average" | "minimum" | "maximum" | "count" | "interpolative";
@@ -128,6 +128,26 @@ export function computeAggregate(kind: AggregateKind, points: HistoryPoint[], in
   }
 }
 
+const UNCERTAIN_GAP = StatusCode.makeStatusCode(StatusCodes.UncertainDataSubNormal, "HistorianInterpolated");
+
+/**
+ * An interpolated (or "no data") answer is only as good as the points around it. When the stretch between the nearest point before and the nearest
+ * point after the stamp holds rollup buckets, raw points existed there and were replaced by a summary: a straight line across it would invent a
+ * value, and "no data" would deny data that exists. Such an answer carries no value and is Uncertain. A point exactly on the stamp is always used.
+ * `spans` null means the rollups could not be read: nothing can be ruled out, so the answer is Uncertain too.
+ */
+export function guardInterpolation(points: HistoryPoint[], interval: Interval, outcome: AggregateOutcome, spans: Span[] | null): AggregateOutcome {
+  if (points.some((p) => p.timestamp === interval.stamp)) return outcome;
+  let low = -Infinity;
+  let high = Infinity;
+  for (const p of points) {
+    if (p.timestamp < interval.stamp && p.timestamp > low) low = p.timestamp;
+    if (p.timestamp > interval.stamp && p.timestamp < high) high = p.timestamp;
+  }
+  const crosses = spans === null || spans.some((span) => span.from < high && span.to > low);
+  return crosses ? { status: UNCERTAIN_GAP } : outcome;
+}
+
 export function dataValueOf(kind: AggregateKind, interval: Interval, outcome: AggregateOutcome): DataValue {
   const when = new Date(interval.stamp);
   if (outcome.value === undefined) return new DataValue({ value: new Variant({ dataType: DataType.Null }), statusCode: outcome.status, sourceTimestamp: when, serverTimestamp: when });
@@ -166,6 +186,17 @@ export async function readProcessed(config: HistoryConfig, series: SeriesRef, de
     return failure(StatusCodes.BadResponseTooLarge);
   }
   const points = [...(result.before ? [result.before] : []), ...result.points, ...(result.after ? [result.after] : [])];
-  const dataValues = plan.intervals.map((interval) => dataValueOf(kind, interval, computeAggregate(kind, points, interval, plan.reverse)));
+  let spans: Span[] | null = [];
+  if (kind === "interpolative" && config.useDatalakeWindows) {
+    // with the windows switch on the data lake may have replaced old points by rollups: look for them around the stamps before trusting a line
+    const stamps = plan.intervals.map((i) => i.stamp);
+    const lowest = Math.min(plan.fromMs, ...stamps, ...(result.before ? [result.before.timestamp] : []));
+    const highest = Math.max(plan.beforeMs, ...stamps, ...(result.after ? [result.after.timestamp] : []));
+    spans = await rolledUpSpans(config, series, lowest, highest);
+  }
+  const dataValues = plan.intervals.map((interval) => {
+    const outcome = computeAggregate(kind, points, interval, plan.reverse);
+    return dataValueOf(kind, interval, kind === "interpolative" && config.useDatalakeWindows ? guardInterpolation(points, interval, outcome, spans) : outcome);
+  });
   return new HistoryReadResult({ statusCode: StatusCodes.Good, historyData: new HistoryData({ dataValues }) });
 }

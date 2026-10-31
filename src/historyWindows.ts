@@ -12,8 +12,14 @@
 //     A rollup is used only when the whole bucket lies inside one interval; a bucket that straddles the edge of an interval cannot be split,
 //     so the interval is answered from what can be used and marked Uncertain (UncertainDataSubNormal) instead of looking complete.
 //
-// Served this way: Average, Minimum, Maximum and Count of a forward read. NOT served (they use the raw points): Interpolative, which needs the
-// bounding values, and a backwards read, whose intervals are open at the early end and would not line up with the windows of the data lake.
+// Served this way: Average, Minimum, Maximum and Count, forwards ([low, high) intervals) and backwards ((low, high] intervals, asked with order=desc
+// so the windows of the data lake line up with them). NOT served (they use the raw points): Interpolative, which needs the bounding values; it
+// is only checked against the rollups (see rolledUpSpans) so a straight line is never drawn across data that downsampling already replaced.
+//
+// A rollup bucket covers [bucketStart, bucketStart + bucketMs - 1]. It joins an interval only when all of it lies inside ([low, high) forwards,
+// (low, high] backwards). The raw points of a bucket that was rolled up are gone, so a bucket that straddles an edge cannot be split again: the
+// intervals it touches are marked Uncertain. The intervals are exact when their edges fall on the edges of the buckets (backwards: one millisecond
+// before them, because the early edge is open).
 //
 // The answer falls back to the raw calculation (null here) when: /windows answers anything but 200 or something unreadable, /rollups answers
 // an error other than 404 (404 means downsampling is off there, so there are no rollups), the rollups are not exact (more than one bucket
@@ -26,6 +32,8 @@ import { type AggregateKind, type Interval, type IntervalPlan, type AggregateOut
 import { readJsonCapped } from "./robotSource.js";
 
 export const ROLLUP_LIMIT = 200_000;
+/** Default of how far before a time the rollups are looked at (HYDRA_UMC_OPCUA_HISTORY_ROLLUP_LOOKBACK_MS). */
+export const DEFAULT_ROLLUP_LOOKBACK_MS = 7 * 24 * 3_600_000;
 
 const CALCULATED = StatusCode.makeStatusCode(StatusCodes.Good, "HistorianCalculated");
 const CALCULATED_PARTIAL = StatusCode.makeStatusCode(StatusCodes.Good, "HistorianCalculated | HistorianPartial");
@@ -75,33 +83,45 @@ async function getJson(config: HistoryConfig, path: string, params: Record<strin
   return { status: response.status, body: await readJsonCapped(response) };
 }
 
+/** Which interval of the plan holds the instant `t`, or -1 when none does (forwards [low, high), backwards (low, high]). */
+function intervalIndexAt(plan: IntervalPlan, early: number, late: number, step: number, t: number): number {
+  if (plan.reverse) {
+    if (t <= early || t > late) return -1;
+    return Math.min(Math.floor((late - t) / step), plan.intervals.length - 1);
+  }
+  if (t < early || t >= late) return -1;
+  return Math.min(Math.floor((t - early) / step), plan.intervals.length - 1);
+}
+
 /** The totals of every interval from the windows and rollups of the data lake, or null when the raw calculation must be used. */
 export async function intervalTotals(config: HistoryConfig, series: SeriesRef, plan: IntervalPlan): Promise<Totals[] | null> {
-  const first = plan.intervals[0];
-  const last = plan.intervals[plan.intervals.length - 1];
-  const early = first.low;
-  const late = last.high;
-  const step = plan.intervals.length === 1 ? late - early : first.high - first.low;
+  const early = Math.min(...plan.intervals.map((i) => i.low));
+  const late = Math.max(...plan.intervals.map((i) => i.high));
+  const step = plan.intervals.length === 1 ? late - early : plan.intervals[0].high - plan.intervals[0].low;
   const ident = { sourceId: series.sourceId, kind: series.kind, field: series.field };
 
   const win = await getJson(config, "/windows", {
     ...ident,
     bucketMs: String(step),
     start: String(early),
-    before: String(late),
+    ...(plan.reverse ? { end: String(late), order: "desc" } : { before: String(late) }),
     stats: "count,min,max,sum",
   });
   if (win.status !== 200) return null;
-  const windows = parseRows<WindowRow>((win.body as { buckets?: unknown } | undefined)?.buckets);
+  const windowBody = win.body as { buckets?: unknown; order?: unknown } | undefined;
+  // a data lake that does not know order=desc answers with windows aligned to the start: those would not line up, so they are not used
+  if (plan.reverse && windowBody?.order !== "desc") return null;
+  const windows = parseRows<WindowRow>(windowBody?.buckets, plan.reverse ? (r) => finite(r.bucketEnd) && r.bucketStart === (r.bucketEnd as number) - step : undefined);
   if (!windows) return null;
 
-  const rollupResponse = await getJson(config, "/rollups", { ...ident, before: String(late), limit: String(ROLLUP_LIMIT) });
+  const rollupResponse = await getJson(config, "/rollups", { ...ident, [plan.reverse ? "end" : "before"]: String(late), limit: String(ROLLUP_LIMIT) });
   let rollups: RollupRow[] = [];
   if (rollupResponse.status !== 404) {
     if (rollupResponse.status !== 200) return null;
     const parsed = parseRows<RollupRow>(rollupResponse.body, (r) => finite(r.bucketMs) && r.bucketMs > 0);
     if (!parsed || parsed.length >= ROLLUP_LIMIT) return null;
-    rollups = parsed.filter((r) => r.bucketStart + r.bucketMs > early);
+    // the buckets that reach into the domain: [bucketStart, bucketStart + bucketMs - 1] meets [early, late) forwards, (early, late] backwards
+    rollups = parsed.filter((r) => r.bucketStart + r.bucketMs > (plan.reverse ? early + 1 : early));
     if (new Set(rollups.map((r) => r.bucketMs)).size > 1) return null;
   }
 
@@ -113,20 +133,63 @@ export async function intervalTotals(config: HistoryConfig, series: SeriesRef, p
     t.sum += row.sum;
   };
   for (const w of windows) {
-    const index = (w.bucketStart - early) / step;
+    // forwards the row says where the window starts; backwards where it ends (the intervals of the plan run from the late end)
+    const index = plan.reverse ? ((late - (w as unknown as { bucketEnd: number }).bucketEnd) / step) : (w.bucketStart - early) / step;
     if (!Number.isInteger(index) || index < 0 || index >= totals.length) return null;
     add(totals[index], w);
   }
   for (const r of rollups) {
-    const from = Math.max(0, Math.floor((r.bucketStart - early) / step));
-    const to = Math.min(totals.length - 1, Math.floor((r.bucketStart + r.bucketMs - 1 - early) / step));
-    if (from === to && r.bucketStart >= plan.intervals[from].low && r.bucketStart + r.bucketMs <= plan.intervals[from].high) {
-      add(totals[from], r);
+    const first = r.bucketStart;
+    const last = r.bucketStart + r.bucketMs - 1;
+    const from = intervalIndexAt(plan, early, late, step, plan.reverse ? Math.max(first, early + 1) : Math.max(first, early));
+    const to = intervalIndexAt(plan, early, late, step, Math.min(last, plan.reverse ? late : late - 1));
+    if (from < 0 || to < 0) continue; // nothing of the bucket lies in the domain
+    // forwards the later instant is in the later interval; backwards the later instant is in the lower index
+    const lo = Math.min(from, to);
+    const hi = Math.max(from, to);
+    const own = plan.intervals[lo];
+    const whole = plan.reverse ? first > own.low && last <= own.high : first >= own.low && last < own.high;
+    if (lo === hi && whole) {
+      add(totals[lo], r);
     } else {
-      for (let i = from; i <= to; i += 1) totals[i].incomplete = true;
+      for (let i = lo; i <= hi; i += 1) totals[i].incomplete = true;
     }
   }
   return totals;
+}
+
+/** A stretch of time (milliseconds, both ends included) that downsampling already replaced by a rollup bucket. */
+export interface Span {
+  from: number;
+  to: number;
+}
+
+/**
+ * The stretches in [fromMs, toMs] that only exist as rollups now (their raw points are gone), or null when that cannot be told (the rollups
+ * could not be read, the list is as long as the limit, or a bucket is wider than `rollupLookbackMs`, so older buckets might reach in unseen).
+ * A data lake without rollups (404) has none.
+ */
+export async function rolledUpSpans(config: HistoryConfig, series: SeriesRef, fromMs: number, toMs: number): Promise<Span[] | null> {
+  const lookback = config.rollupLookbackMs ?? DEFAULT_ROLLUP_LOOKBACK_MS;
+  let response;
+  try {
+    response = await getJson(config, "/rollups", {
+      sourceId: series.sourceId,
+      kind: series.kind,
+      field: series.field,
+      start: String(Math.floor(fromMs - lookback)),
+      end: String(Math.ceil(toMs)),
+      limit: String(ROLLUP_LIMIT),
+    });
+  } catch (error) {
+    console.warn(`[HYDRA-UMC-OPCUA-SERVER] rollups of the data lake unavailable: ${error instanceof Error ? error.message : String(error)}`);
+    return null;
+  }
+  if (response.status === 404) return [];
+  if (response.status !== 200) return null;
+  const rows = parseRows<RollupRow>(response.body, (r) => finite(r.bucketMs) && r.bucketMs > 0);
+  if (!rows || rows.length >= ROLLUP_LIMIT || rows.some((r) => r.bucketMs > lookback)) return null;
+  return rows.map((r) => ({ from: r.bucketStart, to: r.bucketStart + r.bucketMs - 1 })).filter((span) => span.to >= fromMs);
 }
 
 export function outcomeOf(kind: AggregateKind, t: Totals, interval: Interval): AggregateOutcome {
@@ -145,7 +208,7 @@ export function outcomeOf(kind: AggregateKind, t: Totals, interval: Interval): A
 
 /** Answers a processed read from the windows and rollups of the data lake; null means "use the raw points". */
 export async function readProcessedFromWindows(config: HistoryConfig, series: SeriesRef, kind: AggregateKind, plan: IntervalPlan): Promise<HistoryReadResult | null> {
-  if (kind === "interpolative" || plan.reverse || plan.intervals.length === 0) return null;
+  if (kind === "interpolative" || plan.intervals.length === 0) return null;
   let totals: Totals[] | null;
   try {
     totals = await intervalTotals(config, series, plan);

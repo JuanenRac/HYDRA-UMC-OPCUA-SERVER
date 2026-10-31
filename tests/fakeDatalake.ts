@@ -26,6 +26,8 @@ export interface FakeRollup {
 /** What the stand-in offers beyond GET /history. A number is the HTTP status the route answers with; `true` serves it; absent: 404 (not offered). */
 export interface FakeOptions {
   windows?: boolean | number;
+  /** The windows route ignores order=desc, like a data lake from before it existed. */
+  ignoreOrder?: boolean;
   rollups?: FakeRollup[] | number;
 }
 
@@ -44,6 +46,23 @@ export function fakeDatalake(seriesPoints: FakePoint[] | Record<string, FakePoin
       const width = Number(q.get("bucketMs"));
       const start = Number(q.get("start"));
       const before = q.has("before") ? Number(q.get("before")) : Number(q.get("end")) + 1;
+      if (q.get("order") === "desc" && !options.ignoreOrder) {
+        // backwards: (start, end], windows counted from end, as GET /windows?order=desc of the data lake
+        const end = Number(q.get("end"));
+        const back = new Map<number, { count: number; min: number; max: number; sum: number }>();
+        for (const p of pointsOf(q.get("field") ?? "")) {
+          if (p.timestamp <= start || p.timestamp > end) continue;
+          const key = end - Math.floor((end - p.timestamp) / width) * width;
+          const b = back.get(key) ?? { count: 0, min: Infinity, max: -Infinity, sum: 0 };
+          b.count += 1;
+          b.min = Math.min(b.min, p.value);
+          b.max = Math.max(b.max, p.value);
+          b.sum += p.value;
+          back.set(key, b);
+        }
+        const backRows = [...back.entries()].sort((a, b) => a[0] - b[0]).map(([bucketEnd, b]) => ({ bucketStart: bucketEnd - width, bucketEnd, ...b }));
+        return void res.writeHead(200, { "Content-Type": "application/json" }).end(JSON.stringify({ stats: (q.get("stats") ?? "").split(","), order: "desc", buckets: backRows }));
+      }
       const buckets = new Map<number, { count: number; min: number; max: number; sum: number }>();
       for (const p of pointsOf(q.get("field") ?? "")) {
         if (p.timestamp < start || p.timestamp >= before) continue;
@@ -60,8 +79,13 @@ export function fakeDatalake(seriesPoints: FakePoint[] | Record<string, FakePoin
     }
     if (url.pathname === "/rollups" && req.headers.authorization === `Bearer ${LAKE_TOKEN}` && options.rollups !== undefined) {
       if (typeof options.rollups === "number") return void res.writeHead(options.rollups).end("{}");
-      const before = url.searchParams.has("before") ? Number(url.searchParams.get("before")) : Infinity;
-      const rows = options.rollups.filter((r) => r.bucketStart < before);
+      const sp = url.searchParams;
+      const before = sp.has("before") ? Number(sp.get("before")) : Infinity;
+      const end = sp.has("end") ? Number(sp.get("end")) : Infinity;
+      const from = sp.has("start") ? Number(sp.get("start")) : -Infinity;
+      let rows = options.rollups.filter((r) => r.bucketStart < before && r.bucketStart <= end && r.bucketStart >= from);
+      if (sp.get("order") === "desc") rows = [...rows].reverse();
+      if (sp.has("limit")) rows = rows.slice(0, Number(sp.get("limit")));
       return void res.writeHead(200, { "Content-Type": "application/json" }).end(JSON.stringify(rows));
     }
     if (url.pathname !== "/history" || req.headers.authorization !== `Bearer ${LAKE_TOKEN}`) {

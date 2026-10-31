@@ -18,6 +18,8 @@
 //   HYDRA_UMC_OPCUA_HISTORY_MAX_INTERVALS  most intervals one processed read may ask for (default 1000, at most 100000)
 //   HYDRA_UMC_OPCUA_HISTORY_USE_DATALAKE_WINDOWS=1  processed reads use GET /windows and GET /rollups of the data lake, falling back to the raw points
 //                                        when it cannot answer; needs HYDRA_UMC_OPCUA_HISTORY_AGGREGATES=1; see historyWindows.ts (default off)
+//   HYDRA_UMC_OPCUA_HISTORY_ROLLUP_LOOKBACK_MS  how far before a time the rollups of the data lake are looked at when an Interpolative read is checked
+//                                        against them (default 604800000, 7 days; a rollup bucket wider than this makes the answer uncertain)
 //   HYDRA_UMC_OPCUA_HISTORY_EVENTS=1     also answers event history, derived from limit rules in a JSON file; see historyEvents.ts (default off)
 //   HYDRA_UMC_OPCUA_HISTORY_EVENTS_MAP   path of that file (required with the switch above)
 //
@@ -50,6 +52,8 @@ export interface HistoryConfig {
   aggregates?: { maxIntervals: number };
   /** Processed reads ask the data lake for its windows and rollups first (only meaningful together with `aggregates`). */
   useDatalakeWindows?: boolean;
+  /** How far before a time the rollups are looked at to check an Interpolative read (default 7 days); only with `useDatalakeWindows`. */
+  rollupLookbackMs?: number;
   /** Present when event history is switched on: the rules by object (the NodeId without `s=`). */
   events?: Record<string, EventRule[]>;
   fetchImpl?: typeof fetch;
@@ -108,6 +112,7 @@ export function historyConfigFromEnv(env: NodeJS.ProcessEnv = process.env): Hist
     aggregates: on("HYDRA_UMC_OPCUA_HISTORY_AGGREGATES") ? { maxIntervals: intIn("HYDRA_UMC_OPCUA_HISTORY_MAX_INTERVALS", DEFAULT_MAX_INTERVALS, 1, MAX_INTERVALS_LIMIT) } : undefined,
     events,
     useDatalakeWindows: useDatalakeWindows || undefined,
+    rollupLookbackMs: useDatalakeWindows ? intIn("HYDRA_UMC_OPCUA_HISTORY_ROLLUP_LOOKBACK_MS", 604_800_000, 1000, 31_536_000_000) : undefined,
   };
 }
 
