@@ -29,6 +29,7 @@ something is not implemented it says so.
 | `HYDRA_UMC_OPCUA_SOURCE` | `poll` reads `GET /api/settings` every interval; `stream` keeps a WebSocket (`/ws`, schema 2, the token as the `hydra.bearer` subprotocol) open instead: the roster arrives when the connection opens and each patch of a robot is its "last seen" time. The connection comes back with a growing pause; while it is down the robots are shown offline with an uncertain quality. Needs Node 22 or newer | `poll` |
 | `HYDRA_UMC_OPCUA_LIVE_WINDOW_MS` | How long after its last patch a robot is `Live` (at least 1000) | `30000` |
 | `OPCUA_ALLOW_ANONYMOUS` | `0` refuses anonymous sessions: every client must log in as the administrator or the viewer | anonymous may read |
+| `HYDRA_UMC_OPCUA_HISTORY` | `1` switches Historical Access on (see "Historical access" below); it also needs `HYDRA_UMC_OPCUA_HISTORY_URL` and `HYDRA_UMC_OPCUA_HISTORY_MAP` | off |
 | `OPCUA_HEALTH_PORT` / `OPCUA_HEALTH_HOST` | A separate HTTP listener with `GET /health` (JSON) and `GET /metrics` (Prometheus text): open sessions and subscriptions, sessions rejected, failed logins, login lock, robots and robots online, `SwarmOnline`, whether the roster can be read. It reads numbers only: no secret, no address-space value and no write path | off; host `127.0.0.1` |
 
 The endpoint URL is printed at startup, with resource path
@@ -139,3 +140,34 @@ running container.
 `nodeset/HydraUmc.NodeSet2.xml` is the model of the namespace as a NodeSet2 file (`HydraCellType` and `HydraRobotType` with their mandatory members, then the static cell); `npm run nodeset` writes it and a test fails when it differs from what the code builds. The members of the types are read-only.
 
 Sessions hold OPC UA roles (Part 18): anonymous gets `Anonymous`, the viewer account `AuthenticatedUser` and `Observer`, the administrator also `ConfigureAdmin`, and any other identity (a user certificate) only `AuthenticatedUser`. Every node grants those roles Browse, Read and ReadRolePermissions and no role Write: the roles tell a SCADA who is who and make the absence of writes visible in `UserRolePermissions`. `Anonymous` is listed only while anonymous sessions are allowed.
+
+## Historical access
+
+A SCADA client can read the past of a variable (HistoryRead, raw values) and the server answers it from HYDRA-UMC-DATALAKE (`GET /history`), so there is no second database. It is **off** unless `HYDRA_UMC_OPCUA_HISTORY=1`.
+
+| Setting | Meaning | Default |
+| --- | --- | --- |
+| `HYDRA_UMC_OPCUA_HISTORY` | `1` switches it on | off |
+| `HYDRA_UMC_OPCUA_HISTORY_URL` | Address of HYDRA-UMC-DATALAKE | required when on |
+| `HYDRA_UMC_OPCUA_HISTORY_TOKEN` | Its read token, when it has one | none |
+| `HYDRA_UMC_OPCUA_HISTORY_MAP` | Path of a JSON file that maps variables to series | required when on |
+| `HYDRA_UMC_OPCUA_HISTORY_MAX_POINTS` | Most points one read takes from the data lake (1 to 200000) | `10000` |
+| `HYDRA_UMC_OPCUA_HISTORY_TIMEOUT_MS` | Timeout of each request to the data lake | `10000` |
+| `HYDRA_UMC_OPCUA_HISTORY_ANONYMOUS` | `1` lets anonymous sessions read history too | off |
+
+The map names a variable by its NodeId without `s=` and gives the series of the data lake that holds its values:
+
+```json
+{
+  "HydraNode_1.SpindleTemp": {"sourceId": "arm-1", "kind": "spindle", "field": "temp"},
+  "Robot_arm-1.Online": {"sourceId": "arm-1", "kind": "status", "field": "online"}
+}
+```
+
+- Only the variables in the map get the HistoryRead access level; every other variable is unchanged, and no variable becomes writable.
+- The data lake stores numbers: Boolean variables show a stored value as true when it is not zero, UInt32 variables round it.
+- The window of a read is `[start, end)`: the start is included and the end is not (a read with the same instant twice returns that instant). With only an end and a number of values, the newest values come first. Bounding values are returned on request, and a bound that does not exist comes back as `BadBoundNotFound`. A long answer is paged with continuation points.
+- A window with more points than `HYDRA_UMC_OPCUA_HISTORY_MAX_POINTS` is cut at that number, and the console says so.
+- If the data lake cannot be read, the read fails with an error status; nothing is invented.
+- Reading history is a permission of its own (`ReadHistory`) on the mapped variables, granted to the logged-in roles; anonymous sessions have it only with `HYDRA_UMC_OPCUA_HISTORY_ANONYMOUS=1`.
+- Aggregates, reads at given times and event history are not supported (they answer `BadHistoryOperationUnsupported`).

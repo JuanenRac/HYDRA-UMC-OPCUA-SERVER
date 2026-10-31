@@ -4,6 +4,9 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+- **Historical Access, off by default:** with `HYDRA_UMC_OPCUA_HISTORY=1`, `HYDRA_UMC_OPCUA_HISTORY_URL` (HYDRA-UMC-DATALAKE) and `HYDRA_UMC_OPCUA_HISTORY_MAP` (a JSON file from variables to series), a SCADA client can read the history of the mapped variables with HistoryRead (raw values, either order, bounding values, continuation points, at most `HYDRA_UMC_OPCUA_HISTORY_MAX_POINTS` per read). Only the mapped variables get the HistoryRead access level, anonymous sessions are refused unless `HYDRA_UMC_OPCUA_HISTORY_ANONYMOUS=1`, and nothing becomes writable. A refusal of a session without the permission now stops there instead of reading anyway. Tested with a real OPC-UA client against a stand-in data lake (13 tests). See `docs/OPERATIONS.md`.
+- The test count of the READMEs is the real one (112).
+
 ## [0.2.1] - A variable of its own for the listen port and the universal README
 
 - **The listen port has a variable of its own:** `HYDRA_UMC_OPCUA_PORT` wins over the shared `PORT`, which several services of one machine read (a shared environment file could silently move this service onto another one's port). `PORT` still works as a last resort and prints a warning; a value that is set but not a valid port still stops the start, and the container health check follows the same order.

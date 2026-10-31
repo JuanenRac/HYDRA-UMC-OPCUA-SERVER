@@ -42,6 +42,7 @@ import { pollerConfigFromEnv, sourceModeFromEnv, startRobotPolling } from "./rob
 import { startRobotStream } from "./liveSource.js";
 import { healthPortFromEnv, startHealthServer } from "./health.js";
 import { resolveListenPort, type ResolvedPort } from "./portConfig.js";
+import { historyConfigFromEnv, installHistory, type HistoryConfig } from "./history.js";
 
 // 4840 is the IANA-registered default OPC-UA TCP port, and node-opcua's
 // own default - kept here explicitly (rather than relying on the library
@@ -73,10 +74,19 @@ const NAMESPACE_URI = "urn:hydra-umc:opcua-server:v1";
  * administrator's either): the variables are read-only, and no role carries the Write permission. The Anonymous role is listed only when
  * anonymous sessions are allowed, so switching them off (OPCUA_ALLOW_ANONYMOUS=0) is also visible in the permissions a client reads.
  */
-export function readOnlyRolePermissions(allowAnonymous: boolean): Array<{ roleId: ReturnType<typeof makeRoles>[number]; permissions: number }> {
+export function readOnlyRolePermissions(allowAnonymous: boolean, history?: { anonymous: boolean }): Array<{ roleId: ReturnType<typeof makeRoles>[number]; permissions: number }> {
   const permissions = PermissionType.Browse | PermissionType.Read | PermissionType.ReadRolePermissions;
   const roles = ["AuthenticatedUser", "Observer", "ConfigureAdmin", ...(allowAnonymous ? ["Anonymous"] : [])];
-  return roles.map((role) => ({ roleId: makeRoles(role)[0], permissions }));
+  // Reading history is a permission of its own: only on the variables that have a history, and not for anonymous sessions unless it was asked for.
+  return roles.map((role) => ({
+    roleId: makeRoles(role)[0],
+    permissions: history && (role !== "Anonymous" || history.anonymous) ? permissions | PermissionType.ReadHistory : permissions,
+  }));
+}
+
+export interface BuildOptions {
+  /** The history configuration; by default it comes from the environment (off unless HYDRA_UMC_OPCUA_HISTORY=1). */
+  history?: HistoryConfig | null;
 }
 
 export interface HydraNodeState {
@@ -182,7 +192,8 @@ export function isAdminSession(context: ISessionContext, adminUsername: string |
  * activeRobotCount and observe the change reflected in a real OPC-UA read -
  * the get() closures below always read from this same object, never a
  * value captured at construction time. */
-export async function buildAddressSpaceServer(port: number = resolveListenPortOf().port) {
+export async function buildAddressSpaceServer(port: number = resolveListenPortOf().port, options: BuildOptions = {}) {
+  const history = options.history === undefined ? historyConfigFromEnv() : options.history;
   // Real username/password credentials for the one authenticated role this
   // v0 defines (see MaintenanceMode below) - sourced from real env vars,
   // never hardcoded. Unset means isValidUser rejects every credential, so
@@ -303,6 +314,16 @@ export async function buildAddressSpaceServer(port: number = resolveListenPortOf
   // future DataItem before these in the file can never silently renumber
   // an existing one, the exact risk the review called out.
   const rolePermissions = readOnlyRolePermissions(allowAnonymous);
+  const historyRolePermissions = history ? readOnlyRolePermissions(allowAnonymous, { anonymous: history.allowAnonymous }) : rolePermissions;
+  // A variable that the history map names gets the HistoryRead access level and the permission for it; the others stay as they were.
+  const historyProps = (name: string) =>
+    history?.mapping[name]
+      ? { accessLevel: "CurrentRead | HistoryRead", userAccessLevel: "CurrentRead | HistoryRead", rolePermissions: historyRolePermissions }
+      : {};
+  const withHistory = (variable: any, name: string, dataType: DataType): void => {
+    const series = history?.mapping[name];
+    if (history && series) installHistory(variable, history, series, dataType);
+  };
 
   // The information model of this namespace (exported as nodeset/HydraUmc.NodeSet2.xml by tools/export_nodeset.ts): a type for the cell and a
   // type for a robot, so a client that understands types can tell what an object is from its type and not from its name. The members of a type
@@ -350,7 +371,7 @@ export async function buildAddressSpaceServer(port: number = resolveListenPortOf
   // SwarmOnline is read-only: nothing that a client wrote here ever reached HYDRA-UMC-SERVER, so a writable flag only gave a false sense
   // of control. It is served with BadWaitingForInitialData until the poller has made its first read (and always, when no source is
   // configured): a literal "true" would be an invented value.
-  namespace.addVariable({
+  const swarmOnlineNode = namespace.addVariable({
     componentOf: hydraNode,
     browseName: "SwarmOnline",
     nodeId: "s=HydraNode_1.SwarmOnline",
@@ -358,6 +379,7 @@ export async function buildAddressSpaceServer(port: number = resolveListenPortOf
     dataType: "Boolean",
     accessLevel: "CurrentRead",
     userAccessLevel: "CurrentRead",
+    ...historyProps("HydraNode_1.SwarmOnline"),
     minimumSamplingInterval: 1000,
     value: {
       timestamped_get: () =>
@@ -367,7 +389,7 @@ export async function buildAddressSpaceServer(port: number = resolveListenPortOf
     },
   });
 
-  namespace.addVariable({
+  const activeRobotCountNode = namespace.addVariable({
     componentOf: hydraNode,
     browseName: "ActiveRobotCount",
     nodeId: "s=HydraNode_1.ActiveRobotCount",
@@ -375,6 +397,7 @@ export async function buildAddressSpaceServer(port: number = resolveListenPortOf
     dataType: "UInt32",
     accessLevel: "CurrentRead",
     userAccessLevel: "CurrentRead",
+    ...historyProps("HydraNode_1.ActiveRobotCount"),
     minimumSamplingInterval: 1000,
     value: {
       get: () => new Variant({ dataType: DataType.UInt32, value: state.activeRobotCount }),
@@ -404,7 +427,7 @@ export async function buildAddressSpaceServer(port: number = resolveListenPortOf
   // was last genuinely observed. A correct certificate and write
   // permission on the session never overrides this - they authenticate
   // the CLIENT, not the freshness of the DATA.
-  namespace.addAnalogDataItem({
+  const spindleTempNode = namespace.addAnalogDataItem({
     componentOf: hydraNode,
     browseName: "SpindleTemp",
     nodeId: "s=HydraNode_1.SpindleTemp",
@@ -412,6 +435,7 @@ export async function buildAddressSpaceServer(port: number = resolveListenPortOf
     dataType: "Double",
     accessLevel: "CurrentRead",
     userAccessLevel: "CurrentRead",
+    ...historyProps("HydraNode_1.SpindleTemp"),
     minimumSamplingInterval: 1000,
     engineeringUnits: { displayName: "°C", description: "degree Celsius", namespaceUri: "http://www.opcfoundation.org/UA/units/un/cefact", unitId: 4408652 },
     engineeringUnitsRange: { low: -20, high: 150 },
@@ -430,7 +454,7 @@ export async function buildAddressSpaceServer(port: number = resolveListenPortOf
   // Read-only too: a MaintenanceMode written from a SCADA never inhibited anything in HYDRA-UMC-SERVER, and an operator could believe the
   // cell was locked out. It stays false until a contract with the server exists that would make a write mean something (and that
   // contract has to go through the SDK gate and the server's command reservation).
-  namespace.addVariable({
+  const maintenanceModeNode = namespace.addVariable({
     componentOf: hydraNode,
     browseName: "MaintenanceMode",
     nodeId: "s=HydraNode_1.MaintenanceMode",
@@ -438,11 +462,16 @@ export async function buildAddressSpaceServer(port: number = resolveListenPortOf
     dataType: "Boolean",
     accessLevel: "CurrentRead",
     userAccessLevel: "CurrentRead",
+    ...historyProps("HydraNode_1.MaintenanceMode"),
     minimumSamplingInterval: 1000,
     value: {
       get: () => new Variant({ dataType: DataType.Boolean, value: state.maintenanceMode }),
     },
   });
+  withHistory(swarmOnlineNode, "HydraNode_1.SwarmOnline", DataType.Boolean);
+  withHistory(activeRobotCountNode, "HydraNode_1.ActiveRobotCount", DataType.UInt32);
+  withHistory(spindleTempNode, "HydraNode_1.SpindleTemp", DataType.Double);
+  withHistory(maintenanceModeNode, "HydraNode_1.MaintenanceMode", DataType.Boolean);
 
   // One object per robot, built from whatever list the caller hands to
   // setRobots(). Node ids are derived from the robot id ("s=Robot_<id>"),
@@ -508,7 +537,7 @@ export async function buildAddressSpaceServer(port: number = resolveListenPortOf
         userAccessLevel: "CurrentRead",
         value: { get: () => new Variant({ dataType: DataType.String, value: entry.state.name }) },
       });
-      namespace.addVariable({
+      const onlineNode = namespace.addVariable({
         componentOf: entry.object,
         browseName: "Online",
         nodeId: `s=Robot_${key}.Online`,
@@ -516,6 +545,7 @@ export async function buildAddressSpaceServer(port: number = resolveListenPortOf
         dataType: "Boolean",
         accessLevel: "CurrentRead",
         userAccessLevel: "CurrentRead",
+        ...historyProps(`Robot_${key}.Online`),
         minimumSamplingInterval: 1000,
         // While the roster cannot be read the robot is not claimed online, and the quality says the value is the last one that was usable:
         // a SCADA that looks at quality sees "uncertain" instead of a plain false it cannot tell from a robot that is really off.
@@ -530,7 +560,7 @@ export async function buildAddressSpaceServer(port: number = resolveListenPortOf
       });
       // Live: the robot sent a patch to the server within the window. It needs the live stream (HYDRA_UMC_OPCUA_SOURCE=stream); with polling
       // there is nothing that says a robot is alive, so the value stays BadWaitingForInitialData instead of being guessed from Online.
-      namespace.addVariable({
+      const liveNode = namespace.addVariable({
         componentOf: entry.object,
         browseName: "Live",
         nodeId: `s=Robot_${key}.Live`,
@@ -538,6 +568,7 @@ export async function buildAddressSpaceServer(port: number = resolveListenPortOf
         dataType: "Boolean",
         accessLevel: "CurrentRead",
         userAccessLevel: "CurrentRead",
+        ...historyProps(`Robot_${key}.Live`),
         minimumSamplingInterval: 1000,
         value: {
           timestamped_get: () => {
@@ -572,6 +603,8 @@ export async function buildAddressSpaceServer(port: number = resolveListenPortOf
                 }),
         },
       });
+      withHistory(onlineNode, `Robot_${key}.Online`, DataType.Boolean);
+      withHistory(liveNode, `Robot_${key}.Live`, DataType.Boolean);
       robotObjects.set(key, entry);
     }
     state.activeRobotCount = [...robotObjects.values()].filter((e) => e.state.online).length;
