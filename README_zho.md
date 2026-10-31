@@ -18,14 +18,14 @@ GPL-3.0-or-later - see LICENSE
   <img src="https://img.shields.io/badge/License-GPL%203.0--or--later-blue.svg" alt="GPL 3.0 or later">
   <img src="https://img.shields.io/badge/Standard-OPC--UA-orange.svg" alt="Standard">
   <img src="https://img.shields.io/badge/Feature-Address%20Space%20Modeling-blue.svg" alt="Feature">
-  <img src="https://img.shields.io/badge/Tests-136%20passing-2ea44f.svg" alt="Tests">
+  <img src="https://img.shields.io/badge/Tests-148%20passing-2ea44f.svg" alt="Tests">
   <img src="https://img.shields.io/badge/Version-0.2.2-0f6cbd.svg" alt="Version">
   <img src="https://img.shields.io/badge/Maturity-functional-0F6CBD.svg" alt="Maturity">
 </p>
 
 ---
 
-**诚实核查 - 今天真正能运行的部分：** OPC-UA 服务器与地址空间映射(`src/server.ts`)都是真实的并经过测试(`tests/server.test.ts`、`tests/security.test.ts`、`tests/security-policy.test.ts`, `tests/robotSource.test.ts`, `tests/robotSource.integration.test.ts` 共 136 个测试通过)——而且这些都是真正的协议级测试：`tests/server.test.ts` 使用一个真实的 `OPCUAClient`(node-opcua 自身的客户端，也是 UAExpert/Ignition 会使用的同一个库)通过真实的二进制协议、在一个真实的 TCP 端口上进行连接；`tests/security-policy.test.ts` 证明了未加密的 `SecurityPolicy.None` 会话默认确实会被拒绝(只有通过明确的 `OPCUA_ALLOW_INSECURE=1` 逃生开关才会被接受)。以下是有意推迟的部分，而非意外发现的缺口：按机器人划分的树（`Robot_<id>`）会跟随 HYDRA-UMC-SERVER 报告的名单（使用令牌或账户轮询，参见 `.env.example`），但地址空间的其余部分仅在启动时构建一次；目前只有读写操作经过了端到端测试，OPC-UA 订阅功能尚未测试；而 Pub/Sub(路线图第 1 阶段)仍未实现，因为目前还没有客户端依赖它。具体推迟了哪些内容以及原因，请见 `mejoras_futuras.txt` 的完整清单；具体已交付的内容请见 `CHANGELOG.md`。
+**诚实核查 - 今天真正能运行的部分：** OPC-UA 服务器与地址空间映射(`src/server.ts`)都是真实的并经过测试(`tests/server.test.ts`、`tests/security.test.ts`、`tests/security-policy.test.ts`, `tests/robotSource.test.ts`, `tests/robotSource.integration.test.ts` 共 148 个测试通过)——而且这些都是真正的协议级测试：`tests/server.test.ts` 使用一个真实的 `OPCUAClient`(node-opcua 自身的客户端，也是 UAExpert/Ignition 会使用的同一个库)通过真实的二进制协议、在一个真实的 TCP 端口上进行连接；`tests/security-policy.test.ts` 证明了未加密的 `SecurityPolicy.None` 会话默认确实会被拒绝(只有通过明确的 `OPCUA_ALLOW_INSECURE=1` 逃生开关才会被接受)。以下是有意推迟的部分，而非意外发现的缺口：按机器人划分的树（`Robot_<id>`）会跟随 HYDRA-UMC-SERVER 报告的名单（使用令牌或账户轮询，参见 `.env.example`），但地址空间的其余部分仅在启动时构建一次；目前只有读写操作经过了端到端测试，OPC-UA 订阅功能尚未测试；而 Pub/Sub(路线图第 1 阶段)仍未实现，因为目前还没有客户端依赖它。具体推迟了哪些内容以及原因，请见 `mejoras_futuras.txt` 的完整清单；具体已交付的内容请见 `CHANGELOG.md`。
 
 ---
 
@@ -39,7 +39,7 @@ GPL-3.0-or-later - see LICENSE
 |---|---|
 | 版本 | `0.2.2` |
 | 成熟度 | 可用 |
-| 测试 | 136 (`npm test`) |
+| 测试 | 148 (`npm test`) |
 | 技术栈 | Node.js / node-opcua / OPC-UA address space |
 | 目标 | HYDRA-UMC 工作单元的 Raspberry Pi CM5 |
 | 真实硬件 | 尚未：此版本没有在真实硬件上运行的记录 |
@@ -55,7 +55,7 @@ GPL-3.0-or-later - see LICENSE
 | 领域 | 状态 | 在这里的含义 |
 |---|---|---|
 | 软件 | 🟡 | 主要用途可用；上面的诚实性检查列出了仍然缺少的内容 |
-| 测试 | 🟢 | 136 项自动测试，每次变更都会运行 |
+| 测试 | 🟢 | 148 项自动测试，每次变更都会运行 |
 | 真实硬件 | 🔴 | 尚未：此版本没有在真实硬件上运行的记录 |
 | 文档 | 🟢 | 八种语言的 README，每次变更都会与清单核对 |
 
@@ -72,6 +72,7 @@ FactoryTalk）能够浏览、读取和写入机器人变量，就像它们是标
 * 🛠️ **动态信息建模：** 根据活跃的机器人和工具自动生成 OPC-UA 树。
 * 🔄 **机器人列表与两个标志：** 机器人列表（带有 `Name` 和 `Online` 的 `Robot_<id>` 对象）是只读的；`SwarmOnline` 和 `MaintenanceMode` 也是只读的（写入对系统其余部分没有效果，因此被拒绝）；在列表轮询第一次读取成功之前，`SwarmOnline` 为 `BadWaitingForInitialData`。没有任何节点控制关节或执行器。
 * 🧭 **带类型的模型、角色和实时信号:** 单元是 `HydraCellType`,每个机器人是 `Objects/Robots` 文件夹下的 `HydraRobotType`(命名空间 1 中的 NodeId 不变;模型就是文件 `nodeset/HydraUmc.NodeSet2.xml`,由测试保证与代码一致)。`Online` 只是操作员界面的开关;`Live` 表示机器人是否在 `HYDRA_UMC_OPCUA_LIVE_WINDOW_MS` 内向 HYDRA-UMC-SERVER 发送过补丁,`LastUpdate` 表示时间,这需要 `HYDRA_UMC_OPCUA_SOURCE=stream`(用 WebSocket 代替轮询),否则为 `BadWaitingForInitialData`。会话带有 OPC UA 角色:匿名是 `Anonymous`,查看者是 `Observer`,管理员还有 `ConfigureAdmin`;没有任何角色可以写入。*(已用 node-opcua 客户端试过,从未在 SCADA 上验证)*
+* 🫀 **按存活报告判定在线（默认关闭）：** 设置 `HYDRA_UMC_OPCUA_LIVENESS=1`（轮询模式）后，`Online` 只有在服务器的 `GET /api/robots/liveness` 报告 `live` 时才为真，设置里的 `online` 开关打开并不算数；`stale`、`unknown`、未列出的机器人以及无法读取的报告都不算在线。*（已实现，已对模拟服务器测试）*
 * 🔖 **版本化命名空间与稳定的 NodeId：** 真实、明确的命名空间 URI，以及明确的字符串 NodeId——地址空间的更新不会悄悄改变客户端所依赖的路径。*(已实现)*
 * 🔐 **按会话的写入授权：** 真实、动态的检查，区分匿名会话与已认证会话——并非每个客户端默认都能获得写入权限。*(已实现)*
 * 📡 **订阅支持：** 使用 OPC-UA 发布-订阅机制实现高效的数据更新。*（已端到端测试：真实订阅会送达数据变更通知）*
@@ -117,7 +118,7 @@ flowchart LR
 
 ## ⚙️ 配置
 
-监听端口首先从 `HYDRA_UMC_OPCUA_PORT` 读取（默认 4840）。共享的 `PORT` 仍可作为最后手段并会打印警告，这样多个服务共用的环境文件就不会意外把服务器移到另一个服务的端口上；已设置但不是有效端口的值会终止启动，容器健康检查遵循相同的顺序。 历史访问默认关闭。`HYDRA_UMC_OPCUA_HISTORY=1` 将其打开，`HYDRA_UMC_OPCUA_HISTORY_URL` 指向 HYDRA-UMC-DATALAKE（若它有读取令牌，再设置 `HYDRA_UMC_OPCUA_HISTORY_TOKEN`），`HYDRA_UMC_OPCUA_HISTORY_MAP` 是把变量映射到序列的 JSON 文件；只有被映射的变量才响应 HistoryRead，匿名会话会被拒绝，除非设置 `HYDRA_UMC_OPCUA_HISTORY_ANONYMOUS=1`，一次读取最多取 `HYDRA_UMC_OPCUA_HISTORY_MAX_POINTS` 个点（默认 10000）。没有任何内容变为可写。 处理后的历史同样默认关闭：`HYDRA_UMC_OPCUA_HISTORY_AGGREGATES=1` 使其响应 Average、Minimum、Maximum、Count 和 Interpolative（每次读取最多 `HYDRA_UMC_OPCUA_HISTORY_MAX_INTERVALS` 个区间，默认 1000），`HYDRA_UMC_OPCUA_HISTORY_EVENTS=1` 加上 `HYDRA_UMC_OPCUA_HISTORY_EVENTS_MAP`（按对象列出限值规则的 JSON 文件）使其响应由已存序列推导出的事件历史。
+监听端口首先从 `HYDRA_UMC_OPCUA_PORT` 读取（默认 4840）。共享的 `PORT` 仍可作为最后手段并会打印警告，这样多个服务共用的环境文件就不会意外把服务器移到另一个服务的端口上；已设置但不是有效端口的值会终止启动，容器健康检查遵循相同的顺序。 历史访问默认关闭。`HYDRA_UMC_OPCUA_HISTORY=1` 将其打开，`HYDRA_UMC_OPCUA_HISTORY_URL` 指向 HYDRA-UMC-DATALAKE（若它有读取令牌，再设置 `HYDRA_UMC_OPCUA_HISTORY_TOKEN`），`HYDRA_UMC_OPCUA_HISTORY_MAP` 是把变量映射到序列的 JSON 文件；只有被映射的变量才响应 HistoryRead，匿名会话会被拒绝，除非设置 `HYDRA_UMC_OPCUA_HISTORY_ANONYMOUS=1`，一次读取最多取 `HYDRA_UMC_OPCUA_HISTORY_MAX_POINTS` 个点（默认 10000）。没有任何内容变为可写。 处理后的历史同样默认关闭：`HYDRA_UMC_OPCUA_HISTORY_AGGREGATES=1` 使其响应 Average、Minimum、Maximum、Count 和 Interpolative（每次读取最多 `HYDRA_UMC_OPCUA_HISTORY_MAX_INTERVALS` 个区间，默认 1000），`HYDRA_UMC_OPCUA_HISTORY_EVENTS=1` 加上 `HYDRA_UMC_OPCUA_HISTORY_EVENTS_MAP`（按对象列出限值规则的 JSON 文件）使其响应由已存序列推导出的事件历史。 设置 `HYDRA_UMC_OPCUA_LIVENESS=1`（默认关闭，仅轮询模式）后，`Online` 跟随 HYDRA-UMC-SERVER 的 `GET /api/robots/liveness`，而不是设置里的 `online` 开关：只有服务器报告 `live` 时机器人才在线；`stale`、`unknown`、报告中未列出的机器人以及无法读取的报告都按不在线处理。
 
 ## 🚀 快速开始
 
@@ -132,7 +133,7 @@ npm start
 
 ## 🧪 测试
 
-运行 `npm test` 会执行 136 个自动测试。 不需要硬件，也不需要这台机器以外的任何东西。
+运行 `npm test` 会执行 148 个自动测试。 不需要硬件，也不需要这台机器以外的任何东西。
 
 CI 运行 `HYDRA_UMC_CI=1 python tools/ci_validate.py`，检查清单、文档、八个 README 和图片。
 

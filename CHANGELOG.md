@@ -4,6 +4,8 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+- **`Online` can follow the liveness report of the server, off by default:** with `HYDRA_UMC_OPCUA_LIVENESS=1` (polling mode; with `HYDRA_UMC_OPCUA_SOURCE=stream` the service refuses to start) the robot roster is read from `GET /api/settings` as before and each robot is `Online` only when `GET /api/robots/liveness` of HYDRA-UMC-SERVER says `live`, matched by controller and robot. `stale`, `unknown`, a robot the report does not list, an old server without the route and a report that cannot be read leave the robot not online, and a report that cannot be read also makes the swarm and the roster uncertain, as an unreadable roster does. Without the switch `Online` is the `online` switch of the settings, as before. `tests/liveness.test.ts` runs the poller against a simulated server.
+
 ## [0.2.2] - Historical Access with processed values and event history, all off by default
 
 - **Historical Access, off by default:** with `HYDRA_UMC_OPCUA_HISTORY=1`, `HYDRA_UMC_OPCUA_HISTORY_URL` (HYDRA-UMC-DATALAKE) and `HYDRA_UMC_OPCUA_HISTORY_MAP` (a JSON file from variables to series), a SCADA client can read the history of the mapped variables with HistoryRead (raw values, either order, bounding values, continuation points, at most `HYDRA_UMC_OPCUA_HISTORY_MAX_POINTS` per read). Only the mapped variables get the HistoryRead access level, anonymous sessions are refused unless `HYDRA_UMC_OPCUA_HISTORY_ANONYMOUS=1`, and nothing becomes writable. A refusal of a session without the permission now stops there instead of reading anyway. Tested with a real OPC-UA client against a stand-in data lake (13 tests). See `docs/OPERATIONS.md`.

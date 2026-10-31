@@ -18,14 +18,14 @@ GPL-3.0-or-later - see LICENSE
   <img src="https://img.shields.io/badge/License-GPL%203.0--or--later-blue.svg" alt="GPL 3.0 or later">
   <img src="https://img.shields.io/badge/Standard-OPC--UA-orange.svg" alt="Standard">
   <img src="https://img.shields.io/badge/Feature-Address%20Space%20Modeling-blue.svg" alt="Feature">
-  <img src="https://img.shields.io/badge/Tests-136%20passing-2ea44f.svg" alt="Tests">
+  <img src="https://img.shields.io/badge/Tests-148%20passing-2ea44f.svg" alt="Tests">
   <img src="https://img.shields.io/badge/Version-0.2.2-0f6cbd.svg" alt="Version">
   <img src="https://img.shields.io/badge/Maturity-functional-0F6CBD.svg" alt="Maturity">
 </p>
 
 ---
 
-**正直な現状確認 - 今日実際に動くもの:** OPC-UA サーバーとアドレス空間のマッピング(`src/server.ts`)は本物であり、テスト済みである(`tests/server.test.ts`、`tests/security.test.ts`、`tests/security-policy.test.ts`, `tests/robotSource.test.ts`, `tests/robotSource.integration.test.ts` 全体で 136 件のテストが成功)。しかもこれらは本物のプロトコルレベルのテストである: `tests/server.test.ts` は本物の `OPCUAClient`(node-opcua 自身のクライアントであり、UAExpert/Ignition が使うのと同じライブラリ)を、本物のバイナリプロトコルで本物の TCP ポートに接続しており、`tests/security-policy.test.ts` は暗号化されていない `SecurityPolicy.None` セッションがデフォルトで実際に拒否されることを証明している(明示的な `OPCUA_ALLOW_INSECURE=1` という抜け道を使った場合のみ受け入れられる)。以下は偶然見つかったギャップではなく、意図的に先送りされているものである: ロボットごとのツリー（`Robot_<id>`）は HYDRA-UMC-SERVER が報告する一覧に追従する（トークンまたはアカウントで取得。`.env.example` を参照）が、アドレス空間のそれ以外の部分は起動時に一度だけ構築される。今のところエンドツーエンドでテストされているのは読み書きのみであり、OPC-UA のサブスクリプションはテストされていない。そして Pub/Sub(ロードマップのフェーズ 1)はまだ実装されていない、依存するクライアントがまだ存在しないためである。何が先送りされ、なぜそうなのかの完全なリストは `mejoras_futuras.txt` を、これまでに何が実際に出荷されたかは `CHANGELOG.md` を参照。
+**正直な現状確認 - 今日実際に動くもの:** OPC-UA サーバーとアドレス空間のマッピング(`src/server.ts`)は本物であり、テスト済みである(`tests/server.test.ts`、`tests/security.test.ts`、`tests/security-policy.test.ts`, `tests/robotSource.test.ts`, `tests/robotSource.integration.test.ts` 全体で 148 件のテストが成功)。しかもこれらは本物のプロトコルレベルのテストである: `tests/server.test.ts` は本物の `OPCUAClient`(node-opcua 自身のクライアントであり、UAExpert/Ignition が使うのと同じライブラリ)を、本物のバイナリプロトコルで本物の TCP ポートに接続しており、`tests/security-policy.test.ts` は暗号化されていない `SecurityPolicy.None` セッションがデフォルトで実際に拒否されることを証明している(明示的な `OPCUA_ALLOW_INSECURE=1` という抜け道を使った場合のみ受け入れられる)。以下は偶然見つかったギャップではなく、意図的に先送りされているものである: ロボットごとのツリー（`Robot_<id>`）は HYDRA-UMC-SERVER が報告する一覧に追従する（トークンまたはアカウントで取得。`.env.example` を参照）が、アドレス空間のそれ以外の部分は起動時に一度だけ構築される。今のところエンドツーエンドでテストされているのは読み書きのみであり、OPC-UA のサブスクリプションはテストされていない。そして Pub/Sub(ロードマップのフェーズ 1)はまだ実装されていない、依存するクライアントがまだ存在しないためである。何が先送りされ、なぜそうなのかの完全なリストは `mejoras_futuras.txt` を、これまでに何が実際に出荷されたかは `CHANGELOG.md` を参照。
 
 ---
 
@@ -39,7 +39,7 @@ GPL-3.0-or-later - see LICENSE
 |---|---|
 | バージョン | `0.2.2` |
 | 成熟度 | 機能する |
-| テスト | 136 (`npm test`) |
+| テスト | 148 (`npm test`) |
 | 技術 | Node.js / node-opcua / OPC-UA address space |
 | 対象 | HYDRA-UMC セルの Raspberry Pi CM5 |
 | 実機での確認 | まだです：このバージョンについて実機での動作記録はありません |
@@ -55,7 +55,7 @@ GPL-3.0-or-later - see LICENSE
 | 領域 | 状態 | ここでの意味 |
 |---|---|---|
 | ソフトウェア | 🟡 | 主な目的では動作します。足りない点は上の正直さの確認に書かれています |
-| テスト | 🟢 | 自動テスト 136 件。変更のたびに実行されます |
+| テスト | 🟢 | 自動テスト 148 件。変更のたびに実行されます |
 | 実機 | 🔴 | まだです：このバージョンについて実機での動作記録はありません |
 | ドキュメント | 🟢 | 8 言語の README。変更のたびにマニフェストと照合されます |
 
@@ -73,6 +73,7 @@ Ignition、Siemens TIA Portal、Rockwell FactoryTalk のような産業用
 * 🛠️ **動的な情報モデリング：** アクティブなロボットと工具に基づいて OPC-UA ツリーを自動生成します。
 * 🔄 **ロボット一覧と 2 つのフラグ：** ロボット一覧（`Name` と `Online` を持つ `Robot_<id>` オブジェクト）は読み取り専用です。`SwarmOnline` と `MaintenanceMode` も読み取り専用です（書き込みはシステムの他の部分に効果がないため拒否されます）。`SwarmOnline` は、一覧の取得が一度完了するまで `BadWaitingForInitialData` です。関節やエフェクターを制御するノードはありません。
 * 🧭 **型付きモデル、ロール、ライブ信号:** セルは `HydraCellType`、各ロボットは `Objects/Robots` フォルダー下の `HydraRobotType` です(名前空間 1 の NodeId は変わりません。モデルはファイル `nodeset/HydraUmc.NodeSet2.xml` で、テストがコードと同一に保ちます)。`Online` はオペレーター画面のスイッチにすぎません。`Live` はロボットが `HYDRA_UMC_OPCUA_LIVE_WINDOW_MS` 以内に HYDRA-UMC-SERVER へパッチを送ったかどうか、`LastUpdate` はその時刻を示し、`HYDRA_UMC_OPCUA_SOURCE=stream`(ポーリングの代わりに WebSocket)が必要で、それ以外は `BadWaitingForInitialData` です。セッションは OPC UA のロールを持ちます。匿名は `Anonymous`、閲覧者は `Observer`、管理者はさらに `ConfigureAdmin` で、書き込めるロールはありません。*(node-opcua のクライアントで試験済み、SCADA では未検証)*
+* 🫀 **稼働状況レポートに基づくオンライン（既定ではオフ）：** `HYDRA_UMC_OPCUA_LIVENESS=1`（ポーリングモード）では、`Online` は設定の `online` スイッチがオンであるだけでは真にならず、サーバーの `GET /api/robots/liveness` が `live` と言っている間だけ真になります。`stale`、`unknown`、載っていないロボット、読み取れないレポートはオンラインではありません。*（実装済み、シミュレートしたサーバーに対してテスト済み）*
 * 🔖 **バージョン管理された名前空間と安定した NodeId：** 実際の明示的な名前空間 URI と、明示的な文字列 NodeId——アドレス空間の更新によって、クライアントが依存するパスが密かに変わることはありません。*(実装済み)*
 * 🔐 **セッションごとの書き込み認可：** 匿名セッションと認証済みセッションを区別する、実際の動的なチェック——すべてのクライアントがデフォルトで書き込みアクセス権を得られるわけではありません。*(実装済み)*
 * 📡 **サブスクリプションサポート：** OPC-UA のパブリッシュ・サブスクライブ機構を用いた高効率なデータ更新。*（エンドツーエンドでテスト済み：実際のサブスクリプションがデータ変更通知を届ける）*
@@ -118,7 +119,7 @@ flowchart LR
 
 ## ⚙️ 設定
 
-待ち受けポートは、まず `HYDRA_UMC_OPCUA_PORT` から読み取ります（既定は 4840）。共有の `PORT` は最後の手段として引き続き使え、警告を表示します。そのため、複数のサービスで共有する環境ファイルがサーバーを他のサービスのポートへうっかり移すことはありません。設定されていても有効なポートでない値は起動を止め、コンテナのヘルスチェックも同じ順序に従います。 履歴アクセスは既定で無効です。`HYDRA_UMC_OPCUA_HISTORY=1` で有効になり、`HYDRA_UMC_OPCUA_HISTORY_URL` で HYDRA-UMC-DATALAKE を指定し（読み取りトークンがある場合は `HYDRA_UMC_OPCUA_HISTORY_TOKEN`）、`HYDRA_UMC_OPCUA_HISTORY_MAP` は変数と系列を対応づける JSON ファイルです。対応づけた変数だけが HistoryRead に応答し、匿名セッションは `HYDRA_UMC_OPCUA_HISTORY_ANONYMOUS=1` でない限り拒否され、1 回の読み出しは最大 `HYDRA_UMC_OPCUA_HISTORY_MAX_POINTS` 点（既定 10000）までです。書き込み可能になるものはありません。 加工済み履歴も既定で無効です。`HYDRA_UMC_OPCUA_HISTORY_AGGREGATES=1` で Average、Minimum、Maximum、Count、Interpolative に応答し（1 回の読み出しは最大 `HYDRA_UMC_OPCUA_HISTORY_MAX_INTERVALS` 区間、既定 1000）、`HYDRA_UMC_OPCUA_HISTORY_EVENTS=1` と `HYDRA_UMC_OPCUA_HISTORY_EVENTS_MAP`（オブジェクトごとの限界値ルールの JSON ファイル）で、保存された系列から導いたイベント履歴に応答します。
+待ち受けポートは、まず `HYDRA_UMC_OPCUA_PORT` から読み取ります（既定は 4840）。共有の `PORT` は最後の手段として引き続き使え、警告を表示します。そのため、複数のサービスで共有する環境ファイルがサーバーを他のサービスのポートへうっかり移すことはありません。設定されていても有効なポートでない値は起動を止め、コンテナのヘルスチェックも同じ順序に従います。 履歴アクセスは既定で無効です。`HYDRA_UMC_OPCUA_HISTORY=1` で有効になり、`HYDRA_UMC_OPCUA_HISTORY_URL` で HYDRA-UMC-DATALAKE を指定し（読み取りトークンがある場合は `HYDRA_UMC_OPCUA_HISTORY_TOKEN`）、`HYDRA_UMC_OPCUA_HISTORY_MAP` は変数と系列を対応づける JSON ファイルです。対応づけた変数だけが HistoryRead に応答し、匿名セッションは `HYDRA_UMC_OPCUA_HISTORY_ANONYMOUS=1` でない限り拒否され、1 回の読み出しは最大 `HYDRA_UMC_OPCUA_HISTORY_MAX_POINTS` 点（既定 10000）までです。書き込み可能になるものはありません。 加工済み履歴も既定で無効です。`HYDRA_UMC_OPCUA_HISTORY_AGGREGATES=1` で Average、Minimum、Maximum、Count、Interpolative に応答し（1 回の読み出しは最大 `HYDRA_UMC_OPCUA_HISTORY_MAX_INTERVALS` 区間、既定 1000）、`HYDRA_UMC_OPCUA_HISTORY_EVENTS=1` と `HYDRA_UMC_OPCUA_HISTORY_EVENTS_MAP`（オブジェクトごとの限界値ルールの JSON ファイル）で、保存された系列から導いたイベント履歴に応答します。 `HYDRA_UMC_OPCUA_LIVENESS=1`（既定ではオフ、ポーリングモードのみ）にすると、`Online` は設定の `online` スイッチではなく HYDRA-UMC-SERVER の `GET /api/robots/liveness` に従います。ロボットはサーバーが `live` と言っている間だけオンラインで、`stale`、`unknown`、レポートに載っていないロボット、読み取れないレポートはすべてオンラインとして扱われません。
 
 ## 🚀 クイックスタート
 
@@ -133,7 +134,7 @@ npm start
 
 ## 🧪 テスト
 
-`npm test` で自動テスト 136 件を実行します。 ハードウェアも、このマシンの外にあるものも必要ありません。
+`npm test` で自動テスト 148 件を実行します。 ハードウェアも、このマシンの外にあるものも必要ありません。
 
 CI は `HYDRA_UMC_CI=1 python tools/ci_validate.py` を実行し、マニフェスト、文書、8 つの README、図を検査します。
 

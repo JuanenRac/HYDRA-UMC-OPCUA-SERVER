@@ -38,7 +38,7 @@ import {
 import { createHash, timingSafeEqual } from "node:crypto";
 import path from "node:path";
 import { readPackageVersion } from "./version.js";
-import { pollerConfigFromEnv, sourceModeFromEnv, startRobotPolling } from "./robotSource.js";
+import { livenessFromEnv, pollerConfigFromEnv, sourceModeFromEnv, startRobotPolling } from "./robotSource.js";
 import { startRobotStream } from "./liveSource.js";
 import { healthPortFromEnv, startHealthServer } from "./health.js";
 import { resolveListenPort, type ResolvedPort } from "./portConfig.js";
@@ -687,10 +687,11 @@ async function main() {
       sourceStatus = readable ? "ok" : "unreadable";
     };
     if (sourceModeFromEnv() === "stream") {
+      if (livenessFromEnv()) throw new Error("HYDRA-UMC-OPCUA-SERVER: HYDRA_UMC_OPCUA_LIVENESS needs HYDRA_UMC_OPCUA_SOURCE=poll (the stream does not read the liveness report)");
       startRobotStream({ ...source, setRobots, onRobotSeen: markRobotSeen, onSourceStatus });
       console.log(`[HYDRA-UMC-OPCUA-SERVER] following the robots live on ${source.url} (WebSocket), Live = a patch within the window`);
     } else {
-      startRobotPolling({ ...source, setRobots, onSourceStatus });
+      startRobotPolling({ ...source, setRobots, onSourceStatus, useLiveness: livenessFromEnv() });
       console.log(`[HYDRA-UMC-OPCUA-SERVER] reading the robot roster from ${source.url} every ${source.intervalMs} ms`);
     }
     sourceStatus = "unreadable"; // until the first read works

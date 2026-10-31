@@ -18,14 +18,14 @@ GPL-3.0-or-later - see LICENSE
   <img src="https://img.shields.io/badge/License-GPL%203.0--or--later-blue.svg" alt="GPL 3.0 or later">
   <img src="https://img.shields.io/badge/Standard-OPC--UA-orange.svg" alt="Standard">
   <img src="https://img.shields.io/badge/Feature-Address%20Space%20Modeling-blue.svg" alt="Feature">
-  <img src="https://img.shields.io/badge/Tests-136%20passing-2ea44f.svg" alt="Tests">
+  <img src="https://img.shields.io/badge/Tests-148%20passing-2ea44f.svg" alt="Tests">
   <img src="https://img.shields.io/badge/Version-0.2.2-0f6cbd.svg" alt="Version">
   <img src="https://img.shields.io/badge/Maturity-functional-0F6CBD.svg" alt="Maturity">
 </p>
 
 ---
 
-**Honesty check - what actually runs today:** the OPC-UA server and address-space mapping (`src/server.ts`) are real and tested (136 tests passing across `tests/server.test.ts`, `tests/security.test.ts`, `tests/security-policy.test.ts`, `tests/robotSource.test.ts`, `tests/robotSource.integration.test.ts`) - and these are real protocol-level tests: `tests/server.test.ts` connects a real `OPCUAClient` (node-opcua's own client, the same library UAExpert/Ignition would use) over the real binary protocol on a real TCP port, and `tests/security-policy.test.ts` proves an unencrypted `SecurityPolicy.None` session is genuinely refused by default (accepted only via the explicit `OPCUA_ALLOW_INSECURE=1` escape hatch). What is deliberately deferred, not a gap found by accident: the per-robot tree (`Robot_<id>`) follows the roster HYDRA-UMC-SERVER reports (polled with a token or an account, see `.env.example`), but the rest of the address space is built once at startup; only reads/writes are tested end to end so far, not OPC-UA subscriptions; and Pub/Sub (Roadmap Phase 1) remains unimplemented, since no client depends on it yet. See `mejoras_futuras.txt` for the complete list of what's deferred and why, and `CHANGELOG.md` for exactly what has shipped so far.
+**Honesty check - what actually runs today:** the OPC-UA server and address-space mapping (`src/server.ts`) are real and tested (148 tests passing across `tests/server.test.ts`, `tests/security.test.ts`, `tests/security-policy.test.ts`, `tests/robotSource.test.ts`, `tests/robotSource.integration.test.ts`) - and these are real protocol-level tests: `tests/server.test.ts` connects a real `OPCUAClient` (node-opcua's own client, the same library UAExpert/Ignition would use) over the real binary protocol on a real TCP port, and `tests/security-policy.test.ts` proves an unencrypted `SecurityPolicy.None` session is genuinely refused by default (accepted only via the explicit `OPCUA_ALLOW_INSECURE=1` escape hatch). What is deliberately deferred, not a gap found by accident: the per-robot tree (`Robot_<id>`) follows the roster HYDRA-UMC-SERVER reports (polled with a token or an account, see `.env.example`), but the rest of the address space is built once at startup; only reads/writes are tested end to end so far, not OPC-UA subscriptions; and Pub/Sub (Roadmap Phase 1) remains unimplemented, since no client depends on it yet. See `mejoras_futuras.txt` for the complete list of what's deferred and why, and `CHANGELOG.md` for exactly what has shipped so far.
 
 ---
 
@@ -39,7 +39,7 @@ GPL-3.0-or-later - see LICENSE
 |---|---|
 | Version | `0.2.2` |
 | Maturity | Functional |
-| Tests | 136 (`npm test`) |
+| Tests | 148 (`npm test`) |
 | Stack | Node.js / node-opcua / OPC-UA address space |
 | Target | The Raspberry Pi CM5 of a HYDRA-UMC cell |
 | On real hardware | Not yet: no run on real hardware is recorded for this version |
@@ -55,7 +55,7 @@ Each line is one part of this repository and the light says how far it is today.
 | Area | State | What it means here |
 |---|---|---|
 | Software | 🟡 | Works for its main purpose; the honesty check above lists what is still missing |
-| Tests | 🟢 | 136 automated tests, run on every change |
+| Tests | 🟢 | 148 automated tests, run on every change |
 | Real hardware | 🔴 | Not yet: no run on real hardware is recorded for this version |
 | Documentation | 🟢 | README in eight languages, checked against the manifest on every change |
 
@@ -69,6 +69,7 @@ It allows industrial automation software (like Ignition, Siemens TIA Portal, or 
 * 🛠️ **Dynamic Information Modeling:** Automatically generates the OPC-UA tree based on active robots and tools.
 * 🔄 **Roster and two flags:** the robot roster (`Robot_<id>` objects with `Name` and `Online`) is read-only; `SwarmOnline` and `MaintenanceMode` are read-only too (a write has no effect on the rest of the system, so it is refused); `SwarmOnline` is `BadWaitingForInitialData` until the roster poller has read once. No node controls a joint or an effector.
 * 🧭 **Typed model, roles and a live signal:** the cell is a `HydraCellType` and each robot a `HydraRobotType` under an `Objects/Robots` folder (the NodeIds, in namespace 1, do not change; the model is the file `nodeset/HydraUmc.NodeSet2.xml`, kept equal to the code by a test). `Online` is only the switch of the operator interface; `Live` says whether the robot sent a patch to HYDRA-UMC-SERVER within `HYDRA_UMC_OPCUA_LIVE_WINDOW_MS` and `LastUpdate` when, which needs `HYDRA_UMC_OPCUA_SOURCE=stream` (a WebSocket instead of polling) and is `BadWaitingForInitialData` otherwise. Sessions hold OPC UA roles: anonymous is `Anonymous`, the viewer an `Observer`, the administrator also `ConfigureAdmin`; no role may write. *(tried with the client of node-opcua, never against a SCADA)*
+* 🫀 **Online from the liveness report (off by default):** with `HYDRA_UMC_OPCUA_LIVENESS=1` (polling mode) `Online` is true only while `GET /api/robots/liveness` of the server says `live`, not when the `online` switch of the settings is on; `stale`, `unknown`, a robot that is not listed and a report that cannot be read are not online. *(implemented, tested against a simulated server)*
 * 🔖 **Versioned Namespace & Stable NodeIds:** A real, explicit namespace URI and explicit string NodeIds - an address-space update can't silently change the path a client depends on. *(implemented)*
 * 🔐 **Per-Session Write Authorization:** A real, dynamic check distinguishing an anonymous session from an authenticated one - not every client gets write access by default. *(implemented)*
 * 📡 **Subscription Support:** High-efficiency data updates using OPC-UA publish-subscribe mechanisms. *(tested end to end: a real subscription delivers a data-change notification)*
@@ -113,7 +114,7 @@ Deliberately deferred, and why: a fully dynamic address space (the per-robot tre
 
 ## ⚙️ Configuration
 
-The listen port is read from `HYDRA_UMC_OPCUA_PORT` first (4840 by default). The shared `PORT` still works as a last resort and prints a warning, so an environment file shared by several services cannot move the server onto another service's port by accident; a value that is set but is not a valid port stops the start, and the container health check follows the same order. Historical Access is off by default. `HYDRA_UMC_OPCUA_HISTORY=1` switches it on, `HYDRA_UMC_OPCUA_HISTORY_URL` names HYDRA-UMC-DATALAKE (with `HYDRA_UMC_OPCUA_HISTORY_TOKEN` when it has a read token) and `HYDRA_UMC_OPCUA_HISTORY_MAP` is a JSON file that maps variables to series; only the mapped variables answer a HistoryRead, anonymous sessions are refused unless `HYDRA_UMC_OPCUA_HISTORY_ANONYMOUS=1`, and one read takes at most `HYDRA_UMC_OPCUA_HISTORY_MAX_POINTS` points (10000 by default). Nothing becomes writable. Processed history is off by default too: `HYDRA_UMC_OPCUA_HISTORY_AGGREGATES=1` makes it answer Average, Minimum, Maximum, Count and Interpolative (at most `HYDRA_UMC_OPCUA_HISTORY_MAX_INTERVALS` intervals per read, 1000 by default), and `HYDRA_UMC_OPCUA_HISTORY_EVENTS=1` with `HYDRA_UMC_OPCUA_HISTORY_EVENTS_MAP` (a JSON file of limit rules per object) makes it answer event history derived from the stored series.
+The listen port is read from `HYDRA_UMC_OPCUA_PORT` first (4840 by default). The shared `PORT` still works as a last resort and prints a warning, so an environment file shared by several services cannot move the server onto another service's port by accident; a value that is set but is not a valid port stops the start, and the container health check follows the same order. Historical Access is off by default. `HYDRA_UMC_OPCUA_HISTORY=1` switches it on, `HYDRA_UMC_OPCUA_HISTORY_URL` names HYDRA-UMC-DATALAKE (with `HYDRA_UMC_OPCUA_HISTORY_TOKEN` when it has a read token) and `HYDRA_UMC_OPCUA_HISTORY_MAP` is a JSON file that maps variables to series; only the mapped variables answer a HistoryRead, anonymous sessions are refused unless `HYDRA_UMC_OPCUA_HISTORY_ANONYMOUS=1`, and one read takes at most `HYDRA_UMC_OPCUA_HISTORY_MAX_POINTS` points (10000 by default). Nothing becomes writable. Processed history is off by default too: `HYDRA_UMC_OPCUA_HISTORY_AGGREGATES=1` makes it answer Average, Minimum, Maximum, Count and Interpolative (at most `HYDRA_UMC_OPCUA_HISTORY_MAX_INTERVALS` intervals per read, 1000 by default), and `HYDRA_UMC_OPCUA_HISTORY_EVENTS=1` with `HYDRA_UMC_OPCUA_HISTORY_EVENTS_MAP` (a JSON file of limit rules per object) makes it answer event history derived from the stored series. `HYDRA_UMC_OPCUA_LIVENESS=1` (off by default, polling mode only) makes `Online` follow `GET /api/robots/liveness` of HYDRA-UMC-SERVER instead of the `online` switch of the settings: a robot is online only while the server says `live`; `stale`, `unknown`, a robot the report does not list and a report that cannot be read all count as not online.
 
 ## 🚀 Quick start
 
@@ -128,7 +129,7 @@ npm start
 
 ## 🧪 Testing
 
-136 automated tests run with `npm test`. They need no hardware and nothing outside this machine.
+148 automated tests run with `npm test`. They need no hardware and nothing outside this machine.
 
 The CI runs `HYDRA_UMC_CI=1 python tools/ci_validate.py`, which checks the manifest, the documents, the eight READMEs and the pictures.
 
