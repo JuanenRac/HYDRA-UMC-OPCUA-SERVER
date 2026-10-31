@@ -4,6 +4,8 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+## [0.2.4] - History read backwards from the windows of the data lake, rollup borders decided to the millisecond and interpolation that no longer draws a line over rolled-up data
+
 - **Backwards processed reads can use the windows and rollups of the data lake:** with `HYDRA_UMC_OPCUA_HISTORY_USE_DATALAKE_WINDOWS=1` an Average, Minimum, Maximum or Count read that runs backwards in time (intervals `(low, high]`) asks `GET /windows?order=desc` and the rollups up to the late end, as forward reads already did; the answers are compared with the raw calculation over random data in both directions. A data lake that does not know `order=desc` is detected (its windows would not line up) and the raw calculation answers instead.
 - **Rollup edges are decided one millisecond at a time:** a bucket joins an interval only when all of it lies inside (`[low, high)` forwards, `(low, high]` backwards), a bucket outside the domain marks nothing, and one that straddles an edge marks every interval it touches as Uncertain; tests pin each edge. The raw points of a rolled-up bucket no longer exist, so an interval cut inside a bucket cannot be recomposed exactly and stays Uncertain.
 - **Interpolative never draws a line across data that was replaced by rollups (with the windows switch on):** when rollup buckets lie between the nearest point before and the nearest point after a stamp, the stamp has no value and is `UncertainDataSubNormal`, also where it used to say `BadNoData` although data existed. A point exactly on the stamp is used. If the rollups cannot be read the stamps off a point are Uncertain. New setting `HYDRA_UMC_OPCUA_HISTORY_ROLLUP_LOOKBACK_MS` (7 days by default).
