@@ -43,6 +43,7 @@ import { startRobotStream } from "./liveSource.js";
 import { healthPortFromEnv, startHealthServer } from "./health.js";
 import { resolveListenPort, type ResolvedPort } from "./portConfig.js";
 import { historyConfigFromEnv, installHistory, type HistoryConfig } from "./history.js";
+import { EVENT_NOTIFIER_HISTORY_READ, installEvents } from "./historyEvents.js";
 
 // 4840 is the IANA-registered default OPC-UA TCP port, and node-opcua's
 // own default - kept here explicitly (rather than relying on the library
@@ -320,6 +321,13 @@ export async function buildAddressSpaceServer(port: number = resolveListenPortOf
     history?.mapping[name]
       ? { accessLevel: "CurrentRead | HistoryRead", userAccessLevel: "CurrentRead | HistoryRead", rolePermissions: historyRolePermissions }
       : {};
+  // An object with event rules gets the HistoryRead bit in its EventNotifier and the permission for it; the others stay as they were.
+  const eventProps = (objectKey: string) =>
+    history?.events?.[objectKey] ? { eventNotifier: EVENT_NOTIFIER_HISTORY_READ, rolePermissions: historyRolePermissions } : { rolePermissions };
+  const withEvents = (object: any, objectKey: string): void => {
+    const rules = history?.events?.[objectKey];
+    if (history && rules) installEvents(object, history, objectKey, rules);
+  };
   const withHistory = (variable: any, name: string, dataType: DataType): void => {
     const series = history?.mapping[name];
     if (history && series) installHistory(variable, history, series, dataType);
@@ -354,8 +362,9 @@ export async function buildAddressSpaceServer(port: number = resolveListenPortOf
     browseName: "HydraNode_1",
     nodeId: "s=HydraNode_1",
     typeDefinition: cellType,
-    rolePermissions,
+    ...eventProps("HydraNode_1"),
   });
+  withEvents(hydraNode, "HydraNode_1");
   const robotsFolder = namespace.addFolder(addressSpace.rootFolder.objects, { browseName: "Robots", nodeId: "s=Robots", rolePermissions });
 
   const state: HydraNodeState = {
@@ -521,11 +530,12 @@ export async function buildAddressSpaceServer(port: number = resolveListenPortOf
           browseName: `Robot_${key}`,
           nodeId: `s=Robot_${key}`,
           typeDefinition: robotType,
-          rolePermissions,
+          ...eventProps(`Robot_${key}`),
         }),
         state: { ...robot },
         seenAtMs: seenBeforeListed.get(key),
       };
+      withEvents(entry.object, `Robot_${key}`);
       seenBeforeListed.delete(key);
       namespace.addVariable({
         componentOf: entry.object,

@@ -14,14 +14,20 @@
 //   HYDRA_UMC_OPCUA_HISTORY_MAX_POINTS   most points one read may take from the data lake (default 10000, at most 200000)
 //   HYDRA_UMC_OPCUA_HISTORY_TIMEOUT_MS   timeout of each request to the data lake (default 10000)
 //   HYDRA_UMC_OPCUA_HISTORY_ANONYMOUS=1  lets anonymous sessions read history too (default: only sessions that logged in or use a certificate)
+//   HYDRA_UMC_OPCUA_HISTORY_AGGREGATES=1 also answers processed reads (Average, Minimum, Maximum, Count, Interpolative); see historyProcessed.ts (default off)
+//   HYDRA_UMC_OPCUA_HISTORY_MAX_INTERVALS  most intervals one processed read may ask for (default 1000, at most 100000)
+//   HYDRA_UMC_OPCUA_HISTORY_EVENTS=1     also answers event history, derived from limit rules in a JSON file; see historyEvents.ts (default off)
+//   HYDRA_UMC_OPCUA_HISTORY_EVENTS_MAP   path of that file (required with the switch above)
 //
 // The time window of a read is [start, end): the start is included, the end is not (a read with start == end returns that one instant).
 // A window with more points than the maximum is cut at the maximum and says so on the console.
 // =============================================================================
 
 import { readFileSync } from "node:fs";
-import { DataType, DataValue, HistoryReadResult, StatusCodes, Variant } from "node-opcua";
+import { DataType, DataValue, HistoryReadResult, ReadProcessedDetails, StatusCodes, Variant } from "node-opcua";
 import { apiUrl, readJsonCapped } from "./robotSource.js";
+import { DEFAULT_MAX_INTERVALS, MAX_INTERVALS_LIMIT, readProcessed } from "./historyProcessed.js";
+import { parseEventsMap, type EventRule } from "./historyEvents.js";
 
 /** Which series of the data lake a variable shows. */
 export interface SeriesRef {
@@ -38,6 +44,10 @@ export interface HistoryConfig {
   maxPoints: number;
   timeoutMs: number;
   allowAnonymous: boolean;
+  /** Present when processed reads are switched on. */
+  aggregates?: { maxIntervals: number };
+  /** Present when event history is switched on: the rules by object (the NodeId without `s=`). */
+  events?: Record<string, EventRule[]>;
   fetchImpl?: typeof fetch;
 }
 
@@ -73,13 +83,22 @@ export function historyConfigFromEnv(env: NodeJS.ProcessEnv = process.env): Hist
     if (!Number.isInteger(value) || value < min || value > max) throw new Error(`HYDRA-UMC-OPCUA-SERVER: ${name} must be an integer from ${min} to ${max}, got ${text}`);
     return value;
   };
+  const on = (name: string): boolean => (env[name] ?? "").trim() === "1";
+  let events: Record<string, EventRule[]> | undefined;
+  if (on("HYDRA_UMC_OPCUA_HISTORY_EVENTS")) {
+    const eventsFile = env.HYDRA_UMC_OPCUA_HISTORY_EVENTS_MAP?.trim();
+    if (!eventsFile) throw new Error("HYDRA-UMC-OPCUA-SERVER: HYDRA_UMC_OPCUA_HISTORY_EVENTS=1 needs HYDRA_UMC_OPCUA_HISTORY_EVENTS_MAP (a JSON file)");
+    events = parseEventsMap(readFileSync(eventsFile, "utf-8"));
+  }
   return {
     url,
     token: env.HYDRA_UMC_OPCUA_HISTORY_TOKEN?.trim() || undefined,
     mapping: parseHistoryMap(readFileSync(mapFile, "utf-8")),
     maxPoints: intIn("HYDRA_UMC_OPCUA_HISTORY_MAX_POINTS", 10_000, 1, HISTORY_MAX_POINTS_LIMIT),
     timeoutMs: intIn("HYDRA_UMC_OPCUA_HISTORY_TIMEOUT_MS", 10_000, 100, 120_000),
-    allowAnonymous: (env.HYDRA_UMC_OPCUA_HISTORY_ANONYMOUS ?? "").trim() === "1",
+    allowAnonymous: on("HYDRA_UMC_OPCUA_HISTORY_ANONYMOUS"),
+    aggregates: on("HYDRA_UMC_OPCUA_HISTORY_AGGREGATES") ? { maxIntervals: intIn("HYDRA_UMC_OPCUA_HISTORY_MAX_INTERVALS", DEFAULT_MAX_INTERVALS, 1, MAX_INTERVALS_LIMIT) } : undefined,
+    events,
   };
 }
 
@@ -220,6 +239,13 @@ export function installHistory(variable: any, config: HistoryConfig, series: Ser
   variable._historyRead = function (this: any, context: unknown, details: unknown, indexRange: unknown, encoding: unknown, continuation: unknown, callback: (e: Error | null, r?: unknown) => void): void {
     if (!this.canUserReadHistory(context)) {
       callback(null, new HistoryReadResult({ statusCode: StatusCodes.BadUserAccessDenied }));
+      return;
+    }
+    if (config.aggregates && details instanceof ReadProcessedDetails) {
+      readProcessed(config, series, details).then(
+        (result) => callback(null, result),
+        (error: unknown) => callback(error instanceof Error ? error : new Error(String(error))),
+      );
       return;
     }
     libraryRead.call(this, context, details, indexRange, encoding, continuation, callback);

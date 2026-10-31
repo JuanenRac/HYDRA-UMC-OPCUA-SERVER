@@ -58,4 +58,5 @@ to make sense on its own - this is the one place the full list lives.
    advance.
 
 Historical Access (raw HistoryRead from HYDRA-UMC-DATALAKE) is implemented behind HYDRA_UMC_OPCUA_HISTORY=1 (see docs/OPERATIONS.md).
-Still not done: processed history (aggregates), reads at given times, event history, and a map that discovers the series by itself.
+Processed history (Average, Minimum, Maximum, Count, Interpolative; HYDRA_UMC_OPCUA_HISTORY_AGGREGATES=1) and event history derived from limit rules (HYDRA_UMC_OPCUA_HISTORY_EVENTS=1) are implemented too.
+Still not done: the other aggregates (time-weighted average, total, start/end, ...), reads at given times, live events and alarm conditions, a where clause in the event filter, and a map that discovers the series by itself.

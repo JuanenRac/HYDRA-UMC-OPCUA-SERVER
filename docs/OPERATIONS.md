@@ -154,6 +154,8 @@ A SCADA client can read the past of a variable (HistoryRead, raw values) and the
 | `HYDRA_UMC_OPCUA_HISTORY_MAX_POINTS` | Most points one read takes from the data lake (1 to 200000) | `10000` |
 | `HYDRA_UMC_OPCUA_HISTORY_TIMEOUT_MS` | Timeout of each request to the data lake | `10000` |
 | `HYDRA_UMC_OPCUA_HISTORY_ANONYMOUS` | `1` lets anonymous sessions read history too | off |
+| `HYDRA_UMC_OPCUA_HISTORY_AGGREGATES`, `HYDRA_UMC_OPCUA_HISTORY_MAX_INTERVALS` | Processed reads (see "Processed history" below) | off, `1000` |
+| `HYDRA_UMC_OPCUA_HISTORY_EVENTS`, `HYDRA_UMC_OPCUA_HISTORY_EVENTS_MAP` | Event history (see "Event history" below) | off |
 
 The map names a variable by its NodeId without `s=` and gives the series of the data lake that holds its values:
 
@@ -170,4 +172,38 @@ The map names a variable by its NodeId without `s=` and gives the series of the 
 - A window with more points than `HYDRA_UMC_OPCUA_HISTORY_MAX_POINTS` is cut at that number, and the console says so.
 - If the data lake cannot be read, the read fails with an error status; nothing is invented.
 - Reading history is a permission of its own (`ReadHistory`) on the mapped variables, granted to the logged-in roles; anonymous sessions have it only with `HYDRA_UMC_OPCUA_HISTORY_ANONYMOUS=1`.
-- Aggregates, reads at given times and event history are not supported (they answer `BadHistoryOperationUnsupported`).
+- Reads at given times and modified-value reads are not supported (they answer `BadHistoryOperationUnsupported`). Processed history and event history are separate switches, described next; while they are off they answer `BadHistoryOperationUnsupported` too.
+
+### Processed history (aggregates)
+
+Off unless `HYDRA_UMC_OPCUA_HISTORY_AGGREGATES=1` (it needs `HYDRA_UMC_OPCUA_HISTORY=1`). A client reads aggregates with HistoryRead and a processing interval; the server cuts the time domain into intervals and computes one value for each from the raw points of the data lake.
+
+| Setting | Meaning | Default |
+| --- | --- | --- |
+| `HYDRA_UMC_OPCUA_HISTORY_AGGREGATES` | `1` switches processed reads on | off |
+| `HYDRA_UMC_OPCUA_HISTORY_MAX_INTERVALS` | Most intervals one read may ask for (1 to 100000) | `1000` |
+
+- **Aggregates:** Average, Minimum, Maximum, Count and Interpolative (the Part 13 names). Any other aggregate answers `BadAggregateNotSupported`.
+- **Intervals:** read forwards, an interval holds the points with `start <= time < end`; read backwards (end before start) the later time begins the interval and it holds `start < time <= end`. A processing interval of zero is one interval for the whole domain. The last interval is cut at the end of the domain and then carries the `HistorianPartial` bit. The value is stamped with the start of the interval in the direction of the read.
+- **Average** is the arithmetic mean of the raw points of the interval (not time weighted); **Minimum** and **Maximum** their smallest and largest; **Count** their number. They carry `HistorianCalculated`. An interval without points is `BadNoData` (Count says `0`).
+- **Interpolative** gives, at the start of each interval, the raw value when a point sits exactly there, otherwise the straight line between the nearest point before and the nearest point after (simple bounding values, `HistorianInterpolated`); with no point on one side the value is `BadNoData`.
+- **Nothing is computed over part of the data:** a domain with more points than `HYDRA_UMC_OPCUA_HISTORY_MAX_POINTS` answers `BadResponseTooLarge`, as does one with more intervals than the limit above. A data lake that cannot be read answers `BadResourceUnavailable`.
+- The permission is the one of raw history: anonymous sessions have no processed history unless `HYDRA_UMC_OPCUA_HISTORY_ANONYMOUS=1`.
+
+### Event history
+
+Off unless `HYDRA_UMC_OPCUA_HISTORY_EVENTS=1` (it needs `HYDRA_UMC_OPCUA_HISTORY=1` and `HYDRA_UMC_OPCUA_HISTORY_EVENTS_MAP`). The data lake stores numbers, not events, so the events are derived from the stored series by rules written in a JSON file; nothing is stored or invented.
+
+```json
+{
+  "HydraNode_1": [
+    {"name": "SpindleHot", "series": {"sourceId": "arm-1", "kind": "spindle", "field": "temp"}, "high": 80, "severity": 700, "message": "Spindle temperature above 80"}
+  ]
+}
+```
+
+- The key is the object (`HydraNode_1`, or `Robot_<id>`). A rule has a `name`, a `series`, `high` and/or `low` (the event happens when the value rises above `high` or falls below `low`), and optionally a `severity` (1 to 1000, default 500) and a `message`. Only the objects with rules get the HistoryRead bit in their EventNotifier.
+- An event is one transition from within the limits to outside them. The first stored point counts as a transition when it is already outside; a window that starts while the value is already outside does not repeat it.
+- The event carries the standard fields of BaseEventType: `EventId` (a stable identifier of the event), `EventType` (BaseEventType), `SourceNode`, `SourceName` (the rule name), `Time`, `ReceiveTime` (both the instant of the point), `Message` and `Severity`. Any other requested field is returned as `BadNoData`.
+- The window works like a raw read: with a start and an end the events come oldest first (newest first when the end is before the start), with only an end and a number of values the newest come first. A long answer is paged with continuation points that are positions in the list of events of the read, so if the history changes between two calls the pages can shift.
+- Not supported: a where clause in the event filter (it answers `BadEventFilterInvalid`) and live events. A window with more points than `HYDRA_UMC_OPCUA_HISTORY_MAX_POINTS` in one rule answers `BadResponseTooLarge` instead of leaving events out.
