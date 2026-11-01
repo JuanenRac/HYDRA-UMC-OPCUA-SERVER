@@ -21,9 +21,13 @@
 // intervals it touches are marked Uncertain. The intervals are exact when their edges fall on the edges of the buckets (backwards: one millisecond
 // before them, because the early edge is open).
 //
+// A data lake with its optional second (fine) rollup level on keeps two widths for the same points: a coarse bucket and the fine buckets inside it.
+// They are never added together: where the fine buckets of a coarse bucket add up to exactly its count they replace it (so an interval edge that falls
+// inside the coarse bucket can still be answered exactly), otherwise the coarse bucket is used and the fine ones are dropped.
+//
 // The answer falls back to the raw calculation (null here) when: /windows answers anything but 200 or something unreadable, /rollups answers
-// an error other than 404 (404 means downsampling is off there, so there are no rollups), the rollups are not exact (more than one bucket
-// width in the domain, which would count a point twice, or a page full to the limit) or a window does not line up with an interval.
+// an error other than 404 (404 means downsampling is off there, so there are no rollups), the rollups are not exact (more than two bucket
+// widths, two that do not divide each other, which would count a point twice, or a page full to the limit) or a window does not line up with an interval.
 // =============================================================================
 
 import { HistoryData, HistoryReadResult, StatusCode, StatusCodes } from "node-opcua";
@@ -58,6 +62,7 @@ interface WindowRow {
 
 interface RollupRow extends WindowRow {
   bucketMs: number;
+  sourceId?: string;
 }
 
 const finite = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
@@ -81,6 +86,40 @@ async function getJson(config: HistoryConfig, path: string, params: Record<strin
     return { status: response.status };
   }
   return { status: response.status, body: await readJsonCapped(response) };
+}
+
+/**
+ * One width of rollups per stretch of time. With a single width the rows are returned as they are. With two widths (the data lake's fine level
+ * beside the coarse one) a coarse row is replaced by the fine rows inside it when their counts add up to its own, and kept (the fine rows inside it
+ * dropped) when they do not; fine rows without a coarse row stay. More than two widths, or two that do not divide each other, cannot be told apart
+ * from a double count: null (the raw calculation answers).
+ */
+export function mergeRollupLevels(rows: RollupRow[]): RollupRow[] | null {
+  const widths = [...new Set(rows.map((r) => r.bucketMs))].sort((a, b) => a - b);
+  if (widths.length <= 1) return rows;
+  if (widths.length > 2) return null;
+  const [fine, coarse] = widths;
+  if (coarse % fine !== 0) return null;
+  const parentKey = (sourceId: string | undefined, start: number): string => `${sourceId ?? ""}|${Math.floor(start / coarse) * coarse}`;
+  const children = new Map<string, RollupRow[]>();
+  for (const r of rows) {
+    if (r.bucketMs !== fine) continue;
+    const key = parentKey(r.sourceId, r.bucketStart);
+    children.set(key, [...(children.get(key) ?? []), r]);
+  }
+  const out: RollupRow[] = [];
+  const parents = new Set<string>();
+  for (const r of rows) {
+    if (r.bucketMs !== coarse) continue;
+    const key = parentKey(r.sourceId, r.bucketStart);
+    parents.add(key);
+    const inside = children.get(key) ?? [];
+    const total = inside.reduce((n, f) => n + f.count, 0);
+    if (inside.length > 0 && total === r.count) out.push(...inside);
+    else out.push(r);
+  }
+  for (const [key, list] of children) if (!parents.has(key)) out.push(...list);
+  return out.sort((a, b) => a.bucketStart - b.bucketStart);
 }
 
 /** Which interval of the plan holds the instant `t`, or -1 when none does (forwards [low, high), backwards (low, high]). */
@@ -120,9 +159,10 @@ export async function intervalTotals(config: HistoryConfig, series: SeriesRef, p
     if (rollupResponse.status !== 200) return null;
     const parsed = parseRows<RollupRow>(rollupResponse.body, (r) => finite(r.bucketMs) && r.bucketMs > 0);
     if (!parsed || parsed.length >= ROLLUP_LIMIT) return null;
+    const levels = mergeRollupLevels(parsed);
+    if (!levels) return null;
     // the buckets that reach into the domain: [bucketStart, bucketStart + bucketMs - 1] meets [early, late) forwards, (early, late] backwards
-    rollups = parsed.filter((r) => r.bucketStart + r.bucketMs > (plan.reverse ? early + 1 : early));
-    if (new Set(rollups.map((r) => r.bucketMs)).size > 1) return null;
+    rollups = levels.filter((r) => r.bucketStart + r.bucketMs > (plan.reverse ? early + 1 : early));
   }
 
   const totals: Totals[] = plan.intervals.map(() => ({ count: 0, min: Infinity, max: -Infinity, sum: 0, incomplete: false }));

@@ -14,6 +14,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { AggregateFunction, MessageSecurityMode, OPCUAClient, SecurityPolicy, type ClientSession, type HistoryReadResult, type OPCUAServer } from "node-opcua";
 import { buildAddressSpaceServer } from "../src/server.js";
 import { historyConfigFromEnv, type HistoryConfig } from "../src/history.js";
+import { mergeRollupLevels } from "../src/historyWindows.js";
 import { fakeDatalake, LAKE_TOKEN, type FakePoint, type FakeRollup } from "./fakeDatalake.js";
 
 process.env.OPCUA_AUTO_ACCEPT = "1";
@@ -217,14 +218,14 @@ describe("rollups of data that downsampling already replaced", () => {
     });
   });
 
-  it("ignores a rollup that ends before the domain and uses the raw points when two bucket widths overlap", async () => {
+  it("ignores a rollup that ends before the domain and uses the raw points when three bucket widths overlap", async () => {
     await start(recent, [{ ...oldRollup, bucketStart: BASE - 5000 }]);
     await withServer(historyConfig(lake.url(), { useDatalakeWindows: true }), async (read) => {
       expect(numbers(await read(AggregateFunction.Count, 0, 10_000, 5000))).toEqual([0, 5]);
       expect(values(await read(AggregateFunction.Count, 0, 10_000, 5000)).some((v) => isUncertain(v.statusCode.value))).toBe(false);
     });
     await new Promise<void>((resolve) => lake.server.close(() => resolve()));
-    await start(RAMP, [oldRollup, { ...oldRollup, bucketMs: 1000 }]);
+    await start(RAMP, [oldRollup, { ...oldRollup, bucketMs: 1000 }, { ...oldRollup, bucketMs: 2500 }]);
     await withServer(historyConfig(lake.url(), { useDatalakeWindows: true }), async (read) => {
       expect(numbers(await read(AggregateFunction.Count, 0, 10_000, 5000))).toEqual([5, 5]); // the raw calculation, not a double count
     });
@@ -238,5 +239,146 @@ describe("rollups of data that downsampling already replaced", () => {
       expect(numbers(await read(AggregateFunction.Average, 0, 10_000, 5000))).toEqual([22, 27]);
     });
     expect(paths(lake.requests).includes("/history")).toBe(false);
+  });
+});
+
+describe("the second (fine) rollup level of the data lake", () => {
+  let lake: ReturnType<typeof fakeDatalake>;
+  afterEach(() => new Promise<void>((resolve) => lake.server.close(() => resolve())));
+  const start = async (points: FakePoint[], rollups: FakeRollup[], windows: boolean | number = true) => {
+    lake = fakeDatalake(points, { windows, rollups });
+    await new Promise<void>((resolve) => lake.server.listen(0, "127.0.0.1", resolve));
+  };
+  const coarse: FakeRollup = { sourceId: "arm-1", bucketMs: 5000, bucketStart: BASE, count: 5, min: 20, max: 24, sum: 110, avg: 22 };
+  // the same five points as five fine buckets of one second (20..24)
+  const fine: FakeRollup[] = Array.from({ length: 5 }, (_, i) => ({ sourceId: "arm-1", bucketMs: 1000, bucketStart: BASE + i * 1000, count: 1, min: 20 + i, max: 20 + i, sum: 20 + i, avg: 20 + i }));
+  const recent = RAMP.slice(5);
+
+  it("lets an interval edge fall inside a coarse bucket and still answers exactly", async () => {
+    await start(recent, [coarse, ...fine]);
+    await withServer(historyConfig(lake.url(), { useDatalakeWindows: true }), async (read) => {
+      const count = await read(AggregateFunction.Count, 0, 10_000, 2000);
+      expect(numbers(count)).toEqual([2, 2, 2, 2, 2]);
+      expect(values(count).some((v) => isUncertain(v.statusCode.value))).toBe(false);
+      const average = await read(AggregateFunction.Average, 0, 10_000, 2000);
+      expect(numbers(average)).toEqual([20.5, 22.5, 24.5, 26.5, 28.5]);
+      expect(values(average).some((v) => isUncertain(v.statusCode.value))).toBe(false);
+    });
+    expect(paths(lake.requests).includes("/history")).toBe(false);
+  });
+
+  it("without the fine rows the same read is Uncertain where the coarse bucket straddles the edge", async () => {
+    await start(recent, [coarse]);
+    await withServer(historyConfig(lake.url(), { useDatalakeWindows: true }), async (read) => {
+      const count = await read(AggregateFunction.Count, 0, 10_000, 2000);
+      expect(values(count).slice(0, 3).every((v) => isUncertain(v.statusCode.value))).toBe(true);
+    });
+  });
+
+  it("works backwards too", async () => {
+    await start(recent, [coarse, ...fine]);
+    await withServer(historyConfig(lake.url(), { useDatalakeWindows: true }), async (read) => {
+      // the early edge is open, so the edges sit one millisecond before the buckets: (7999,9999], (5999,7999], (3999,5999], (1999,3999], (-1,1999]
+      const count = await read(AggregateFunction.Count, 9_999, -1, 2000);
+      expect(values(count).some((v) => isUncertain(v.statusCode.value))).toBe(false);
+      expect(numbers(count)).toEqual([2, 2, 2, 2, 2]);
+    });
+  });
+
+  it("uses the coarse bucket when the fine rows do not add up to it", async () => {
+    await start(recent, [coarse, ...fine.slice(0, 3)]);
+    await withServer(historyConfig(lake.url(), { useDatalakeWindows: true }), async (read) => {
+      const count = await read(AggregateFunction.Count, 0, 10_000, 5000);
+      expect(numbers(count)).toEqual([5, 5]);
+      expect(values(count).some((v) => isUncertain(v.statusCode.value))).toBe(false);
+    });
+  });
+});
+
+describe("mergeRollupLevels", () => {
+  const row = (bucketMs: number, bucketStart: number, count: number, sourceId = "a") => ({ sourceId, bucketMs, bucketStart, count, min: 0, max: 0, sum: 0 });
+
+  it("returns a single width unchanged", () => {
+    const rows = [row(1000, 0, 1), row(1000, 1000, 2)];
+    expect(mergeRollupLevels(rows)).toEqual(rows);
+    expect(mergeRollupLevels([])).toEqual([]);
+  });
+
+  it("replaces a coarse bucket by its fine buckets only when the counts add up", () => {
+    const exact = mergeRollupLevels([row(4000, 0, 3), row(1000, 0, 1), row(1000, 2000, 2)])!;
+    expect(exact.map((r) => [r.bucketMs, r.bucketStart])).toEqual([[1000, 0], [1000, 2000]]);
+    const partial = mergeRollupLevels([row(4000, 0, 4), row(1000, 0, 1), row(1000, 2000, 2)])!;
+    expect(partial.map((r) => [r.bucketMs, r.bucketStart])).toEqual([[4000, 0]]);
+  });
+
+  it("keeps fine buckets that have no coarse bucket, and tells the sources apart", () => {
+    const merged = mergeRollupLevels([row(4000, 0, 1, "a"), row(1000, 0, 1, "a"), row(1000, 0, 1, "b"), row(1000, 8000, 1, "a")])!;
+    expect(merged.map((r) => [r.sourceId, r.bucketMs, r.bucketStart])).toEqual([["a", 1000, 0], ["b", 1000, 0], ["a", 1000, 8000]]);
+  });
+
+  it("refuses more than two widths, or two that do not divide each other", () => {
+    expect(mergeRollupLevels([row(1000, 0, 1), row(2000, 0, 1), row(4000, 0, 1)])).toBeNull();
+    expect(mergeRollupLevels([row(3000, 0, 1), row(5000, 0, 1)])).toBeNull();
+  });
+});
+
+describe("raw fallback over data that downsampling replaced", () => {
+  let lake: ReturnType<typeof fakeDatalake>;
+  afterEach(() => new Promise<void>((resolve) => lake.server.close(() => resolve())));
+  const start = async (points: FakePoint[], rollups: FakeRollup[] | number | undefined) => {
+    lake = fakeDatalake(points, { windows: 500, rollups }); // the windows fail, so the raw points answer
+    await new Promise<void>((resolve) => lake.server.listen(0, "127.0.0.1", resolve));
+  };
+  const oldRollup: FakeRollup = { sourceId: "arm-1", bucketMs: 5000, bucketStart: BASE, count: 5, min: 20, max: 24, sum: 110, avg: 22 };
+  const recent = RAMP.slice(5);
+
+  it("answers Uncertain, not BadNoData, for an interval whose points were replaced by a rollup", async () => {
+    await start(recent, [oldRollup]);
+    await withServer(historyConfig(lake.url(), { useDatalakeWindows: true }), async (read) => {
+      const average = await read(AggregateFunction.Average, 0, 10_000, 5000);
+      const [old, now] = values(average);
+      expect(isUncertain(old.statusCode.value)).toBe(true);
+      expect(old.statusCode.name).not.toBe("BadNoData");
+      expect(isUncertain(now.statusCode.value)).toBe(false);
+      expect(numbers(average)[1]).toBe(27);
+      for (const fn of [AggregateFunction.Minimum, AggregateFunction.Maximum]) {
+        expect(isUncertain(values(await read(fn, 0, 10_000, 5000))[0].statusCode.value)).toBe(true);
+      }
+      // a count keeps the number of points that remain, marked Uncertain
+      const count = await read(AggregateFunction.Count, 0, 10_000, 5000);
+      expect(numbers(count)).toEqual([0, 5]);
+      expect(values(count).map((v) => isUncertain(v.statusCode.value))).toEqual([true, false]);
+    });
+  });
+
+  it("also backwards", async () => {
+    await start(recent, [oldRollup]);
+    await withServer(historyConfig(lake.url(), { useDatalakeWindows: true }), async (read) => {
+      const count = await read(AggregateFunction.Count, 10_000, 0, 5000);
+      expect(values(count).map((v) => isUncertain(v.statusCode.value))).toEqual([false, true]);
+    });
+  });
+
+  it("keeps BadNoData where no rollup lies and nothing was replaced", async () => {
+    await start(recent, []);
+    await withServer(historyConfig(lake.url(), { useDatalakeWindows: true }), async (read) => {
+      expect(values(await read(AggregateFunction.Average, 0, 5000, 5000)).map((v) => v.statusCode.name)).toEqual(["BadNoData"]);
+    });
+  });
+
+  it("is Uncertain when the rollups cannot be read, because nothing can be ruled out", async () => {
+    await start(recent, 500);
+    await withServer(historyConfig(lake.url(), { useDatalakeWindows: true }), async (read) => {
+      const average = await read(AggregateFunction.Average, 0, 10_000, 5000);
+      expect(values(average).every((v) => isUncertain(v.statusCode.value))).toBe(true);
+      expect(numbers(average)[1]).toBe(27);
+    });
+  });
+
+  it("does not change anything with the switch off (BadNoData, as before)", async () => {
+    await start(recent, [oldRollup]);
+    await withServer(historyConfig(lake.url()), async (read) => {
+      expect(values(await read(AggregateFunction.Average, 0, 5000, 5000)).map((v) => v.statusCode.name)).toEqual(["BadNoData"]);
+    });
   });
 });

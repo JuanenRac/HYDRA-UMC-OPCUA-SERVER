@@ -15,6 +15,8 @@
 //     their number. Average, Minimum and Maximum of an interval without points are BadNoData; Count of one is 0. They carry HistorianCalculated.
 //   - Interpolative gives, at the start of each interval, the raw value if a point sits exactly there, otherwise the straight line between the
 //     nearest point before and the nearest point after ("simple bounding values", HistorianInterpolated); with no point on one side it is BadNoData.
+//   - With HYDRA_UMC_OPCUA_HISTORY_USE_DATALAKE_WINDOWS=1 the raw calculation of Average, Minimum, Maximum and Count is also checked against the rollups of the
+//     data lake: an interval that reaches into a stretch replaced by rollups is Uncertain (UncertainDataSubNormal) instead of BadNoData or a complete-looking value.
 //   - The raw points the answer is computed from are never invented: a window with more points than HYDRA_UMC_OPCUA_HISTORY_MAX_POINTS is
 //     refused (BadResponseTooLarge) instead of answering an aggregate over part of the data.
 // =============================================================================
@@ -129,6 +131,20 @@ export function computeAggregate(kind: AggregateKind, points: HistoryPoint[], in
 }
 
 const UNCERTAIN_GAP = StatusCode.makeStatusCode(StatusCodes.UncertainDataSubNormal, "HistorianInterpolated");
+const UNCERTAIN_REPLACED = StatusCode.makeStatusCode(StatusCodes.UncertainDataSubNormal, "HistorianCalculated | HistorianPartial");
+
+/**
+ * The raw calculation of Average, Minimum, Maximum and Count only sees the points that are still stored. When the interval reaches into a stretch the
+ * data lake already replaced by rollups (`spans`), the points that were there are not in the result: an empty interval would say "no data" although data
+ * exists, and a count or a mean would look complete. Such an interval is Uncertain instead (it keeps the value computed from the points that remain, if any).
+ * `spans` null means the rollups could not be read, so nothing can be ruled out and every interval is Uncertain too.
+ */
+export function guardReplacedData(interval: Interval, outcome: AggregateOutcome, spans: Span[] | null, reverse: boolean): AggregateOutcome {
+  const touches =
+    spans === null ||
+    spans.some((span) => (reverse ? span.from <= interval.high && span.to > interval.low : span.from < interval.high && span.to >= interval.low));
+  return touches ? { ...outcome, status: UNCERTAIN_REPLACED } : outcome;
+}
 
 /**
  * An interpolated (or "no data") answer is only as good as the points around it. When the stretch between the nearest point before and the nearest
@@ -194,9 +210,14 @@ export async function readProcessed(config: HistoryConfig, series: SeriesRef, de
     const highest = Math.max(plan.beforeMs, ...stamps, ...(result.after ? [result.after.timestamp] : []));
     spans = await rolledUpSpans(config, series, lowest, highest);
   }
+  if (kind !== "interpolative" && config.useDatalakeWindows) {
+    // the windows could not answer and the raw points did: the data lake may have replaced old points by rollups, which these points do not include
+    spans = await rolledUpSpans(config, series, plan.fromMs, plan.beforeMs);
+  }
   const dataValues = plan.intervals.map((interval) => {
     const outcome = computeAggregate(kind, points, interval, plan.reverse);
-    return dataValueOf(kind, interval, kind === "interpolative" && config.useDatalakeWindows ? guardInterpolation(points, interval, outcome, spans) : outcome);
+    if (!config.useDatalakeWindows) return dataValueOf(kind, interval, outcome);
+    return dataValueOf(kind, interval, kind === "interpolative" ? guardInterpolation(points, interval, outcome, spans) : guardReplacedData(interval, outcome, spans, plan.reverse));
   });
   return new HistoryReadResult({ statusCode: StatusCodes.Good, historyData: new HistoryData({ dataValues }) });
 }
