@@ -47,7 +47,7 @@ jobs:
         if: ${{ hashFiles('package.json') != '' }}
         uses: actions/setup-node@v5
         with:
-          node-version: "20"
+          node-version: "22"
           cache: npm
       - name: Validate Node.js or TypeScript project
         if: ${{ hashFiles('package.json') != '' }}
