@@ -57,6 +57,12 @@ Chaque ligne est une partie de ce dépôt et le feu dit où elle en est aujourd'
 | Logiciel | 🟡 | Fonctionne pour son usage principal ; la vérification d'honnêteté ci-dessus liste ce qui manque encore |
 | Tests | 🟢 | 195 tests automatiques, exécutés à chaque modification |
 | Matériel réel | 🟢 | Sans objet : rien ici ne s'exécute sur du matériel |
+| Interface et protocoles | 🟡 | Les routes ou les messages proposés sont documentés et testés avec un client ; tous les clients ne les ont pas encore utilisés |
+| Intégration | 🟡 | Ses messages et ses routes sont vérifiés par rapport aux contrats partagés du SDK ; il n'a pas fonctionné avec l'équipement réel |
+| Sécurité | 🟡 | Le contrôle d'accès, les limites d'entrée ou les signatures sont implémentés et testés sur un ordinateur ; personne hors du projet ne les a relus |
+| Déploiement | 🟠 | Publié comme release ; l'installation sur une machine propre est documentée mais non consignée |
+| Exploitation | 🟡 | Expose /metrics au format texte de Prometheus avec un résumé de santé ; pas encore relié à un tableau de supervision |
+| Protocole de l'équipement | 🟠 | Parle le protocole de son équipement ; vérifié seulement avec des doublures et des simulateurs, jamais avec la vraie machine |
 | Documentation | 🟢 | README en huit langues, vérifié par rapport au manifeste à chaque modification |
 
 ## 🎯 Présentation

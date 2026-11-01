@@ -57,6 +57,12 @@ Cada linha é uma parte deste repositório e a luz diz até onde chega hoje. É 
 | Software | 🟡 | Funciona para o seu propósito principal; a verificação de honestidade acima lista o que ainda falta |
 | Testes | 🟢 | 195 testes automáticos, executados a cada alteração |
 | Hardware real | 🟢 | Não aplicável: nada aqui corre em hardware |
+| Interface e protocolos | 🟡 | As rotas ou mensagens que oferece estão documentadas e testadas com um cliente; ainda nem todos os clientes as usaram |
+| Integração | 🟡 | As suas mensagens e rotas são verificadas contra os contratos partilhados do SDK; ainda não funcionou em conjunto com o equipamento real |
+| Segurança | 🟡 | O controlo de acesso, os limites de entrada ou as assinaturas estão implementados e testados num computador; ninguém fora do projeto os reviu |
+| Implantação | 🟠 | Publicado como release; instalá-lo numa máquina limpa está documentado mas não registado |
+| Operação | 🟡 | Expõe /metrics no formato de texto do Prometheus com um resumo de saúde; ainda não está ligado a um painel de monitorização |
+| Protocolo do equipamento | 🟠 | Fala o protocolo do seu equipamento; verificado só com simuladores e dobles de teste, nunca com a máquina real |
 | Documentação | 🟢 | README em oito idiomas, verificado contra o manifesto a cada alteração |
 
 ## 🎯 Visão geral

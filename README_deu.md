@@ -57,6 +57,12 @@ Jede Zeile ist ein Teil dieses Repositorys, und die Ampel sagt, wie weit er heut
 | Software | 🟡 | Funktioniert für seinen Hauptzweck; die Ehrlichkeitsprüfung oben nennt, was noch fehlt |
 | Tests | 🟢 | 195 automatische Tests, bei jeder Änderung ausgeführt |
 | Echte Hardware | 🟢 | Nicht zutreffend: nichts hiervon läuft auf Hardware |
+| Schnittstelle und Protokolle | 🟡 | Die angebotenen Routen oder Nachrichten sind dokumentiert und mit einem Client getestet; noch nicht jeder Client hat sie benutzt |
+| Integration | 🟡 | Seine Nachrichten und Routen werden gegen die gemeinsamen Verträge des SDK geprüft; es lief noch nicht zusammen mit der echten Ausrüstung |
+| Sicherheit | 🟡 | Zugriffskontrolle, Eingabegrenzen oder Signaturen sind umgesetzt und auf einem Rechner getestet; niemand außerhalb des Projekts hat sie geprüft |
+| Bereitstellung | 🟠 | Als Release veröffentlicht; die Installation auf einem frischen Rechner ist dokumentiert, aber nicht vermerkt |
+| Betrieb | 🟡 | Stellt /metrics im Prometheus-Textformat mit einer Gesundheitsübersicht bereit; noch nicht an ein Überwachungs-Dashboard angeschlossen |
+| Geräteprotokoll | 🟠 | Spricht das Protokoll seines Geräts; nur gegen Attrappen und Simulatoren geprüft, nie gegen die echte Maschine |
 | Dokumentation | 🟢 | README in acht Sprachen, bei jeder Änderung gegen das Manifest geprüft |
 
 ## 🎯 Überblick
