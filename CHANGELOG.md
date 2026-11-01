@@ -4,6 +4,8 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+## [0.2.5] - Reads answer Uncertain instead of no data when the raw calculation covers replaced data and read the optional fine rollup level of the data lake
+
 - **Uncertain instead of "no data" when the raw calculation answers over replaced data (with the windows switch on):** when an Average, Minimum, Maximum or Count falls back to the raw points and an interval reaches into a stretch that the data lake already replaced by rollups, the interval is `UncertainDataSubNormal` (it keeps the value computed from the points that remain, if any) instead of `BadNoData` or a value that looks complete; if the rollups cannot be read every interval of that read is Uncertain. Without rollups in the interval an empty one is still `BadNoData`, and with the switch off nothing changes.
 - **Reads the optional fine rollup level of the data lake:** when the data lake keeps a coarse bucket and the narrower buckets inside it, they are never added together. Where the fine buckets add up to exactly the count of their coarse bucket they replace it, so an interval edge inside a coarse bucket is answered exactly; otherwise the coarse bucket is used. More than two widths, or two that do not divide each other, still fall back to the raw calculation.
 
