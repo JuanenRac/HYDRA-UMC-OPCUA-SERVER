@@ -1,0 +1,55 @@
+{
+  "adapterId": "hydra-umc-opcua-server",
+  "schemaVersion": "1.0",
+  "protocol": "opc-ua",
+  "targetKinds": ["scada", "plc-client", "historian"],
+  "endpointSchema": {
+    "type": "object",
+    "properties": {
+      "host": { "type": "string" },
+      "port": { "type": "integer" },
+      "resourcePath": { "type": "string" }
+    },
+    "required": ["host", "port"]
+  },
+  "authenticationRef": "env:OPCUA_ADMIN_PASSWORD",
+  "capabilities": [
+    {
+      "name": "readNodeValue",
+      "mode": "read",
+      "risk": "low"
+    },
+    {
+      "name": "startJob",
+      "mode": "write",
+      "risk": "medium",
+      "requiredPermission": "opcua.job.start",
+      "requiredCellState": "operational",
+      "requiresHumanConfirmation": false,
+      "timeoutMs": 3000
+    },
+    {
+      "name": "abortJob",
+      "mode": "abort",
+      "risk": "low",
+      "requiredPermission": "opcua.job.abort",
+      "requiredCellState": "any",
+      "requiresHumanConfirmation": false,
+      "timeoutMs": 3000
+    }
+  ],
+  "requiredSafetyGates": ["cell.estop.clear"],
+  "healthCheck": { "type": "opcua-read", "node": "ns=0;i=2259" },
+  "timeoutMs": 5000,
+  "idempotency": "idempotent",
+  "evidenceSchema": {
+    "type": "object",
+    "properties": {
+      "nodeId": { "type": "string" },
+      "value": {},
+      "statusCode": { "type": "string" }
+    }
+  },
+  "sdkCompatibility": ">=0.1.0",
+  "ownerProject": "HYDRA-UMC-OPCUA-SERVER"
+}

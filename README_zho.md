@@ -18,14 +18,14 @@ GPL-3.0-or-later - see LICENSE
   <img src="https://img.shields.io/badge/License-GPL%203.0--or--later-blue.svg" alt="GPL 3.0 or later">
   <img src="https://img.shields.io/badge/Standard-OPC--UA-orange.svg" alt="Standard">
   <img src="https://img.shields.io/badge/Feature-Address%20Space%20Modeling-blue.svg" alt="Feature">
-  <img src="https://img.shields.io/badge/Tests-195%20passing-2ea44f.svg" alt="Tests">
+  <img src="https://img.shields.io/badge/Tests-219%20passing-2ea44f.svg" alt="Tests">
   <img src="https://img.shields.io/badge/Version-0.2.5-0f6cbd.svg" alt="Version">
   <img src="https://img.shields.io/badge/Maturity-functional-0F6CBD.svg" alt="Maturity">
 </p>
 
 ---
 
-**诚实核查 - 今天真正能运行的部分：** OPC-UA 服务器与地址空间映射(`src/server.ts`)都是真实的并经过测试(`tests/server.test.ts`、`tests/security.test.ts`、`tests/security-policy.test.ts`, `tests/robotSource.test.ts`, `tests/robotSource.integration.test.ts` 共 195 个测试通过)——而且这些都是真正的协议级测试：`tests/server.test.ts` 使用一个真实的 `OPCUAClient`(node-opcua 自身的客户端，也是 UAExpert/Ignition 会使用的同一个库)通过真实的二进制协议、在一个真实的 TCP 端口上进行连接；`tests/security-policy.test.ts` 证明了未加密的 `SecurityPolicy.None` 会话默认确实会被拒绝(只有通过明确的 `OPCUA_ALLOW_INSECURE=1` 逃生开关才会被接受)。以下是有意推迟的部分，而非意外发现的缺口：按机器人划分的树（`Robot_<id>`）会跟随 HYDRA-UMC-SERVER 报告的名单（使用令牌或账户轮询，参见 `.env.example`），但地址空间的其余部分仅在启动时构建一次；目前只有读写操作经过了端到端测试，OPC-UA 订阅功能尚未测试；而 Pub/Sub(路线图第 1 阶段)仍未实现，因为目前还没有客户端依赖它。具体推迟了哪些内容以及原因，请见 `mejoras_futuras.txt` 的完整清单；具体已交付的内容请见 `CHANGELOG.md`。
+**诚实核查 - 今天真正能运行的部分：** OPC-UA 服务器与地址空间映射(`src/server.ts`)都是真实的并经过测试(`tests/server.test.ts`、`tests/security.test.ts`、`tests/security-policy.test.ts`, `tests/robotSource.test.ts`, `tests/robotSource.integration.test.ts` 共 219 个测试通过)——而且这些都是真正的协议级测试：`tests/server.test.ts` 使用一个真实的 `OPCUAClient`(node-opcua 自身的客户端，也是 UAExpert/Ignition 会使用的同一个库)通过真实的二进制协议、在一个真实的 TCP 端口上进行连接；`tests/security-policy.test.ts` 证明了未加密的 `SecurityPolicy.None` 会话默认确实会被拒绝(只有通过明确的 `OPCUA_ALLOW_INSECURE=1` 逃生开关才会被接受)。以下是有意推迟的部分，而非意外发现的缺口：按机器人划分的树（`Robot_<id>`）会跟随 HYDRA-UMC-SERVER 报告的名单（使用令牌或账户轮询，参见 `.env.example`），但地址空间的其余部分仅在启动时构建一次；目前只有读写操作经过了端到端测试，OPC-UA 订阅功能尚未测试；而 Pub/Sub(路线图第 1 阶段)仍未实现，因为目前还没有客户端依赖它。具体推迟了哪些内容以及原因，请见 `mejoras_futuras.txt` 的完整清单；具体已交付的内容请见 `CHANGELOG.md`。
 
 ---
 
@@ -39,7 +39,7 @@ GPL-3.0-or-later - see LICENSE
 |---|---|
 | 版本 | `0.2.5` |
 | 成熟度 | 可用 |
-| 测试 | 195 (`npm test`) |
+| 测试 | 219 (`npm test`) |
 | 技术栈 | Node.js / node-opcua / OPC-UA address space |
 | 目标 | HYDRA-UMC 工作单元的 Raspberry Pi CM5 |
 | 真实硬件 | 不适用：这里的内容不在硬件上运行 |
@@ -55,7 +55,7 @@ GPL-3.0-or-later - see LICENSE
 | 领域 | 状态 | 在这里的含义 |
 |---|---|---|
 | 软件 | 🟡 | 主要用途可用；上面的诚实性检查列出了仍然缺少的内容 |
-| 测试 | 🟢 | 195 项自动测试，每次变更都会运行 |
+| 测试 | 🟢 | 219 项自动测试，每次变更都会运行 |
 | 真实硬件 | 🟢 | 不适用：这里的内容不在硬件上运行 |
 | 接口与协议 | 🟡 | 提供的路由或消息已有文档，并用客户端测试过；尚未被所有客户端使用 |
 | 集成 | 🟡 | 其消息和路由已对照 SDK 的共享契约检查；尚未与真实设备一起运行 |
@@ -126,6 +126,8 @@ flowchart LR
 
 监听端口首先从 `HYDRA_UMC_OPCUA_PORT` 读取（默认 4840）。共享的 `PORT` 仍可作为最后手段并会打印警告，这样多个服务共用的环境文件就不会意外把服务器移到另一个服务的端口上；已设置但不是有效端口的值会终止启动，容器健康检查遵循相同的顺序。 历史访问默认关闭。`HYDRA_UMC_OPCUA_HISTORY=1` 将其打开，`HYDRA_UMC_OPCUA_HISTORY_URL` 指向 HYDRA-UMC-DATALAKE（若它有读取令牌，再设置 `HYDRA_UMC_OPCUA_HISTORY_TOKEN`），`HYDRA_UMC_OPCUA_HISTORY_MAP` 是把变量映射到序列的 JSON 文件；只有被映射的变量才响应 HistoryRead，匿名会话会被拒绝，除非设置 `HYDRA_UMC_OPCUA_HISTORY_ANONYMOUS=1`，一次读取最多取 `HYDRA_UMC_OPCUA_HISTORY_MAX_POINTS` 个点（默认 10000）。没有任何内容变为可写。 处理后的历史同样默认关闭：`HYDRA_UMC_OPCUA_HISTORY_AGGREGATES=1` 使其响应 Average、Minimum、Maximum、Count 和 Interpolative（每次读取最多 `HYDRA_UMC_OPCUA_HISTORY_MAX_INTERVALS` 个区间，默认 1000；加上 `HYDRA_UMC_OPCUA_HISTORY_USE_DATALAKE_WINDOWS=1` 后，读取（正向或反向）的平均值、最小值、最大值和计数取自 data lake 的窗口和汇总，无法回答时使用原始点；此时点已被汇总替换的区间显示为不确定（Uncertain），而不是空），`HYDRA_UMC_OPCUA_HISTORY_EVENTS=1` 加上 `HYDRA_UMC_OPCUA_HISTORY_EVENTS_MAP`（按对象列出限值规则的 JSON 文件）使其响应由已存序列推导出的事件历史。 设置 `HYDRA_UMC_OPCUA_LIVENESS=1`（默认关闭，仅轮询模式）后，`Online` 跟随 HYDRA-UMC-SERVER 的 `GET /api/robots/liveness`，而不是设置里的 `online` 开关：只有服务器报告 `live` 时机器人才在线；`stale`、`unknown`、报告中未列出的机器人以及无法读取的报告都按不在线处理。
 
+新增三项功能，默认全部关闭。`HYDRA_UMC_OPCUA_METHODS=1` 仅为管理员会话增加方法 `StartJob` 和 `AbortJob`：每次调用先写入 HYDRA-UMC-DATALAKE 的审计记录，再询问 HYDRA-UMC-CONNECTOR-HUB 的能力门，最后才交给 HYDRA-UMC-JOB-DISPATCHER；任何一步被拒绝，调用即告结束（`HYDRA_UMC_OPCUA_GATE_URL`、`_JOBS_URL`、`_AUDIT_URL` 及其令牌）。`HYDRA_UMC_OPCUA_FAULTS_URL` 根据控制器的活动故障构建报警 `McuAlarm` 和 `UrtcAlarm`（Alarms and Conditions）。`HYDRA_UMC_OPCUA_BRIDGES=1` 把移动桥接（amr、uav、droids）显示为 `Bridge_<名称>` 对象。`docs/adapter-manifest.json` 为连接器中心描述该服务器。
+
 ## 🚀 快速开始
 
 需要 Node.js 20 或更高版本及 npm。
@@ -139,7 +141,7 @@ npm start
 
 ## 🧪 测试
 
-运行 `npm test` 会执行 195 个自动测试。 不需要硬件，也不需要这台机器以外的任何东西。
+运行 `npm test` 会执行 219 个自动测试。 不需要硬件，也不需要这台机器以外的任何东西。
 
 CI 运行 `HYDRA_UMC_CI=1 python tools/ci_validate.py`，检查清单、文档、八个 README 和图片。
 

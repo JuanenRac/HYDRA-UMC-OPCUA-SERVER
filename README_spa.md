@@ -18,14 +18,14 @@ GPL-3.0-or-later - see LICENSE
   <img src="https://img.shields.io/badge/License-GPL%203.0--or--later-blue.svg" alt="GPL 3.0 or later">
   <img src="https://img.shields.io/badge/Standard-OPC--UA-orange.svg" alt="Standard">
   <img src="https://img.shields.io/badge/Feature-Address%20Space%20Modeling-blue.svg" alt="Feature">
-  <img src="https://img.shields.io/badge/Tests-195%20passing-2ea44f.svg" alt="Tests">
+  <img src="https://img.shields.io/badge/Tests-219%20passing-2ea44f.svg" alt="Tests">
   <img src="https://img.shields.io/badge/Version-0.2.5-0f6cbd.svg" alt="Version">
   <img src="https://img.shields.io/badge/Maturity-functional-0F6CBD.svg" alt="Maturity">
 </p>
 
 ---
 
-**Comprobación de honestidad - qué funciona realmente hoy:** el servidor OPC-UA y el mapeo del espacio de direcciones (`src/server.ts`) son reales y están testeados (195 tests pasando entre `tests/server.test.ts`, `tests/security.test.ts`, `tests/security-policy.test.ts`, `tests/robotSource.test.ts`, `tests/robotSource.integration.test.ts`) - y son tests reales a nivel de protocolo: `tests/server.test.ts` conecta un `OPCUAClient` real (el propio cliente de node-opcua, la misma librería que usarían UAExpert/Ignition) sobre el protocolo binario real en un puerto TCP real, y `tests/security-policy.test.ts` demuestra que una sesión sin cifrar `SecurityPolicy.None` es genuinamente rechazada por defecto (aceptada solo vía la vía de escape explícita `OPCUA_ALLOW_INSECURE=1`). Lo que está deliberadamente diferido, no es una brecha encontrada por accidente: el árbol por robot (`Robot_<id>`) sigue la lista que informa HYDRA-UMC-SERVER (consultada con un token o una cuenta, ver `.env.example`), pero el resto del espacio de direcciones se construye una sola vez al arrancar; solo las lecturas/escrituras están testeadas de extremo a extremo por ahora, no las suscripciones OPC-UA; y Pub/Sub (Fase 1 del Roadmap) sigue sin implementar, ya que ningún cliente depende todavía de ello. Ver `mejoras_futuras.txt` para la lista completa de lo diferido y por qué, y `CHANGELOG.md` para lo que se ha entregado exactamente hasta ahora.
+**Comprobación de honestidad - qué funciona realmente hoy:** el servidor OPC-UA y el mapeo del espacio de direcciones (`src/server.ts`) son reales y están testeados (219 tests pasando entre `tests/server.test.ts`, `tests/security.test.ts`, `tests/security-policy.test.ts`, `tests/robotSource.test.ts`, `tests/robotSource.integration.test.ts`) - y son tests reales a nivel de protocolo: `tests/server.test.ts` conecta un `OPCUAClient` real (el propio cliente de node-opcua, la misma librería que usarían UAExpert/Ignition) sobre el protocolo binario real en un puerto TCP real, y `tests/security-policy.test.ts` demuestra que una sesión sin cifrar `SecurityPolicy.None` es genuinamente rechazada por defecto (aceptada solo vía la vía de escape explícita `OPCUA_ALLOW_INSECURE=1`). Lo que está deliberadamente diferido, no es una brecha encontrada por accidente: el árbol por robot (`Robot_<id>`) sigue la lista que informa HYDRA-UMC-SERVER (consultada con un token o una cuenta, ver `.env.example`), pero el resto del espacio de direcciones se construye una sola vez al arrancar; solo las lecturas/escrituras están testeadas de extremo a extremo por ahora, no las suscripciones OPC-UA; y Pub/Sub (Fase 1 del Roadmap) sigue sin implementar, ya que ningún cliente depende todavía de ello. Ver `mejoras_futuras.txt` para la lista completa de lo diferido y por qué, y `CHANGELOG.md` para lo que se ha entregado exactamente hasta ahora.
 
 ---
 
@@ -39,7 +39,7 @@ GPL-3.0-or-later - see LICENSE
 |---|---|
 | Versión | `0.2.5` |
 | Madurez | Funcional |
-| Tests | 195 (`npm test`) |
+| Tests | 219 (`npm test`) |
 | Tecnología | Node.js / node-opcua / OPC-UA address space |
 | Destino | La Raspberry Pi CM5 de una celda HYDRA-UMC |
 | En hardware real | No aplica: nada de esto se ejecuta en hardware |
@@ -55,7 +55,7 @@ Cada línea es una parte de este repositorio y la luz dice hasta dónde llega ho
 | Área | Estado | Qué significa aquí |
 |---|---|---|
 | Software | 🟡 | Funciona para su propósito principal; la comprobación de honestidad de arriba lista lo que aún falta |
-| Pruebas | 🟢 | 195 pruebas automáticas, ejecutadas en cada cambio |
+| Pruebas | 🟢 | 219 pruebas automáticas, ejecutadas en cada cambio |
 | Hardware real | 🟢 | No aplica: nada de esto se ejecuta en hardware |
 | Interfaz y protocolos | 🟡 | Las rutas o los mensajes que ofrece están documentados y probados con un cliente; aún no los han usado todos los clientes |
 | Integración | 🟡 | Sus mensajes y rutas se comprueban contra los contratos compartidos del SDK; no ha funcionado junto con el equipo real |
@@ -122,6 +122,8 @@ Deliberadamente diferido, y por qué: un espacio de direcciones totalmente diná
 
 El puerto de escucha se lee primero de `HYDRA_UMC_OPCUA_PORT` (4840 por defecto). El `PORT` compartido sigue valiendo como último recurso y avisa por consola, de modo que un fichero de entorno compartido por varios servicios no pueda mover el servidor al puerto de otro servicio por accidente; un valor definido pero que no es un puerto válido detiene el arranque, y el control de salud del contenedor sigue el mismo orden. El acceso histórico está desactivado por defecto. `HYDRA_UMC_OPCUA_HISTORY=1` lo activa, `HYDRA_UMC_OPCUA_HISTORY_URL` indica HYDRA-UMC-DATALAKE (con `HYDRA_UMC_OPCUA_HISTORY_TOKEN` si tiene token de lectura) y `HYDRA_UMC_OPCUA_HISTORY_MAP` es un fichero JSON que asocia variables con series; solo las variables asociadas responden a un HistoryRead, las sesiones anónimas se rechazan salvo con `HYDRA_UMC_OPCUA_HISTORY_ANONYMOUS=1`, y una lectura toma como máximo `HYDRA_UMC_OPCUA_HISTORY_MAX_POINTS` puntos (10000 por defecto). Nada pasa a ser escribible. El historial procesado también está desactivado por defecto: `HYDRA_UMC_OPCUA_HISTORY_AGGREGATES=1` hace que responda Average, Minimum, Maximum, Count e Interpolative (como máximo `HYDRA_UMC_OPCUA_HISTORY_MAX_INTERVALS` intervalos por lectura, 1000 por defecto; con `HYDRA_UMC_OPCUA_HISTORY_USE_DATALAKE_WINDOWS=1` el promedio, mínimo, máximo y recuento de una lectura, hacia delante o hacia atrás, salen de las ventanas y los rollups del data lake, y se usan los puntos en bruto cuando no puede responder; un intervalo cuyos puntos ya sustituyeron los rollups sale entonces Incierto, no vacío), y `HYDRA_UMC_OPCUA_HISTORY_EVENTS=1` con `HYDRA_UMC_OPCUA_HISTORY_EVENTS_MAP` (un fichero JSON con reglas de límites por objeto) hace que responda el historial de eventos derivado de las series guardadas. `HYDRA_UMC_OPCUA_LIVENESS=1` (apagado por defecto, solo en modo de sondeo) hace que `Online` siga `GET /api/robots/liveness` de HYDRA-UMC-SERVER en lugar del interruptor `online` de los ajustes: un robot está en línea solo mientras el servidor diga `live`; `stale`, `unknown`, un robot que el informe no lista y un informe ilegible cuentan como fuera de línea.
 
+Tres funciones más, todas desactivadas por defecto. `HYDRA_UMC_OPCUA_METHODS=1` añade los métodos `StartJob` y `AbortJob` solo para la sesión del administrador: cada llamada se escribe primero en el registro de auditoría de HYDRA-UMC-DATALAKE, se consulta a la puerta de capacidades de HYDRA-UMC-CONNECTOR-HUB y solo entonces pasa a HYDRA-UMC-JOB-DISPATCHER; una negativa en cualquier paso termina la llamada (`HYDRA_UMC_OPCUA_GATE_URL`, `_JOBS_URL`, `_AUDIT_URL` y sus tokens). `HYDRA_UMC_OPCUA_FAULTS_URL` construye las alarmas `McuAlarm` y `UrtcAlarm` (Alarmas y Condiciones) a partir de los fallos activos de los controladores. `HYDRA_UMC_OPCUA_BRIDGES=1` muestra los bridges móviles (amr, uav, droids) como objetos `Bridge_<nombre>`. `docs/adapter-manifest.json` describe este servidor para el hub de conectores.
+
 ## 🚀 Inicio rápido
 
 Requiere Node.js 20 o superior con npm.
@@ -135,7 +137,7 @@ npm start
 
 ## 🧪 Pruebas
 
-195 pruebas automáticas se ejecutan con `npm test`. No necesitan hardware ni nada fuera de esta máquina.
+219 pruebas automáticas se ejecutan con `npm test`. No necesitan hardware ni nada fuera de esta máquina.
 
 El CI ejecuta `HYDRA_UMC_CI=1 python tools/ci_validate.py`, que comprueba el manifiesto, los documentos, los ocho README y las imágenes.
 

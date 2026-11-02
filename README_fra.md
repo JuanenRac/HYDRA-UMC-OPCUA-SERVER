@@ -18,14 +18,14 @@ GPL-3.0-or-later - see LICENSE
   <img src="https://img.shields.io/badge/License-GPL%203.0--or--later-blue.svg" alt="GPL 3.0 or later">
   <img src="https://img.shields.io/badge/Standard-OPC--UA-orange.svg" alt="Standard">
   <img src="https://img.shields.io/badge/Feature-Address%20Space%20Modeling-blue.svg" alt="Feature">
-  <img src="https://img.shields.io/badge/Tests-195%20passing-2ea44f.svg" alt="Tests">
+  <img src="https://img.shields.io/badge/Tests-219%20passing-2ea44f.svg" alt="Tests">
   <img src="https://img.shields.io/badge/Version-0.2.5-0f6cbd.svg" alt="Version">
   <img src="https://img.shields.io/badge/Maturity-functional-0F6CBD.svg" alt="Maturity">
 </p>
 
 ---
 
-**Vérification d'honnêteté - ce qui fonctionne réellement aujourd'hui :** le serveur OPC-UA et le mappage de l'espace d'adressage (`src/server.ts`) sont réels et testés (195 tests passants entre `tests/server.test.ts`, `tests/security.test.ts`, `tests/security-policy.test.ts`, `tests/robotSource.test.ts`, `tests/robotSource.integration.test.ts`) - et ce sont de vrais tests au niveau du protocole : `tests/server.test.ts` connecte un vrai `OPCUAClient` (le propre client de node-opcua, la même bibliothèque qu'utiliseraient UAExpert/Ignition) via le vrai protocole binaire sur un vrai port TCP, et `tests/security-policy.test.ts` prouve qu'une session non chiffrée `SecurityPolicy.None` est authentiquement refusée par défaut (acceptée uniquement via l'échappatoire explicite `OPCUA_ALLOW_INSECURE=1`). Ce qui est délibérément différé, pas une lacune trouvée par accident : l'arbre par robot (`Robot_<id>`) suit la liste que rapporte HYDRA-UMC-SERVER (interrogée avec un jeton ou un compte, voir `.env.example`), mais le reste de l'espace d'adressage est construit une seule fois au démarrage ; seules les lectures/écritures sont testées de bout en bout pour l'instant, pas les abonnements OPC-UA ; et le Pub/Sub (Phase 1 de la feuille de route) reste non implémenté, car aucun client n'en dépend encore. Voir `mejoras_futuras.txt` pour la liste complète de ce qui est différé et pourquoi, et `CHANGELOG.md` pour ce qui a été livré exactement jusqu'à présent.
+**Vérification d'honnêteté - ce qui fonctionne réellement aujourd'hui :** le serveur OPC-UA et le mappage de l'espace d'adressage (`src/server.ts`) sont réels et testés (219 tests passants entre `tests/server.test.ts`, `tests/security.test.ts`, `tests/security-policy.test.ts`, `tests/robotSource.test.ts`, `tests/robotSource.integration.test.ts`) - et ce sont de vrais tests au niveau du protocole : `tests/server.test.ts` connecte un vrai `OPCUAClient` (le propre client de node-opcua, la même bibliothèque qu'utiliseraient UAExpert/Ignition) via le vrai protocole binaire sur un vrai port TCP, et `tests/security-policy.test.ts` prouve qu'une session non chiffrée `SecurityPolicy.None` est authentiquement refusée par défaut (acceptée uniquement via l'échappatoire explicite `OPCUA_ALLOW_INSECURE=1`). Ce qui est délibérément différé, pas une lacune trouvée par accident : l'arbre par robot (`Robot_<id>`) suit la liste que rapporte HYDRA-UMC-SERVER (interrogée avec un jeton ou un compte, voir `.env.example`), mais le reste de l'espace d'adressage est construit une seule fois au démarrage ; seules les lectures/écritures sont testées de bout en bout pour l'instant, pas les abonnements OPC-UA ; et le Pub/Sub (Phase 1 de la feuille de route) reste non implémenté, car aucun client n'en dépend encore. Voir `mejoras_futuras.txt` pour la liste complète de ce qui est différé et pourquoi, et `CHANGELOG.md` pour ce qui a été livré exactement jusqu'à présent.
 
 ---
 
@@ -39,7 +39,7 @@ GPL-3.0-or-later - see LICENSE
 |---|---|
 | Version | `0.2.5` |
 | Maturité | Fonctionnel |
-| Tests | 195 (`npm test`) |
+| Tests | 219 (`npm test`) |
 | Technologie | Node.js / node-opcua / OPC-UA address space |
 | Cible | Le Raspberry Pi CM5 d'une cellule HYDRA-UMC |
 | Sur matériel réel | Sans objet : rien ici ne s'exécute sur du matériel |
@@ -55,7 +55,7 @@ Chaque ligne est une partie de ce dépôt et le feu dit où elle en est aujourd'
 | Domaine | État | Ce que cela veut dire ici |
 |---|---|---|
 | Logiciel | 🟡 | Fonctionne pour son usage principal ; la vérification d'honnêteté ci-dessus liste ce qui manque encore |
-| Tests | 🟢 | 195 tests automatiques, exécutés à chaque modification |
+| Tests | 🟢 | 219 tests automatiques, exécutés à chaque modification |
 | Matériel réel | 🟢 | Sans objet : rien ici ne s'exécute sur du matériel |
 | Interface et protocoles | 🟡 | Les routes ou les messages proposés sont documentés et testés avec un client ; tous les clients ne les ont pas encore utilisés |
 | Intégration | 🟡 | Ses messages et ses routes sont vérifiés par rapport aux contrats partagés du SDK ; il n'a pas fonctionné avec l'équipement réel |
@@ -122,6 +122,8 @@ Délibérément reporté, et pourquoi : un espace d'adressage entièrement dynam
 
 Le port d'écoute est lu d'abord dans `HYDRA_UMC_OPCUA_PORT` (4840 par défaut). Le `PORT` partagé reste valable en dernier recours et affiche un avertissement, de sorte qu'un fichier d'environnement partagé par plusieurs services ne puisse pas déplacer le serveur sur le port d'un autre service par accident ; une valeur définie mais qui n'est pas un port valide arrête le démarrage, et le contrôle de santé du conteneur suit le même ordre. L'accès historique est désactivé par défaut. `HYDRA_UMC_OPCUA_HISTORY=1` l'active, `HYDRA_UMC_OPCUA_HISTORY_URL` désigne HYDRA-UMC-DATALAKE (avec `HYDRA_UMC_OPCUA_HISTORY_TOKEN` s'il a un jeton de lecture) et `HYDRA_UMC_OPCUA_HISTORY_MAP` est un fichier JSON qui associe des variables à des séries ; seules les variables associées répondent à un HistoryRead, les sessions anonymes sont refusées sauf avec `HYDRA_UMC_OPCUA_HISTORY_ANONYMOUS=1`, et une lecture prend au plus `HYDRA_UMC_OPCUA_HISTORY_MAX_POINTS` points (10000 par défaut). Rien ne devient inscriptible. L'historique traité est lui aussi désactivé par défaut : `HYDRA_UMC_OPCUA_HISTORY_AGGREGATES=1` lui fait répondre Average, Minimum, Maximum, Count et Interpolative (au plus `HYDRA_UMC_OPCUA_HISTORY_MAX_INTERVALS` intervalles par lecture, 1000 par défaut ; avec `HYDRA_UMC_OPCUA_HISTORY_USE_DATALAKE_WINDOWS=1` la moyenne, le minimum, le maximum et le comptage d'une lecture, vers l'avant ou vers l'arrière, viennent des fenêtres et des rollups du data lake, et les points bruts servent quand il ne peut pas répondre ; un intervalle dont les points ont déjà été remplacés par des rollups est alors Incertain, pas vide), et `HYDRA_UMC_OPCUA_HISTORY_EVENTS=1` avec `HYDRA_UMC_OPCUA_HISTORY_EVENTS_MAP` (un fichier JSON de règles de limites par objet) lui fait répondre l'historique des événements dérivé des séries stockées. `HYDRA_UMC_OPCUA_LIVENESS=1` (désactivé par défaut, mode d'interrogation seulement) fait suivre à `Online` `GET /api/robots/liveness` de HYDRA-UMC-SERVER au lieu de l'interrupteur `online` des réglages : un robot n'est en ligne que tant que le serveur dit `live` ; `stale`, `unknown`, un robot que le rapport ne liste pas et un rapport illisible comptent comme hors ligne.
 
+Trois fonctions de plus, toutes désactivées par défaut. `HYDRA_UMC_OPCUA_METHODS=1` ajoute les méthodes `StartJob` et `AbortJob` pour la session de l'administrateur seulement : chaque appel est d'abord écrit dans la piste d'audit de HYDRA-UMC-DATALAKE, soumis à la porte de capacités de HYDRA-UMC-CONNECTOR-HUB, puis seulement transmis à HYDRA-UMC-JOB-DISPATCHER ; un refus à n'importe quelle étape termine l'appel (`HYDRA_UMC_OPCUA_GATE_URL`, `_JOBS_URL`, `_AUDIT_URL` et leurs jetons). `HYDRA_UMC_OPCUA_FAULTS_URL` construit les alarmes `McuAlarm` et `UrtcAlarm` (Alarmes et Conditions) à partir des défauts actifs des contrôleurs. `HYDRA_UMC_OPCUA_BRIDGES=1` montre les bridges mobiles (amr, uav, droids) comme objets `Bridge_<nom>`. `docs/adapter-manifest.json` décrit ce serveur pour le hub de connecteurs.
+
 ## 🚀 Démarrage rapide
 
 Nécessite Node.js 20 ou plus récent avec npm.
@@ -135,7 +137,7 @@ npm start
 
 ## 🧪 Tests
 
-195 tests automatiques s'exécutent avec `npm test`. Ils n'ont besoin ni de matériel ni de rien en dehors de cette machine.
+219 tests automatiques s'exécutent avec `npm test`. Ils n'ont besoin ni de matériel ni de rien en dehors de cette machine.
 
 La CI exécute `HYDRA_UMC_CI=1 python tools/ci_validate.py`, qui vérifie le manifeste, les documents, les huit README et les images.
 

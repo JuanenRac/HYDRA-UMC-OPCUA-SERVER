@@ -226,3 +226,25 @@ Off unless `HYDRA_UMC_OPCUA_HISTORY_EVENTS=1` (it needs `HYDRA_UMC_OPCUA_HISTORY
 - The event carries the standard fields of BaseEventType: `EventId` (a stable identifier of the event), `EventType` (BaseEventType), `SourceNode`, `SourceName` (the rule name), `Time`, `ReceiveTime` (both the instant of the point), `Message` and `Severity`. Any other requested field is returned as `BadNoData`.
 - The window works like a raw read: with a start and an end the events come oldest first (newest first when the end is before the start), with only an end and a number of values the newest come first. A long answer is paged with continuation points that are positions in the list of events of the read, so if the history changes between two calls the pages can shift.
 - Not supported: a where clause in the event filter (it answers `BadEventFilterInvalid`) and live events. A window with more points than `HYDRA_UMC_OPCUA_HISTORY_MAX_POINTS` in one rule answers `BadResponseTooLarge` instead of leaving events out.
+
+## StartJob and AbortJob
+
+Off unless `HYDRA_UMC_OPCUA_METHODS=1`. The two methods are on the object `HydraNode_1` (`ns=1;s=HydraNode_1.StartJob` and `.AbortJob`) and answer `Accepted` (Boolean) and `Message` (String); a refusal also gives the status BadUserAccessDenied. Every call goes through these steps in order and stops at the first that refuses: the session is the administrator's (user name and password; not anonymous, not the viewer account); the arguments are valid (a job id of letters, digits, `.`, `_` and `-`, up to 64; a priority of 0 to 1000); the order is written to the audit trail; the capability gate says `allowed`; the job queue takes the order; the outcome is written to the audit trail.
+
+| Variable | Meaning |
+|---|---|
+| `HYDRA_UMC_OPCUA_METHODS` | `1` switches the methods on; the start fails when one of the next ones is missing. |
+| `HYDRA_UMC_OPCUA_GATE_URL`, `_GATE_TOKEN` or `_GATE_TOKEN_FILE` | `serve-gate` of HYDRA-UMC-CONNECTOR-HUB and its bearer token (required). The adapter id it is asked about is `hydra-umc-opcua-server`, described by `docs/adapter-manifest.json`, which has to be in the registry of the hub. |
+| `HYDRA_UMC_OPCUA_JOBS_URL`, `_JOBS_TOKEN` or `_JOBS_TOKEN_FILE` | HYDRA-UMC-JOB-DISPATCHER (the token may be empty for a dispatcher on loopback). |
+| `HYDRA_UMC_OPCUA_AUDIT_URL`, `_AUDIT_TOKEN` or `_AUDIT_TOKEN_FILE` | The HYDRA-UMC-DATALAKE that keeps the audit trail: `sourceId` `opcua:<administrator>`, `kind` `method.StartJob` or `method.AbortJob`, the fields `job:<id>` and `phase.<order, ok or the reason of the refusal>`. |
+| `HYDRA_UMC_OPCUA_METHOD_TIMEOUT_MS` | How long each of those services may take (200 to 30000, default 3000). |
+
+This server cannot read a machine, so it tells the gate that the machine state is not observed (`allowUnobserved`); the answer of the gate says so, and the state of the cell is read by the gate service itself when it is started with a cell-state provider. A job that is already on a robot cannot be withdrawn by the queue: only the report of the robot ends it.
+
+## Alarms and Conditions
+
+Off unless `HYDRA_UMC_OPCUA_FAULTS_URL` is set. The feed is a JSON document `{"faults": [{"robot_id", "component", "error_code", "detail", "at_utc", "severity", "active"}]}`; `severity` (`fault` or `warning`) and `active` are optional. Without `severity` the error codes `ESTOP_ACTIVE`, `OUT_OF_RANGE`, `TOOL_INCOMPATIBLE` and `GRIP_LOST_SEAL` are faults and every other code is a warning. A component whose name contains `urtc` feeds `UrtcAlarm`, every other one `McuAlarm`. No service of the ecosystem publishes this feed yet; the server consumes it from whatever produces it.
+
+## Mobile bridges
+
+Off unless `HYDRA_UMC_OPCUA_BRIDGES=1`, and only with `HYDRA_UMC_OPCUA_SOURCE=poll` and a HYDRA-UMC-SERVER that has its bridge gateway switched on (otherwise `/api/bridges` answers 404 and the nodes show an Uncertain quality).

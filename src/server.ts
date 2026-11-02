@@ -44,6 +44,9 @@ import { healthPortFromEnv, startHealthServer } from "./health.js";
 import { resolveListenPort, type ResolvedPort } from "./portConfig.js";
 import { historyConfigFromEnv, installHistory, type HistoryConfig } from "./history.js";
 import { EVENT_NOTIFIER_HISTORY_READ, installEvents } from "./historyEvents.js";
+import { JobMethods, methodsConfigFromEnv } from "./methods.js";
+import { faultSourceFromEnv, installFaultAlarms, startFaultPolling } from "./faults.js";
+import { bridgeNamesFromEnv, bridgesEnabled, type BridgeSnapshot } from "./bridges.js";
 
 // 4840 is the IANA-registered default OPC-UA TCP port, and node-opcua's
 // own default - kept here explicitly (rather than relying on the library
@@ -88,6 +91,12 @@ export function readOnlyRolePermissions(allowAnonymous: boolean, history?: { ano
 export interface BuildOptions {
   /** The history configuration; by default it comes from the environment (off unless HYDRA_UMC_OPCUA_HISTORY=1). */
   history?: HistoryConfig | null;
+  /** The StartJob and AbortJob methods; by default they come from the environment (off unless HYDRA_UMC_OPCUA_METHODS=1). */
+  methods?: JobMethods | null;
+  /** Build the McuAlarm and UrtcAlarm conditions; by default only while HYDRA_UMC_OPCUA_FAULTS_URL is set. */
+  faultAlarms?: boolean;
+  /** Build the Bridges folder; by default only while HYDRA_UMC_OPCUA_BRIDGES=1. */
+  bridges?: boolean;
 }
 
 export interface HydraNodeState {
@@ -620,9 +629,87 @@ export async function buildAddressSpaceServer(port: number = resolveListenPortOf
     state.activeRobotCount = [...robotObjects.values()].filter((e) => e.state.online).length;
   };
 
+  // StartJob and AbortJob: the only way a client can ask for something to happen, and only for the administrator's session (see methods.ts).
+  const methodsConfig = options.methods === undefined ? methodsConfigFromEnv() : null;
+  const methods = options.methods === undefined ? (methodsConfig ? new JobMethods(methodsConfig) : null) : options.methods;
+  if (methods) {
+    const bindMethod = (browseName: string, inputArguments: Array<{ name: string; dataType: DataType; description: string }>, run: (admin: boolean, caller: string, args: Variant[]) => Promise<{ accepted: boolean; message: string }>) => {
+      const method = namespace.addMethod(hydraNode, {
+        browseName,
+        nodeId: `s=HydraNode_1.${browseName}`,
+        inputArguments,
+        outputArguments: [
+          { name: "Accepted", dataType: DataType.Boolean, description: "true when the order was passed on" },
+          { name: "Message", dataType: DataType.String, description: "what happened, in words" },
+        ],
+      });
+      const handler = (args: Variant[], context: ISessionContext, callback: (error: Error | null, result?: unknown) => void) => {
+        const admin = isAdminSession(context, adminUsername);
+        run(admin, adminUsername ?? "unknown", args)
+          .then((result) =>
+            callback(null, {
+              statusCode: result.accepted ? StatusCodes.Good : StatusCodes.BadUserAccessDenied,
+              outputArguments: [new Variant({ dataType: DataType.Boolean, value: result.accepted }), new Variant({ dataType: DataType.String, value: result.message })],
+            }),
+          )
+          .catch((error) => callback(error instanceof Error ? error : new Error(String(error))));
+      };
+      method.bindMethod(handler as never);
+    };
+    bindMethod(
+      "StartJob",
+      [
+        { name: "JobId", dataType: DataType.String, description: "The id of the job (letters, digits, '.', '_' and '-')" },
+        { name: "RequiredTool", dataType: DataType.String, description: "The tool the job needs, or empty for any robot" },
+        { name: "Priority", dataType: DataType.UInt32, description: "0 to 1000; higher runs first" },
+      ],
+      (admin, caller, args) => methods.startJob(admin, caller, { jobId: args[0]?.value, requiredTool: args[1]?.value, priority: args[2]?.value }),
+    );
+    bindMethod("AbortJob", [{ name: "JobId", dataType: DataType.String, description: "The id of the job to withdraw from the queue" }], (admin, caller, args) => methods.abortJob(admin, caller, { jobId: args[0]?.value }));
+  }
+
+  // McuAlarm and UrtcAlarm (Alarms and Conditions) from the fault feed, only while a feed is configured.
+  const faultAlarms = (options.faultAlarms ?? faultSourceFromEnv() !== null) ? installFaultAlarms(addressSpace, namespace, hydraNode) : undefined;
+
+  // The mobile bridges as Bridge_<name> objects under a Bridges folder, only while HYDRA_UMC_OPCUA_BRIDGES=1.
+  const bridgeObjects = new Map<string, { object: any; state: BridgeSnapshot }>();
+  let bridgesUncertain = false;
+  const bridgesFolder = (options.bridges ?? bridgesEnabled()) ? namespace.addFolder(addressSpace.rootFolder.objects, { browseName: "Bridges", nodeId: "s=Bridges", rolePermissions }) : undefined;
+  const setBridges = (list: BridgeSnapshot[] | null): void => {
+    if (!bridgesFolder) return;
+    bridgesUncertain = list === null;
+    if (list === null) return; // the nodes keep their last value; their quality says so
+    const wanted = new Map(list.map((bridge) => [bridge.name, bridge]));
+    for (const [name, entry] of [...bridgeObjects]) {
+      if (wanted.has(name)) continue;
+      for (const child of entry.object.getComponents()) addressSpace.deleteNode(child);
+      addressSpace.deleteNode(entry.object);
+      bridgeObjects.delete(name);
+    }
+    for (const [name, bridge] of wanted) {
+      const known = bridgeObjects.get(name);
+      if (known) {
+        known.state = { ...bridge };
+        continue;
+      }
+      const entry = { object: namespace.addObject({ organizedBy: bridgesFolder, browseName: `Bridge_${name}`, nodeId: `s=Bridge_${name}`, rolePermissions }), state: { ...bridge } };
+      const quality = () => (bridgesUncertain ? StatusCodes.UncertainNoCommunicationLastUsableValue : StatusCodes.Good);
+      const bad = () => new DataValue({ value: new Variant({ dataType: DataType.Null }), statusCode: StatusCodes.BadWaitingForInitialData });
+      const addVar = (browseName: string, dataType: string, read: () => DataValue) =>
+        namespace.addVariable({ componentOf: entry.object, browseName, nodeId: `s=Bridge_${name}.${browseName}`, rolePermissions, dataType, accessLevel: "CurrentRead", userAccessLevel: "CurrentRead", minimumSamplingInterval: 1000, value: { timestamped_get: read } });
+      addVar("Name", "String", () => new DataValue({ value: new Variant({ dataType: DataType.String, value: name }), statusCode: StatusCodes.Good }));
+      addVar("Available", "Boolean", () => (entry.state.available === null ? bad() : new DataValue({ value: new Variant({ dataType: DataType.Boolean, value: entry.state.available }), statusCode: quality() })));
+      addVar("Health", "String", () => (entry.state.health === null ? bad() : new DataValue({ value: new Variant({ dataType: DataType.String, value: entry.state.health }), statusCode: quality() })));
+      addVar("LastUpdate", "DateTime", () =>
+        entry.state.updatedAtMs === null ? bad() : new DataValue({ value: new Variant({ dataType: DataType.DateTime, value: new Date(entry.state.updatedAtMs) }), statusCode: quality(), sourceTimestamp: new Date(entry.state.updatedAtMs) }),
+      );
+      bridgeObjects.set(name, entry);
+    }
+  };
+
   await server.start();
 
-  return { server, state, setRobots, markRobotSeen, throttle, robotCount: () => robotObjects.size, liveRobotCount: () => [...robotObjects.values()].filter((e) => e.seenAtMs !== undefined && !rosterMeta.stale && Date.now() - e.seenAtMs <= liveWindowMs).length };
+  return { server, state, faultAlarms, setBridges, bridgeCount: () => bridgeObjects.size, setRobots, markRobotSeen, throttle, robotCount: () => robotObjects.size, liveRobotCount: () => [...robotObjects.values()].filter((e) => e.seenAtMs !== undefined && !rosterMeta.stale && Date.now() - e.seenAtMs <= liveWindowMs).length };
 }
 
 /** The window (milliseconds) within which a patch from a robot keeps it Live; HYDRA_UMC_OPCUA_LIVE_WINDOW_MS, at least 1000, default 30000. */
@@ -667,7 +754,7 @@ async function main() {
   const listen = resolveListenPortOf();
   if (listen.warning) console.warn(`[HYDRA-UMC-OPCUA-SERVER] ${listen.warning}`);
   const port = listen.port;
-  const { server, state, setRobots, markRobotSeen, throttle, robotCount, liveRobotCount } = await buildAddressSpaceServer(port);
+  const { server, state, setRobots, markRobotSeen, throttle, robotCount, liveRobotCount, faultAlarms, setBridges } = await buildAddressSpaceServer(port);
   const health = healthPortFromEnv();
   let sourceStatus: "not configured" | "ok" | "unreadable" = "not configured";
   const shutdown = (signal: string) => {
@@ -687,14 +774,20 @@ async function main() {
       sourceStatus = readable ? "ok" : "unreadable";
     };
     if (sourceModeFromEnv() === "stream") {
+      if (bridgesEnabled()) throw new Error("HYDRA-UMC-OPCUA-SERVER: HYDRA_UMC_OPCUA_BRIDGES needs HYDRA_UMC_OPCUA_SOURCE=poll (the stream does not read the bridges)");
       if (livenessFromEnv()) throw new Error("HYDRA-UMC-OPCUA-SERVER: HYDRA_UMC_OPCUA_LIVENESS needs HYDRA_UMC_OPCUA_SOURCE=poll (the stream does not read the liveness report)");
       startRobotStream({ ...source, setRobots, onRobotSeen: markRobotSeen, onSourceStatus });
       console.log(`[HYDRA-UMC-OPCUA-SERVER] following the robots live on ${source.url} (WebSocket), Live = a patch within the window`);
     } else {
-      startRobotPolling({ ...source, setRobots, onSourceStatus, useLiveness: livenessFromEnv() });
+      startRobotPolling({ ...source, setRobots, onSourceStatus, useLiveness: livenessFromEnv(), ...(bridgesEnabled() ? { bridges: { names: bridgeNamesFromEnv(), onBridges: setBridges } } : {}) });
       console.log(`[HYDRA-UMC-OPCUA-SERVER] reading the robot roster from ${source.url} every ${source.intervalMs} ms`);
     }
     sourceStatus = "unreadable"; // until the first read works
+  }
+  const faultSource = faultSourceFromEnv();
+  if (faultSource && faultAlarms) {
+    startFaultPolling(faultSource, faultAlarms);
+    console.log(`[HYDRA-UMC-OPCUA-SERVER] reading the active faults from ${faultSource.url} every ${faultSource.intervalMs} ms (McuAlarm, UrtcAlarm)`);
   }
   if (health) {
     const listener = startHealthServer({

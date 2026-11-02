@@ -18,6 +18,7 @@
 // =============================================================================
 
 import type { RobotSnapshot, RosterMeta } from "./server.js";
+import { extractBridges, type BridgeSnapshot } from "./bridges.js";
 
 /** What GET /api/robots/liveness says of each robot, by "<controller id>/<robot id>"; null when the body is not a liveness report. */
 export function extractLiveness(report: unknown): Map<string, string> | null {
@@ -99,6 +100,8 @@ export interface RobotPollerOptions {
   onSourceStatus?: (readable: boolean) => void;
   /** Online follows GET /api/robots/liveness of the server instead of the `online` switch of the settings (HYDRA_UMC_OPCUA_LIVENESS=1). Off by default. */
   useLiveness?: boolean;
+  /** Also read GET /api/bridges (the mobile bridges) on every poll. `onBridges` gets the bridges of `names`, or null when they cannot be read. */
+  bridges?: { names: readonly string[] | null; onBridges: (bridges: BridgeSnapshot[] | null) => void };
   fetchImpl?: typeof fetch;
 }
 
@@ -158,12 +161,22 @@ export function startRobotPolling(options: RobotPollerOptions): () => void {
       known = extractRobots(settings, liveness);
       setRobots(known, { stale: false, observedAtMs: Date.now() });
       options.onSourceStatus?.(true);
+      if (options.bridges) {
+        // the bridges have a source of their own: the server answers 404 while its bridge gateway is off, which is not a failure of the roster
+        try {
+          options.bridges.onBridges(extractBridges(await getJson("/api/bridges"), options.bridges.names));
+        } catch (error) {
+          console.warn(`[HYDRA-UMC-OPCUA-SERVER] bridge source unavailable: ${error instanceof Error ? error.message : String(error)}`);
+          options.bridges.onBridges(null);
+        }
+      }
     } catch (error) {
       console.warn(`[HYDRA-UMC-OPCUA-SERVER] robot source unavailable: ${error instanceof Error ? error.message : String(error)}`);
       // never online on the strength of old data; the second argument tells the address space to say so in the quality
       known = known.map((robot) => ({ ...robot, online: false }));
       setRobots(known, { stale: true });
       options.onSourceStatus?.(false);
+      options.bridges?.onBridges(null);
     }
   };
 
