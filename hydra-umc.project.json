@@ -24,5 +24,8 @@
   },
   "service": {
     "port": 4840
-  }
+  },
+  "depends_on": [
+    "HYDRA-UMC-GATEWAY-INDUSTRIAL"
+  ]
 }
