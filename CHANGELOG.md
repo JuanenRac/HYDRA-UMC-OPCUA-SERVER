@@ -4,6 +4,8 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+- **The build test of the repository compiles only on CI or when allowed:** for the stacks that compile (`rust`, `go`, `android`, `flutter`, `firmware-c`), `tools/build_test.py` prints `BUILD_TEST=SKIPPED` with exit status 2 on a plain PC, never a pass; `ALLOW_LOCAL_BUILD=1` allows it and a CI runner always may. The `python` and `node` stacks are not locked.
+
 ## [0.2.6] - Start and abort job methods for admins, mobile bridges as nodes, alarm conditions from a fault feed and a manifest for the hub
 
 - **Controlled methods `StartJob` and `AbortJob` (off by default).** With `HYDRA_UMC_OPCUA_METHODS=1` the object HydraNode_1 gets the two methods, for the session of the administrator only. A call is written to the audit trail in HYDRA-UMC-DATALAKE first (if that fails the call is refused), then asked of the capability gate of HYDRA-UMC-CONNECTOR-HUB (a denial, an error, a timeout or an unreadable answer is a refusal), and only then passed to HYDRA-UMC-JOB-DISPATCHER: `StartJob(JobId, RequiredTool, Priority)` submits the job with its id as the dedup key, so calling it twice is the same job, and `AbortJob(JobId)` withdraws a job that waits in the queue; a job that is already on a robot is not stopped, and the answer says so. The outcome is recorded too. `HYDRA_UMC_OPCUA_GATE_URL`, `_JOBS_URL` and `_AUDIT_URL` (and their `_TOKEN` or `_TOKEN_FILE`) are required with the switch; `docs/OPERATIONS.md` has the details.
