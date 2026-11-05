@@ -9,11 +9,65 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { AttributeIds, MessageSecurityMode, OPCUAClient, SecurityPolicy, StatusCodes } from "node-opcua";
 import type { ClientSession, OPCUAServer } from "node-opcua";
 import { buildAddressSpaceServer } from "../src/server.js";
-import { faultSourceFromEnv, startFaultPolling, summarizeFaults } from "../src/faults.js";
+import { faultSourceFromEnv, serverFaultsAsFeed, startFaultPolling, summarizeFaults } from "../src/faults.js";
 import { bridgeNamesFromEnv, bridgesEnabled, extractBridges } from "../src/bridges.js";
 import { extractRobots, startRobotPolling } from "../src/robotSource.js";
 
 process.env.OPCUA_AUTO_ACCEPT = "1";
+
+describe("the faults that HYDRA-UMC-SERVER keeps (GET /api/faults)", () => {
+  const ACTIVE = {
+    active: [
+      { schema: "fault-event/1", source: "mcu", robotId: "1", code: "ESTOP_ACTIVE", severity: "critical", text: "stop", state: "raised", since: 1000 },
+      { schema: "fault-event/1", source: "urtc-head", robotId: "1", code: "TEMP_HIGH", severity: "warning", text: "hot", state: "raised", since: 2000 },
+      { schema: "fault-event/1", source: "mcu", robotId: null, code: "NOTE", severity: "info", text: "fyi", state: "raised", since: 3000 },
+    ],
+  };
+
+  it("maps severity to the two alarm groups and leaves out information", () => {
+    const summary = summarizeFaults(serverFaultsAsFeed(ACTIVE));
+    expect(summary.mcu).toMatchObject({ active: true, severity: 800, errorCode: "ESTOP_ACTIVE" });
+    expect(summary.urtc).toMatchObject({ active: true, severity: 400, errorCode: "TEMP_HIGH" });
+    expect(summarizeFaults(serverFaultsAsFeed({ active: [] })).mcu.active).toBe(false);
+    expect(() => serverFaultsAsFeed({})).toThrow(/no list of active faults/);
+  });
+
+  it("is off unless the switch is 1, needs a credential and refuses to be set with the other feed", () => {
+    expect(faultSourceFromEnv({ HYDRA_UMC_SERVER_URL: "http://127.0.0.1:3000", HYDRA_UMC_SERVER_TOKEN: "t" })).toBeNull();
+    const on = { HYDRA_UMC_OPCUA_SERVER_FAULTS: "1", HYDRA_UMC_SERVER_URL: "http://127.0.0.1:3000/hydra", HYDRA_UMC_SERVER_TOKEN: "t" };
+    expect(faultSourceFromEnv(on)).toMatchObject({ url: "http://127.0.0.1:3000/hydra/api/faults?active=1", token: "t", intervalMs: 5000 });
+    expect(() => faultSourceFromEnv({ HYDRA_UMC_OPCUA_SERVER_FAULTS: "1" })).toThrow(/needs HYDRA_UMC_SERVER_URL/);
+    expect(() => faultSourceFromEnv({ ...on, HYDRA_UMC_OPCUA_FAULTS_URL: "http://x" })).toThrow(/set only one/);
+  });
+
+  it("logs in with the account, reads the route and logs in again when the session ends", async () => {
+    const applied: any[] = [];
+    let logins = 0;
+    let valid = "";
+    const doFetch = (async (url: string, init: RequestInit) => {
+      if (String(url).endsWith("/api/login")) {
+        logins += 1;
+        valid = `tok${logins}`;
+        return new Response(JSON.stringify({ token: valid }), { status: 200 });
+      }
+      expect(String(url)).toBe("http://srv.test/api/faults?active=1");
+      return new Headers(init.headers).get("Authorization") === `Bearer ${valid}` ? new Response(JSON.stringify(ACTIVE), { status: 200 }) : new Response("{}", { status: 401 });
+    }) as unknown as typeof fetch;
+    const server = { base: "http://srv.test", username: "u", password: "p" };
+    const stop = startFaultPolling({ url: "http://srv.test/api/faults?active=1", intervalMs: 1000, server }, { apply: (s) => applied.push(s) }, doFetch);
+    await new Promise((r) => setTimeout(r, 100));
+    stop();
+    expect(logins).toBe(1);
+    expect(applied[0].mcu.errorCode).toBe("ESTOP_ACTIVE");
+    // a token the server no longer knows is refused once, then the account logs in again
+    const applied2: any[] = [];
+    const stop2 = startFaultPolling({ url: "http://srv.test/api/faults?active=1", token: "old", intervalMs: 1000, server }, { apply: (s) => applied2.push(s) }, doFetch);
+    await new Promise((r) => setTimeout(r, 100));
+    stop2();
+    expect(logins).toBe(2);
+    expect(applied2[0].mcu.active).toBe(true);
+  });
+});
 
 describe("the fault feed", () => {
   it("groups the active faults and takes the worst and newest of each group", () => {

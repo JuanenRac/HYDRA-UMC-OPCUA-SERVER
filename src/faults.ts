@@ -17,6 +17,7 @@
 
 import { DataType, StatusCodes, Variant } from "node-opcua";
 import fs from "node:fs";
+import { apiUrl, pollerConfigFromEnv, readJsonCapped } from "./robotSource.js";
 
 export interface GroupState {
   active: boolean;
@@ -143,11 +144,50 @@ export interface FaultSource {
   url: string;
   token?: string;
   intervalMs: number;
+  /** Set when the faults are the ones HYDRA-UMC-SERVER keeps (GET /api/faults): the base of the server and the account to log in with again when the session ends. */
+  server?: { base: string; username?: string; password?: string };
+}
+
+/**
+ * The faults HYDRA-UMC-SERVER keeps (GET /api/faults?active=1, `fault-event/1` records) in the shape `summarizeFaults` reads. `info` is not a
+ * fault and is left out; `warning` is a warning; `error` and `critical` are faults. The source of the event is the component.
+ */
+export function serverFaultsAsFeed(body: unknown): { faults: unknown[] } {
+  const list = (body as { active?: unknown } | null)?.active;
+  if (!Array.isArray(list)) throw new Error("the answer of the server has no list of active faults");
+  const faults: unknown[] = [];
+  for (const entry of list) {
+    const f = entry as { source?: unknown; code?: unknown; text?: unknown; severity?: unknown; since?: unknown } | null;
+    if (typeof f?.code !== "string" || f.code === "" || f.severity === "info") continue;
+    faults.push({
+      component: typeof f.source === "string" ? f.source : "unknown",
+      error_code: f.code,
+      detail: typeof f.text === "string" ? f.text : "",
+      at_utc: typeof f.since === "number" && Number.isFinite(f.since) ? new Date(f.since).toISOString() : undefined,
+      severity: f.severity === "warning" ? "warning" : "fault",
+    });
+  }
+  return { faults };
 }
 
 /** The feed from the environment, or null while it is off. */
 export function faultSourceFromEnv(env: NodeJS.ProcessEnv = process.env, read: (file: string) => string = (file) => fs.readFileSync(file, "utf8")): FaultSource | null {
   const url = env.HYDRA_UMC_OPCUA_FAULTS_URL?.trim();
+  if ((env.HYDRA_UMC_OPCUA_SERVER_FAULTS ?? "").trim() === "1") {
+    // the faults of HYDRA-UMC-SERVER, with the identity this server already uses for the roster (HYDRA_UMC_SERVER_*)
+    if (url) throw new Error("HYDRA-UMC-OPCUA-SERVER: HYDRA_UMC_OPCUA_SERVER_FAULTS and HYDRA_UMC_OPCUA_FAULTS_URL feed the same alarms: set only one");
+    const poller = pollerConfigFromEnv(env);
+    if (!poller) throw new Error("HYDRA-UMC-OPCUA-SERVER: HYDRA_UMC_OPCUA_SERVER_FAULTS=1 needs HYDRA_UMC_SERVER_URL and a credential (a token, or a user and password)");
+    const rawPoll = env.HYDRA_UMC_OPCUA_FAULTS_POLL_MS?.trim();
+    const every = rawPoll ? Number(rawPoll) : 5000;
+    if (!Number.isInteger(every) || every < 1000) throw new Error(`HYDRA-UMC-OPCUA-SERVER: HYDRA_UMC_OPCUA_FAULTS_POLL_MS must be an integer of at least 1000, got ${rawPoll}`);
+    return {
+      url: apiUrl(poller.url, "/api/faults?active=1").toString(),
+      ...(poller.token ? { token: poller.token } : {}),
+      intervalMs: every,
+      server: { base: poller.url, ...(poller.username !== undefined && poller.password !== undefined ? { username: poller.username, password: poller.password } : {}) },
+    };
+  }
   if (!url) return null;
   try {
     const parsed = new URL(url);
@@ -167,16 +207,35 @@ export function faultSourceFromEnv(env: NodeJS.ProcessEnv = process.env, read: (
 export function startFaultPolling(source: FaultSource, target: Pick<FaultAlarms, "apply">, doFetch: typeof fetch = fetch): () => void {
   let stopped = false;
   let busy = false;
+  let token = source.token;
+  const account = source.server?.username !== undefined && source.server.password !== undefined ? { username: source.server.username, password: source.server.password } : null;
+  const signal = () => AbortSignal.timeout(Math.max(1000, source.intervalMs));
+  const login = async (): Promise<void> => {
+    const response = await doFetch(apiUrl(source.server!.base, "/api/login"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(account), signal: signal() });
+    if (!response.ok) throw new Error(`login refused (HTTP ${response.status})`);
+    const body = (await readJsonCapped(response)) as { token?: unknown };
+    if (typeof body.token !== "string" || !body.token) throw new Error("the login response carried no token");
+    token = body.token;
+  };
+  const get = () => doFetch(source.url, { headers: token ? { Authorization: `Bearer ${token}` } : {}, signal: signal() });
   const poll = async () => {
     if (busy || stopped) return;
     busy = true;
     try {
-      const response = await doFetch(source.url, { headers: source.token ? { Authorization: `Bearer ${source.token}` } : {}, signal: AbortSignal.timeout(Math.max(1000, source.intervalMs)) });
+      if (account && !token) await login();
+      let response = await get();
+      if (account && (response.status === 401 || response.status === 403)) {
+        // the session ended: log in again, once
+        await response.arrayBuffer().catch(() => undefined);
+        await login();
+        response = await get();
+      }
       if (!response.ok) {
         await response.arrayBuffer().catch(() => undefined);
         throw new Error(`HTTP ${response.status}`);
       }
-      target.apply(summarizeFaults(await response.json()));
+      const body = await response.json();
+      target.apply(summarizeFaults(source.server ? serverFaultsAsFeed(body) : body));
     } catch (error) {
       console.warn(`[HYDRA-UMC-OPCUA-SERVER] fault feed unavailable: ${error instanceof Error ? error.message : String(error)}`);
       target.apply(null);

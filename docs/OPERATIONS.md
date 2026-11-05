@@ -245,6 +245,8 @@ This server cannot read a machine, so it tells the gate that the machine state i
 
 Off unless `HYDRA_UMC_OPCUA_FAULTS_URL` is set. The feed is a JSON document `{"faults": [{"robot_id", "component", "error_code", "detail", "at_utc", "severity", "active"}]}`; `severity` (`fault` or `warning`) and `active` are optional. Without `severity` the error codes `ESTOP_ACTIVE`, `OUT_OF_RANGE`, `TOOL_INCOMPATIBLE` and `GRIP_LOST_SEAL` are faults and every other code is a warning. A component whose name contains `urtc` feeds `UrtcAlarm`, every other one `McuAlarm`. No service of the ecosystem publishes this feed yet; the server consumes it from whatever produces it.
 
+Or, with `HYDRA_UMC_OPCUA_SERVER_FAULTS=1` (off by default; it cannot be set together with the address above), the alarms follow the faults that HYDRA-UMC-SERVER keeps: this server reads `GET /api/faults?active=1` with the identity it already uses for the roster (`HYDRA_UMC_SERVER_URL` with `HYDRA_UMC_SERVER_TOKEN`, or `HYDRA_UMC_SERVER_USER` and `HYDRA_UMC_SERVER_PASSWORD`, logging in again when the session ends) every `HYDRA_UMC_OPCUA_FAULTS_POLL_MS`. The SERVER must have its fault feed on (`HYDRA_UMC_FAULT_FEED=1`). Each active `fault-event/1` counts as a fault of the component named by its `source`: severity `warning` is a warning (400), `error` and `critical` are faults (800), `info` is left out. When the server cannot be read the alarms keep their state with an Uncertain quality.
+
 ## Mobile bridges
 
 Off unless `HYDRA_UMC_OPCUA_BRIDGES=1`, and only with `HYDRA_UMC_OPCUA_SOURCE=poll` and a HYDRA-UMC-SERVER that has its bridge gateway switched on (otherwise `/api/bridges` answers 404 and the nodes show an Uncertain quality).
