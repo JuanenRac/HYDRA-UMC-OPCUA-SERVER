@@ -4,6 +4,8 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+## [0.2.7] - The alarms can follow the faults HYDRA-UMC-SERVER keeps (off by default): HYDRAUMCOPCUASERVERFAULTS=1 reads GET /api/faults?active=1 with the identity the server already uses for the roster (a token, or an account that logs in... (and 1 more changes)
+
 - **The alarms can follow the faults HYDRA-UMC-SERVER keeps (off by default):** `HYDRA_UMC_OPCUA_SERVER_FAULTS=1` reads `GET /api/faults?active=1` with the identity the server already uses for the roster (a token, or an account that logs in again when the session ends) and feeds `McuAlarm` and `UrtcAlarm` from the `fault-event/1` records (`warning` is 400, `error` and `critical` are 800, `info` is left out). When the server cannot be read the alarms keep their state with an Uncertain quality.
 
 - **The build test of the repository compiles only on CI or when allowed:** for the stacks that compile (`rust`, `go`, `android`, `flutter`, `firmware-c`), `tools/build_test.py` prints `BUILD_TEST=SKIPPED` with exit status 2 on a plain PC, never a pass; `ALLOW_LOCAL_BUILD=1` allows it and a CI runner always may. The `python` and `node` stacks are not locked.
