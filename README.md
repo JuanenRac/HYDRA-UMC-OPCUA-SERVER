@@ -18,14 +18,14 @@ GPL-3.0-or-later - see LICENSE
   <img src="https://img.shields.io/badge/License-GPL%203.0--or--later-blue.svg" alt="GPL 3.0 or later">
   <img src="https://img.shields.io/badge/Standard-OPC--UA-orange.svg" alt="Standard">
   <img src="https://img.shields.io/badge/Feature-Address%20Space%20Modeling-blue.svg" alt="Feature">
-  <img src="https://img.shields.io/badge/Tests-219%20passing-2ea44f.svg" alt="Tests">
+  <img src="https://img.shields.io/badge/Tests-222%20passing-2ea44f.svg" alt="Tests">
   <img src="https://img.shields.io/badge/Version-0.2.6-0f6cbd.svg" alt="Version">
   <img src="https://img.shields.io/badge/Maturity-functional-0F6CBD.svg" alt="Maturity">
 </p>
 
 ---
 
-**Honesty check - what actually runs today:** the OPC-UA server and address-space mapping (`src/server.ts`) are real and tested (219 tests passing across `tests/server.test.ts`, `tests/security.test.ts`, `tests/security-policy.test.ts`, `tests/robotSource.test.ts`, `tests/robotSource.integration.test.ts`) - and these are real protocol-level tests: `tests/server.test.ts` connects a real `OPCUAClient` (node-opcua's own client, the same library UAExpert/Ignition would use) over the real binary protocol on a real TCP port, and `tests/security-policy.test.ts` proves an unencrypted `SecurityPolicy.None` session is genuinely refused by default (accepted only via the explicit `OPCUA_ALLOW_INSECURE=1` escape hatch). What is deliberately deferred, not a gap found by accident: the per-robot tree (`Robot_<id>`) follows the roster HYDRA-UMC-SERVER reports (polled with a token or an account, see `.env.example`), but the rest of the address space is built once at startup; only reads/writes are tested end to end so far, not OPC-UA subscriptions; and Pub/Sub (Roadmap Phase 1) remains unimplemented, since no client depends on it yet. See `mejoras_futuras.txt` for the complete list of what's deferred and why, and `CHANGELOG.md` for exactly what has shipped so far.
+**Honesty check - what actually runs today:** the OPC-UA server and address-space mapping (`src/server.ts`) are real and tested (222 tests passing across `tests/server.test.ts`, `tests/security.test.ts`, `tests/security-policy.test.ts`, `tests/robotSource.test.ts`, `tests/robotSource.integration.test.ts`) - and these are real protocol-level tests: `tests/server.test.ts` connects a real `OPCUAClient` (node-opcua's own client, the same library UAExpert/Ignition would use) over the real binary protocol on a real TCP port, and `tests/security-policy.test.ts` proves an unencrypted `SecurityPolicy.None` session is genuinely refused by default (accepted only via the explicit `OPCUA_ALLOW_INSECURE=1` escape hatch). What is deliberately deferred, not a gap found by accident: the per-robot tree (`Robot_<id>`) follows the roster HYDRA-UMC-SERVER reports (polled with a token or an account, see `.env.example`), but the rest of the address space is built once at startup; only reads/writes are tested end to end so far, not OPC-UA subscriptions; and Pub/Sub (Roadmap Phase 1) remains unimplemented, since no client depends on it yet. See `mejoras_futuras.txt` for the complete list of what's deferred and why, and `CHANGELOG.md` for exactly what has shipped so far.
 
 ---
 
@@ -39,7 +39,7 @@ GPL-3.0-or-later - see LICENSE
 |---|---|
 | Version | `0.2.6` |
 | Maturity | Functional |
-| Tests | 219 (`npm test`) |
+| Tests | 222 (`npm test`) |
 | Stack | Node.js / node-opcua / OPC-UA address space |
 | Target | The Raspberry Pi CM5 of a HYDRA-UMC cell |
 | On real hardware | Not applicable: nothing here runs on hardware |
@@ -55,7 +55,7 @@ Each line is one part of this repository and the light says how far it is today.
 | Area | State | What it means here |
 |---|---|---|
 | Software | 🟡 | Works for its main purpose; the honesty check above lists what is still missing |
-| Tests | 🟢 | 219 automated tests, run on every change |
+| Tests | 🟢 | 222 automated tests, run on every change |
 | Real hardware | 🟢 | Not applicable: nothing here runs on hardware |
 | Interface and protocols | 🟡 | The routes or messages it offers are documented and tested with a client; not every client has used them yet |
 | Integration | 🟡 | Its messages and routes are checked against the shared contracts of the SDK; it has not run together with the real equipment |
@@ -137,7 +137,7 @@ npm start
 
 ## 🧪 Testing
 
-219 automated tests run with `npm test`. They need no hardware and nothing outside this machine.
+222 automated tests run with `npm test`. They need no hardware and nothing outside this machine.
 
 The CI runs `HYDRA_UMC_CI=1 python tools/ci_validate.py`, which checks the manifest, the documents, the eight READMEs and the pictures.
 

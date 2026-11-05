@@ -18,14 +18,14 @@ GPL-3.0-or-later - see LICENSE
   <img src="https://img.shields.io/badge/License-GPL%203.0--or--later-blue.svg" alt="GPL 3.0 or later">
   <img src="https://img.shields.io/badge/Standard-OPC--UA-orange.svg" alt="Standard">
   <img src="https://img.shields.io/badge/Feature-Address%20Space%20Modeling-blue.svg" alt="Feature">
-  <img src="https://img.shields.io/badge/Tests-219%20passing-2ea44f.svg" alt="Tests">
+  <img src="https://img.shields.io/badge/Tests-222%20passing-2ea44f.svg" alt="Tests">
   <img src="https://img.shields.io/badge/Version-0.2.6-0f6cbd.svg" alt="Version">
   <img src="https://img.shields.io/badge/Maturity-functional-0F6CBD.svg" alt="Maturity">
 </p>
 
 ---
 
-**Ehrlichkeitscheck - was heute wirklich läuft:** der OPC-UA-Server und die Adressraum-Zuordnung (`src/server.ts`) sind real und getestet (219 bestandene Tests über `tests/server.test.ts`, `tests/security.test.ts`, `tests/security-policy.test.ts`, `tests/robotSource.test.ts`, `tests/robotSource.integration.test.ts`) - und das sind echte Tests auf Protokollebene: `tests/server.test.ts` verbindet einen echten `OPCUAClient` (node-opcuas eigenen Client, dieselbe Bibliothek, die UAExpert/Ignition verwenden würden) über das echte Binärprotokoll auf einem echten TCP-Port, und `tests/security-policy.test.ts` beweist, dass eine unverschlüsselte `SecurityPolicy.None`-Sitzung standardmäßig tatsächlich abgelehnt wird (nur über das explizite Escape-Hatch `OPCUA_ALLOW_INSECURE=1` akzeptiert). Was absichtlich zurückgestellt ist, keine zufällig gefundene Lücke: der Baum pro Roboter (`Robot_<id>`) folgt der von HYDRA-UMC-SERVER gemeldeten Liste (abgefragt mit einem Token oder einem Konto, siehe `.env.example`), aber der Rest des Adressraums wird einmal beim Start aufgebaut; bisher sind nur Lese-/Schreibvorgänge Ende-zu-Ende getestet, keine OPC-UA-Subscriptions; und Pub/Sub (Roadmap-Phase 1) bleibt unimplementiert, da noch kein Client davon abhängt. Siehe `mejoras_futuras.txt` für die vollständige Liste dessen, was zurückgestellt ist und warum, und `CHANGELOG.md` für das, was bisher genau ausgeliefert wurde.
+**Ehrlichkeitscheck - was heute wirklich läuft:** der OPC-UA-Server und die Adressraum-Zuordnung (`src/server.ts`) sind real und getestet (222 bestandene Tests über `tests/server.test.ts`, `tests/security.test.ts`, `tests/security-policy.test.ts`, `tests/robotSource.test.ts`, `tests/robotSource.integration.test.ts`) - und das sind echte Tests auf Protokollebene: `tests/server.test.ts` verbindet einen echten `OPCUAClient` (node-opcuas eigenen Client, dieselbe Bibliothek, die UAExpert/Ignition verwenden würden) über das echte Binärprotokoll auf einem echten TCP-Port, und `tests/security-policy.test.ts` beweist, dass eine unverschlüsselte `SecurityPolicy.None`-Sitzung standardmäßig tatsächlich abgelehnt wird (nur über das explizite Escape-Hatch `OPCUA_ALLOW_INSECURE=1` akzeptiert). Was absichtlich zurückgestellt ist, keine zufällig gefundene Lücke: der Baum pro Roboter (`Robot_<id>`) folgt der von HYDRA-UMC-SERVER gemeldeten Liste (abgefragt mit einem Token oder einem Konto, siehe `.env.example`), aber der Rest des Adressraums wird einmal beim Start aufgebaut; bisher sind nur Lese-/Schreibvorgänge Ende-zu-Ende getestet, keine OPC-UA-Subscriptions; und Pub/Sub (Roadmap-Phase 1) bleibt unimplementiert, da noch kein Client davon abhängt. Siehe `mejoras_futuras.txt` für die vollständige Liste dessen, was zurückgestellt ist und warum, und `CHANGELOG.md` für das, was bisher genau ausgeliefert wurde.
 
 ---
 
@@ -39,7 +39,7 @@ GPL-3.0-or-later - see LICENSE
 |---|---|
 | Version | `0.2.6` |
 | Reifegrad | Funktionsfähig |
-| Tests | 219 (`npm test`) |
+| Tests | 222 (`npm test`) |
 | Technik | Node.js / node-opcua / OPC-UA address space |
 | Ziel | Der Raspberry Pi CM5 einer HYDRA-UMC-Zelle |
 | Auf echter Hardware | Nicht zutreffend: nichts hiervon läuft auf Hardware |
@@ -55,7 +55,7 @@ Jede Zeile ist ein Teil dieses Repositorys, und die Ampel sagt, wie weit er heut
 | Bereich | Stand | Was das hier bedeutet |
 |---|---|---|
 | Software | 🟡 | Funktioniert für seinen Hauptzweck; die Ehrlichkeitsprüfung oben nennt, was noch fehlt |
-| Tests | 🟢 | 219 automatische Tests, bei jeder Änderung ausgeführt |
+| Tests | 🟢 | 222 automatische Tests, bei jeder Änderung ausgeführt |
 | Echte Hardware | 🟢 | Nicht zutreffend: nichts hiervon läuft auf Hardware |
 | Schnittstelle und Protokolle | 🟡 | Die angebotenen Routen oder Nachrichten sind dokumentiert und mit einem Client getestet; noch nicht jeder Client hat sie benutzt |
 | Integration | 🟡 | Seine Nachrichten und Routen werden gegen die gemeinsamen Verträge des SDK geprüft; es lief noch nicht zusammen mit der echten Ausrüstung |
@@ -137,7 +137,7 @@ npm start
 
 ## 🧪 Tests
 
-219 automatische Tests laufen mit `npm test`. Sie brauchen weder Hardware noch etwas außerhalb dieses Rechners.
+222 automatische Tests laufen mit `npm test`. Sie brauchen weder Hardware noch etwas außerhalb dieses Rechners.
 
 Die CI führt `HYDRA_UMC_CI=1 python tools/ci_validate.py` aus; das prüft das Manifest, die Dokumente, die acht READMEs und die Bilder.
 
