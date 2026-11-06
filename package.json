@@ -14,7 +14,7 @@
   },
   "dependencies": {
     "node-opcua": "^2.187.18",
-    "node-opcua-types": "2.187.9"
+    "node-opcua-types": "2.187.19"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",
