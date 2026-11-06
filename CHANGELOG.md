@@ -4,6 +4,8 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+- **Dependencies updated:** the npm dependencies move to their latest compatible releases (tsx 4.23 and the Node type definitions; node-opcua stays on its current line).
+
 ## [0.2.7] - The alarms can follow the faults HYDRA-UMC-SERVER keeps (off by default): HYDRAUMCOPCUASERVERFAULTS=1 reads GET /api/faults?active=1 with the identity the server already uses for the roster (a token, or an account that logs in... (and 1 more changes)
 
 - **The alarms can follow the faults HYDRA-UMC-SERVER keeps (off by default):** `HYDRA_UMC_OPCUA_SERVER_FAULTS=1` reads `GET /api/faults?active=1` with the identity the server already uses for the roster (a token, or an account that logs in again when the session ends) and feeds `McuAlarm` and `UrtcAlarm` from the `fault-event/1` records (`warning` is 400, `error` and `critical` are 800, `info` is left out). When the server cannot be read the alarms keep their state with an Uncertain quality.
