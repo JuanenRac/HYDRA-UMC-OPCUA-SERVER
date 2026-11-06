@@ -4,7 +4,7 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
-- **Dependencies updated:** the npm dependencies move to their latest compatible releases (node-opcua 2.187, tsx 4.23 and the Node type definitions).
+- **Dependencies updated:** the npm dependencies move to their latest compatible releases (tsx 4.23 and the Node type definitions; node-opcua stays on its current line).
 
 ## [0.2.7] - The alarms can follow the faults HYDRA-UMC-SERVER keeps (off by default): HYDRAUMCOPCUASERVERFAULTS=1 reads GET /api/faults?active=1 with the identity the server already uses for the roster (a token, or an account that logs in... (and 1 more changes)
 
