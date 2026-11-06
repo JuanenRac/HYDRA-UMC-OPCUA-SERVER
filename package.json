@@ -13,8 +13,8 @@
     "nodeset": "tsx scripts/export_nodeset.ts"
   },
   "dependencies": {
-    "node-opcua": "^2.178.0",
-    "node-opcua-types": "2.177.0"
+    "node-opcua": "^2.187.18",
+    "node-opcua-types": "2.187.9"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",
