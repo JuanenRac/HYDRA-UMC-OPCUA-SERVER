@@ -24,6 +24,7 @@ import {
   OPCUAServer,
   OPCUACertificateManager,
   Variant,
+  VariantArrayType,
   DataType,
   DataValue,
   StatusCodes,
@@ -47,6 +48,7 @@ import { EVENT_NOTIFIER_HISTORY_READ, installEvents } from "./historyEvents.js";
 import { JobMethods, methodsConfigFromEnv } from "./methods.js";
 import { faultSourceFromEnv, installFaultAlarms, startFaultPolling } from "./faults.js";
 import { bridgeNamesFromEnv, bridgesEnabled, type BridgeSnapshot } from "./bridges.js";
+import { fleetConfigFromEnv, fleetEnabled, startFleetSubscription, type FleetType, type FleetUpdate } from "./fleet.js";
 
 // 4840 is the IANA-registered default OPC-UA TCP port, and node-opcua's
 // own default - kept here explicitly (rather than relying on the library
@@ -97,6 +99,8 @@ export interface BuildOptions {
   faultAlarms?: boolean;
   /** Build the Bridges folder; by default only while HYDRA_UMC_OPCUA_BRIDGES=1. */
   bridges?: boolean;
+  /** Build the Fleet folder (the nodes the bridges publish on the MQTT broker); by default only while HYDRA_UMC_OPCUA_MQTT=1. */
+  fleet?: boolean;
 }
 
 export interface HydraNodeState {
@@ -707,9 +711,64 @@ export async function buildAddressSpaceServer(port: number = resolveListenPortOf
     }
   };
 
+  // The fleet the bridges publish on the MQTT broker as read-only nodes under a Fleet folder, only while HYDRA_UMC_OPCUA_MQTT=1.
+  const fleetValues = new Map<string, { type: FleetType; value: number | boolean | string; observedAtMs: number; receivedAtMs: number }>();
+  const fleetObjects = new Map<string, any>();
+  const fleetStaleMs = Math.max(1000, Number(process.env.HYDRA_UMC_OPCUA_MQTT_STALE_MS ?? 60000) || 60000);
+  const fleetFolder = (options.fleet ?? fleetEnabled()) ? namespace.addFolder(addressSpace.rootFolder.objects, { browseName: "Fleet", nodeId: "s=Fleet", rolePermissions }) : undefined;
+  const fleetDataType = { Double: DataType.Double, Boolean: DataType.Boolean, String: DataType.String, Int64: DataType.Int64 } as const;
+  const readFleet = (path: string): DataValue => {
+    const entry = fleetValues.get(path);
+    if (!entry) return new DataValue({ value: new Variant({ dataType: DataType.Null }), statusCode: StatusCodes.BadWaitingForInitialData });
+    const stale = Date.now() - entry.receivedAtMs > fleetStaleMs;
+    let value: any = entry.value;
+    if (entry.type === "Int64") {
+      const n = entry.value as number;
+      const high = Math.floor(n / 4294967296);
+      value = [high, n - high * 4294967296];
+    }
+    return new DataValue({ value: new Variant({ dataType: fleetDataType[entry.type], arrayType: VariantArrayType.Scalar, value }), statusCode: stale ? StatusCodes.UncertainNoCommunicationLastUsableValue : StatusCodes.Good, sourceTimestamp: new Date(entry.observedAtMs) });
+  };
+  const setFleet = (update: FleetUpdate): void => {
+    if (!fleetFolder) return;
+    const receivedAtMs = Date.now();
+    for (const node of update.nodes) {
+      const known = fleetValues.get(node.path);
+      if (known && known.type !== node.type) continue; // the type of a node does not change once it exists
+      const segments = node.path.split("/");
+      if (!known) {
+        let parent: any = fleetFolder;
+        let key = "Fleet";
+        for (const segment of segments.slice(1, -1)) {
+          key += `/${segment}`;
+          let object = fleetObjects.get(key);
+          if (!object) {
+            object = namespace.addObject({ organizedBy: parent, browseName: segment, nodeId: `s=${key.replace(/\//g, ".")}`, rolePermissions });
+            fleetObjects.set(key, object);
+          }
+          parent = object;
+        }
+        fleetValues.set(node.path, { type: node.type, value: node.value, observedAtMs: update.observedAtMs, receivedAtMs });
+        namespace.addVariable({
+          componentOf: parent,
+          browseName: segments[segments.length - 1]!,
+          nodeId: `s=${node.path.replace(/\//g, ".")}`,
+          rolePermissions,
+          dataType: node.type,
+          accessLevel: "CurrentRead",
+          userAccessLevel: "CurrentRead",
+          minimumSamplingInterval: 1000,
+          value: { timestamped_get: () => readFleet(node.path) },
+        });
+      } else {
+        fleetValues.set(node.path, { type: node.type, value: node.value, observedAtMs: update.observedAtMs, receivedAtMs });
+      }
+    }
+  };
+
   await server.start();
 
-  return { server, state, faultAlarms, setBridges, bridgeCount: () => bridgeObjects.size, setRobots, markRobotSeen, throttle, robotCount: () => robotObjects.size, liveRobotCount: () => [...robotObjects.values()].filter((e) => e.seenAtMs !== undefined && !rosterMeta.stale && Date.now() - e.seenAtMs <= liveWindowMs).length };
+  return { server, state, faultAlarms, setBridges, setFleet, fleetCount: () => fleetValues.size, bridgeCount: () => bridgeObjects.size, setRobots, markRobotSeen, throttle, robotCount: () => robotObjects.size, liveRobotCount: () => [...robotObjects.values()].filter((e) => e.seenAtMs !== undefined && !rosterMeta.stale && Date.now() - e.seenAtMs <= liveWindowMs).length };
 }
 
 /** The window (milliseconds) within which a patch from a robot keeps it Live; HYDRA_UMC_OPCUA_LIVE_WINDOW_MS, at least 1000, default 30000. */
@@ -754,7 +813,7 @@ async function main() {
   const listen = resolveListenPortOf();
   if (listen.warning) console.warn(`[HYDRA-UMC-OPCUA-SERVER] ${listen.warning}`);
   const port = listen.port;
-  const { server, state, setRobots, markRobotSeen, throttle, robotCount, liveRobotCount, faultAlarms, setBridges } = await buildAddressSpaceServer(port);
+  const { server, state, setRobots, markRobotSeen, throttle, robotCount, liveRobotCount, faultAlarms, setBridges, setFleet } = await buildAddressSpaceServer(port);
   const health = healthPortFromEnv();
   let sourceStatus: "not configured" | "ok" | "unreadable" = "not configured";
   const shutdown = (signal: string) => {
@@ -783,6 +842,18 @@ async function main() {
       console.log(`[HYDRA-UMC-OPCUA-SERVER] reading the robot roster from ${source.url} every ${source.intervalMs} ms`);
     }
     sourceStatus = "unreadable"; // until the first read works
+  }
+  const fleetConfig = fleetConfigFromEnv();
+  if (fleetConfig) {
+    let dropped = 0;
+    startFleetSubscription(fleetConfig, setFleet, {
+      onDropped: () => {
+        dropped += 1;
+        if (dropped === 1 || dropped % 100 === 0) console.warn(`[HYDRA-UMC-OPCUA-SERVER] ${dropped} message(s) of the fleet topics were not acceptable and were dropped`);
+      },
+      onState: (connected, reason) => console.log(`[HYDRA-UMC-OPCUA-SERVER] MQTT broker ${fleetConfig.host}:${fleetConfig.port} ${connected ? "connected" : `not connected${reason ? ` (${reason})` : ""}`}`),
+    });
+    console.log(`[HYDRA-UMC-OPCUA-SERVER] following ${fleetConfig.topics.join(", ")} on the MQTT broker (read-only, nothing is published)`);
   }
   const faultSource = faultSourceFromEnv();
   if (faultSource && faultAlarms) {

@@ -4,6 +4,8 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+- **The server can follow the MQTT broker and show the fleet (off by default):** with `HYDRA_UMC_OPCUA_MQTT=1` it subscribes (read-only) to `hydra/bridges/+/opcua` and shows what the bridges publish there as typed, read-only nodes under `Fleet/<vehicle>/...`. A small MQTT 3.1.1 subscriber is built in (no new dependency); every message is checked whole before a node is made, a silent vehicle keeps its last values with an Uncertain quality, and the connection comes back after a drop. Tested against a broker made for the tests and a real OPC UA client; a run against a real broker and fleet is pending.
+
 - **Dependencies updated:** the npm dependencies move to their latest compatible releases (tsx 4.23 and the Node type definitions; node-opcua stays on its current line).
 
 ## [0.2.7] - The alarms can follow the faults HYDRA-UMC-SERVER keeps (off by default): HYDRAUMCOPCUASERVERFAULTS=1 reads GET /api/faults?active=1 with the identity the server already uses for the roster (a token, or an account that logs in... (and 1 more changes)
