@@ -86,6 +86,8 @@ Il permet aux logiciels d'automatisation industrielle (comme Ignition, Siemens T
 
 **HYDRA-UMC-OPCUA-SERVER** publie la liste des robots de `HYDRA-UMC-SERVER` comme un espace d'adressage OPC-UA que les logiciels SCADA et d'automatisation peuvent parcourir. Les sessions portent des rôles OPC UA et aucun rôle ne peut écrire : aucun nœud ne commande une articulation ni un effecteur.
 
+> **Plateforme :** là où ce README dit CM5, il s'agit du banc pilote qui fonctionne aujourd'hui ; la plateforme visée par HYDRA-UMC est un NVIDIA Jetson Orin NX 16 Go, une conception ni construite ni testée.
+
 ## 🏛️ Architecture
 
 <p align="center">

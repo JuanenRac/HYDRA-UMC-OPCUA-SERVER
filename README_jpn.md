@@ -90,6 +90,8 @@ Ignition、Siemens TIA Portal、Rockwell FactoryTalk のような産業用
 
 **HYDRA-UMC-OPCUA-SERVER** は `HYDRA-UMC-SERVER` のロボット一覧を、SCADA やオートメーションのソフトウェアが閲覧できる OPC-UA アドレス空間として公開します。セッションは OPC UA のロールを持ち、書き込みできるロールはありません。関節やエンドエフェクターを制御するノードはありません。
 
+> **プラットフォーム：** この README の「CM5」は、現在動作している試験用ベンチを指します。HYDRA-UMC の目標プラットフォームは NVIDIA Jetson Orin NX 16 GB ですが、これは製作も試験もされていない設計です。
+
 ## 🏛️ アーキテクチャ
 
 <p align="center">

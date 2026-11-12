@@ -89,6 +89,8 @@ FactoryTalk）能够浏览、读取和写入机器人变量，就像它们是标
 
 **HYDRA-UMC-OPCUA-SERVER** 把 `HYDRA-UMC-SERVER` 的机器人列表发布为 OPC-UA 地址空间，供 SCADA 和自动化软件浏览。会话带有 OPC UA 角色，任何角色都不能写入：没有任何节点控制关节或末端执行器。
 
+> **平台：** 本 README 中的 CM5 指的是目前正在运行的试验台；HYDRA-UMC 的目标平台是 NVIDIA Jetson Orin NX 16 GB，这是尚未制造或测试的设计。
+
 ## 🏛️ 架构
 
 <p align="center">
