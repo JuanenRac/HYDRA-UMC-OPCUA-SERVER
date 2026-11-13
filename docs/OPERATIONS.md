@@ -91,9 +91,19 @@ managed by this project.
 
 ## Address space
 
-Namespace URI `urn:hydra-umc:opcua-server:v1`, namespace index 1. NodeIds are
-explicit strings, so they stay stable when nodes are added later. The
-namespace version changes only on a breaking change to this shape.
+Namespace URI `urn:hydra-umc:opcua-server:v1`, namespace index 2 (index 1 is the local
+namespace of the server, with the URI node-opcua gives it). NodeIds are explicit
+strings, so they stay stable when nodes are added later. The namespace version
+changes only on a breaking change to this shape. Read the index from the
+namespace array of the server (or browse by name) instead of fixing it in a client.
+
+**Old `ns=1` identifiers.** Earlier versions put the nodes in index 1. While
+`OPCUA_LEGACY_NS_ALIAS` is on (the default) a request for `ns=1;s=NAME` is
+answered with the node `ns=2;s=NAME`: reads, browses, subscriptions, history and
+method calls. The alias adds no node and gives no write access. Set
+`OPCUA_LEGACY_NS_ALIAS_UNTIL=YYYY-MM-DD` (in the environment file, see
+`.env.example`) to end it after that day, or `OPCUA_LEGACY_NS_ALIAS=0` to turn it
+off now. Move clients to `ns=2` before it ends.
 
 | NodeId | Type | Access | Notes |
 | --- | --- | --- | --- |
@@ -230,7 +240,7 @@ Off unless `HYDRA_UMC_OPCUA_HISTORY_EVENTS=1` (it needs `HYDRA_UMC_OPCUA_HISTORY
 
 ## StartJob and AbortJob
 
-Off unless `HYDRA_UMC_OPCUA_METHODS=1`. The two methods are on the object `HydraNode_1` (`ns=1;s=HydraNode_1.StartJob` and `.AbortJob`) and answer `Accepted` (Boolean) and `Message` (String); a refusal also gives the status BadUserAccessDenied. Every call goes through these steps in order and stops at the first that refuses: the session is the administrator's (user name and password; not anonymous, not the viewer account); the arguments are valid (a job id of letters, digits, `.`, `_` and `-`, up to 64; a priority of 0 to 1000); the order is written to the audit trail; the capability gate says `allowed`; the job queue takes the order; the outcome is written to the audit trail.
+Off unless `HYDRA_UMC_OPCUA_METHODS=1`. The two methods are on the object `HydraNode_1` (`ns=2;s=HydraNode_1.StartJob` and `.AbortJob`) and answer `Accepted` (Boolean) and `Message` (String); a refusal also gives the status BadUserAccessDenied. Every call goes through these steps in order and stops at the first that refuses: the session is the administrator's (user name and password; not anonymous, not the viewer account); the arguments are valid (a job id of letters, digits, `.`, `_` and `-`, up to 64; a priority of 0 to 1000); the order is written to the audit trail; the capability gate says `allowed`; the job queue takes the order; the outcome is written to the audit trail.
 
 | Variable | Meaning |
 |---|---|
