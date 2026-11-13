@@ -150,3 +150,19 @@ describe("the reported version", () => {
     expect(readPackageVersion()).toBe(first);
   });
 });
+
+
+describe("the development and build scripts on an npm without install-scripts", () => {
+  it("never call `npm install-scripts approve` without asking first whether npm has it", async () => {
+    const { readFileSync } = await import("node:fs");
+    for (const name of ["dev.sh", "dev.bat", "build.sh", "build.bat"]) {
+      const lines = readFileSync(new URL("../" + name, import.meta.url), "utf8").split(/\r?\n/);
+      const calls = lines.map((l, i) => [l, i] as const).filter(([l]) => /install-scripts approve/.test(l) && !/^\s*(#|REM\b)/i.test(l));
+      expect(calls.length, name).toBeGreaterThan(0);
+      for (const [line, i] of calls) {
+        const guarded = /install-scripts --help/.test(line) || lines.slice(Math.max(0, i - 2), i).some((l) => /install-scripts --help/.test(l));
+        expect(guarded, name + ": " + line).toBe(true);
+      }
+    }
+  });
+});

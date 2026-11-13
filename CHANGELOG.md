@@ -2,6 +2,10 @@
 
 All notable changes to this project are documented here.
 
+## [Unreleased]
+
+- **The development and build scripts no longer stop on npm 10:** `dev` and `build` (`.sh` and `.bat`) called `npm install-scripts approve --all`, a command that only the newest npm has, so the run ended with "Unknown command" before it started; they now ask `npm install-scripts --help` first and go on without it. A test reads the four scripts and fails if the call comes back unguarded.
+
 ## [0.2.8] - Fleet view from the MQTT broker and updated dependencies
 
 - **README: the platform statement:** a note says that where the README speaks of the CM5 it means the pilot bench that runs today, and that the target platform of HYDRA-UMC, an NVIDIA Jetson Orin NX 16 GB, is a design that has not been built or tested.
