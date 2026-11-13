@@ -13,7 +13,7 @@
 //   OPCUA_LEGACY_NS_ALIAS_UNTIL   optional date (YYYY-MM-DD, end of that day in UTC) after which the alias stops; empty: no end.
 // =============================================================================
 
-import { NodeId, NodeIdType, resolveNodeId } from "node-opcua";
+import { NodeId, NodeIdType } from "node-opcua";
 
 export interface LegacyAliasConfig {
   enabled: boolean;
@@ -36,32 +36,46 @@ export function legacyAliasFromEnv(env: Record<string, string | undefined> = pro
   return { enabled, untilMs: start + 24 * 60 * 60 * 1000 };
 }
 
-/** The minimum an address space has to offer for the alias. */
-interface Resolvable {
-  findNode(nodeId: unknown): unknown;
+/** What the alias needs of a server: the event it emits for every request before the request is handled. */
+interface RequestEmitter {
+  on(event: "request", listener: (request: unknown) => void): unknown;
+  off(event: "request", listener: (request: unknown) => void): unknown;
+}
+
+const MAX_DEPTH = 12;
+
+/** Replaces, inside a decoded request, every `ns=1;s=NAME` NodeId with `ns=<namespaceIndex>;s=NAME`. Returns how many it replaced. */
+export function rewriteLegacyNodeIds(node: unknown, namespaceIndex: number, depth = 0): number {
+  if (node === null || typeof node !== "object" || depth > MAX_DEPTH) return 0;
+  const holder = node as Record<string, unknown>;
+  let replaced = 0;
+  for (const key of Object.keys(holder)) {
+    const child = holder[key];
+    if (child instanceof NodeId) {
+      if (child.namespace === 1 && child.identifierType === NodeIdType.STRING) {
+        holder[key] = new NodeId(NodeIdType.STRING, child.value as string, namespaceIndex);
+        replaced += 1;
+      }
+    } else if (child !== null && typeof child === "object" && !ArrayBuffer.isView(child)) {
+      replaced += rewriteLegacyNodeIds(child, namespaceIndex, depth + 1);
+    }
+  }
+  return replaced;
 }
 
 /**
- * Makes `findNode` answer `ns=1;s=NAME` with the node `ns=<namespaceIndex>;s=NAME` when no node has the first one. Returns a function that
- * takes the alias off. Does nothing when the alias is disabled or `namespaceIndex` is 1 (nothing to alias).
+ * Answers `ns=1;s=NAME` as `ns=<namespaceIndex>;s=NAME` for every service (read, browse, subscriptions, history, method calls): the request is
+ * rewritten before it is handled. Returns a function that takes the alias off. Does nothing when the alias is disabled or the namespace of the
+ * server is index 1 (nothing to alias).
  */
-export function installLegacyNamespaceAlias(addressSpace: Resolvable, namespaceIndex: number, config: LegacyAliasConfig, now: () => number = Date.now): () => void {
+export function installLegacyNamespaceAlias(server: RequestEmitter, namespaceIndex: number, config: LegacyAliasConfig, now: () => number = Date.now): () => void {
   if (!config.enabled || namespaceIndex === 1) return () => undefined;
-  const original = addressSpace.findNode.bind(addressSpace);
-  addressSpace.findNode = (nodeId: unknown) => {
-    const found = original(nodeId);
-    if (found) return found;
-    if (config.untilMs !== undefined && now() >= config.untilMs) return found;
-    let id: NodeId;
-    try {
-      id = resolveNodeId(nodeId as string);
-    } catch {
-      return found;
-    }
-    if (id.namespace !== 1 || id.identifierType !== NodeIdType.STRING) return found;
-    return original(new NodeId(NodeIdType.STRING, id.value as string, namespaceIndex));
+  const listener = (request: unknown): void => {
+    if (config.untilMs !== undefined && now() >= config.untilMs) return;
+    rewriteLegacyNodeIds(request, namespaceIndex);
   };
+  server.on("request", listener);
   return () => {
-    addressSpace.findNode = original;
+    server.off("request", listener);
   };
 }

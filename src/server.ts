@@ -319,7 +319,7 @@ export async function buildAddressSpaceServer(port: number = resolveListenPortOf
   // (index 1) keeps the URI node-opcua gives it, which is what a client expects index 1 to be. A client that still asks for
   // `ns=1;s=NAME` is answered with the node of the same name while the alias is on (see legacyAlias.ts).
   const namespace = addressSpace.registerNamespace(NAMESPACE_URI);
-  installLegacyNamespaceAlias(addressSpace, namespace.index, options.legacyNamespaceAlias ?? legacyAliasFromEnv());
+  installLegacyNamespaceAlias(server, namespace.index, options.legacyNamespaceAlias ?? legacyAliasFromEnv());
 
   // Placeholder address space: one HydraNode object exposing a few
   // variables. Real deployments generate one such object per active

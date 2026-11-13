@@ -7,10 +7,11 @@
 // while the alias is on, and the alias can be switched off or given an end by the configuration.
 // =============================================================================
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { AttributeIds, MessageSecurityMode, OPCUAClient, SecurityPolicy, UserTokenType } from "node-opcua";
+import { EventEmitter } from "node:events";
+import { AttributeIds, MessageSecurityMode, NodeId, NodeIdType, OPCUAClient, SecurityPolicy, UserTokenType } from "node-opcua";
 import type { ClientSession } from "node-opcua";
 import { buildAddressSpaceServer } from "../src/server.js";
-import { installLegacyNamespaceAlias, legacyAliasFromEnv } from "../src/legacyAlias.js";
+import { installLegacyNamespaceAlias, legacyAliasFromEnv, rewriteLegacyNodeIds } from "../src/legacyAlias.js";
 
 process.env.OPCUA_AUTO_ACCEPT = "1";
 
@@ -29,39 +30,52 @@ describe("the configuration of the alias", () => {
   });
 });
 
-describe("the lookup", () => {
-  const space = () => {
-    const nodes = new Map<string, string>([["ns=2;s=Robots", "robots-node"]]);
-    return {
-      findNode(id: unknown): unknown {
-        return nodes.get(String(id)) ?? null;
-      },
-    };
-  };
+describe("the rewriting of a request", () => {
+  const request = () => ({
+    nodesToRead: [{ nodeId: new NodeId(NodeIdType.STRING, "Robots", 1), attributeId: 13 }, { nodeId: new NodeId(NodeIdType.STRING, "Robots", 2), attributeId: 13 }],
+    nodeToBrowse: { nodeId: new NodeId(NodeIdType.NUMERIC, 85, 1) },
+    startingNode: new NodeId(NodeIdType.STRING, "Other", 3),
+    bytes: new Uint8Array(4),
+  });
 
-  it("answers ns=1 with the same name in the namespace of the server, and only while it is on", () => {
-    const a = space();
-    installLegacyNamespaceAlias(a, 2, { enabled: true });
-    expect(a.findNode("ns=1;s=Robots")).toBe("robots-node");
-    expect(a.findNode("ns=2;s=Robots")).toBe("robots-node");
-    expect(a.findNode("ns=1;s=Nothing")).toBeNull();
-    expect(a.findNode("ns=1;i=85")).toBeNull();
-    const off = space();
+  it("turns ns=1 string identifiers into the namespace of the server and leaves every other identifier alone", () => {
+    const r = request();
+    expect(rewriteLegacyNodeIds(r, 2)).toBe(1);
+    expect(r.nodesToRead[0].nodeId.toString()).toBe("ns=2;s=Robots");
+    expect(r.nodesToRead[1].nodeId.toString()).toBe("ns=2;s=Robots");
+    expect(r.nodeToBrowse.nodeId.toString()).toBe("ns=1;i=85");
+    expect(r.startingNode.toString()).toBe("ns=3;s=Other");
+  });
+
+  it("reaches the request through the event of the server only while the alias is on", () => {
+    const on = new EventEmitter();
+    installLegacyNamespaceAlias(on, 2, { enabled: true });
+    const a = request();
+    on.emit("request", a);
+    expect(a.nodesToRead[0].nodeId.toString()).toBe("ns=2;s=Robots");
+    const off = new EventEmitter();
     installLegacyNamespaceAlias(off, 2, { enabled: false });
-    expect(off.findNode("ns=1;s=Robots")).toBeNull();
+    const b = request();
+    off.emit("request", b);
+    expect(b.nodesToRead[0].nodeId.toString()).toBe("ns=1;s=Robots");
   });
 
   it("stops at the end date and can be taken off", () => {
-    const a = space();
+    const emitter = new EventEmitter();
     let now = Date.parse("2030-01-01T00:00:00Z");
-    const remove = installLegacyNamespaceAlias(a, 2, { enabled: true, untilMs: Date.parse("2030-02-01T00:00:00Z") }, () => now);
-    expect(a.findNode("ns=1;s=Robots")).toBe("robots-node");
+    const remove = installLegacyNamespaceAlias(emitter, 2, { enabled: true, untilMs: Date.parse("2030-02-01T00:00:00Z") }, () => now);
+    const first = request();
+    emitter.emit("request", first);
+    expect(first.nodesToRead[0].nodeId.toString()).toBe("ns=2;s=Robots");
     now = Date.parse("2030-02-01T00:00:00Z");
-    expect(a.findNode("ns=1;s=Robots")).toBeNull();
+    const late = request();
+    emitter.emit("request", late);
+    expect(late.nodesToRead[0].nodeId.toString()).toBe("ns=1;s=Robots");
     now = Date.parse("2030-01-02T00:00:00Z");
-    expect(a.findNode("ns=1;s=Robots")).toBe("robots-node");
     remove();
-    expect(a.findNode("ns=1;s=Robots")).toBeNull();
+    const removed = request();
+    emitter.emit("request", removed);
+    expect(removed.nodesToRead[0].nodeId.toString()).toBe("ns=1;s=Robots");
   });
 });
 
