@@ -18,7 +18,7 @@ const admin: UserIdentityInfo = { type: UserTokenType.UserName, userName: "hydra
 const viewer: UserIdentityInfo = { type: UserTokenType.UserName, userName: "scada-viewer", password: "viewer-test-only-credential" };
 const anonymous: UserIdentityInfo = { type: UserTokenType.Anonymous };
 
-const MAINTENANCE = "ns=1;s=HydraNode_1.MaintenanceMode";
+const MAINTENANCE = "ns=2;s=HydraNode_1.MaintenanceMode";
 
 async function withSession<T>(endpoint: string, identity: UserIdentityInfo, fn: (session: ClientSession) => Promise<T>): Promise<T> {
   const client = OPCUAClient.create({ endpointMustExist: false, securityMode: MessageSecurityMode.SignAndEncrypt, securityPolicy: SecurityPolicy.Basic256Sha256 });

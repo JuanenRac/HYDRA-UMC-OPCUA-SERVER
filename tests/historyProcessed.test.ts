@@ -173,8 +173,8 @@ describe("configuration of processed and event history", () => {
 // over the real protocol
 // ---------------------------------------------------------------------------------------------------------------------------------
 
-const NODE = "ns=1;s=HydraNode_1.SpindleTemp";
-const OBJECT = "ns=1;s=HydraNode_1";
+const NODE = "ns=2;s=HydraNode_1.SpindleTemp";
+const OBJECT = "ns=2;s=HydraNode_1";
 const at = (ms: number) => new Date(BASE + ms);
 
 function historyConfig(url: string, extra: Partial<HistoryConfig> = {}): HistoryConfig {
@@ -406,7 +406,7 @@ describe("event HistoryRead over the real protocol", () => {
       await open(async (s) => {
         const withRules = await s.read({ nodeId: OBJECT, attributeId: 12 /* EventNotifier */ });
         expect(Number(withRules.value.value) & 4).toBe(4);
-        const without = await s.read({ nodeId: "ns=1;s=Robots", attributeId: 12 });
+        const without = await s.read({ nodeId: "ns=2;s=Robots", attributeId: 12 });
         expect(Number(without.value.value) & 4).toBe(0);
       });
     });

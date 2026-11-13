@@ -98,7 +98,7 @@ describe("HYDRA-UMC-OPCUA-SERVER address space (real OPC-UA protocol)", () => {
   it("serves SwarmOnline as a Good Boolean once a source has reported it", async () => {
     state.swarmOnline = true;
     try {
-      const dataValue = await withClient(async (session) => session.read({ nodeId: "ns=1;s=HydraNode_1.SwarmOnline", attributeId: AttributeIds.Value }));
+      const dataValue = await withClient(async (session) => session.read({ nodeId: "ns=2;s=HydraNode_1.SwarmOnline", attributeId: AttributeIds.Value }));
       expect(dataValue.statusCode.name).toBe("Good");
       expect(dataValue.value.value).toBe(true);
     } finally {
@@ -177,16 +177,16 @@ describe("per-robot tree", () => {
           { id: 2, name: "Mill", online: false },
         ]);
         expect(built.state.activeRobotCount).toBe(1);
-        const online = await session.read({ nodeId: "ns=1;s=Robot_1.Online", attributeId: AttributeIds.Value });
+        const online = await session.read({ nodeId: "ns=2;s=Robot_1.Online", attributeId: AttributeIds.Value });
         expect(online.value.value).toBe(true);
-        const name = await session.read({ nodeId: "ns=1;s=Robot_2.Name", attributeId: AttributeIds.Value });
+        const name = await session.read({ nodeId: "ns=2;s=Robot_2.Name", attributeId: AttributeIds.Value });
         expect(name.value.value).toBe("Mill");
 
         built.setRobots([{ id: 2, name: "Mill", online: true }]);
         expect(built.state.activeRobotCount).toBe(1);
-        const gone = await session.read({ nodeId: "ns=1;s=Robot_1.Online", attributeId: AttributeIds.Value });
+        const gone = await session.read({ nodeId: "ns=2;s=Robot_1.Online", attributeId: AttributeIds.Value });
         expect(gone.statusCode.isGood()).toBe(false);
-        const now = await session.read({ nodeId: "ns=1;s=Robot_2.Online", attributeId: AttributeIds.Value });
+        const now = await session.read({ nodeId: "ns=2;s=Robot_2.Online", attributeId: AttributeIds.Value });
         expect(now.value.value).toBe(true);
       } finally {
         await session.close();

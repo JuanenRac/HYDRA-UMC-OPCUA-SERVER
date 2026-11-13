@@ -90,7 +90,7 @@ describe("real, stable NodeIds", () => {
       const nodeId = await resolveNodeId(session, ["HydraNode_1", "SwarmOnline"]);
       return nodeId?.toString();
     });
-    expect(nodeIdString).toBe("ns=1;s=HydraNode_1.SwarmOnline");
+    expect(nodeIdString).toBe("ns=2;s=HydraNode_1.SwarmOnline");
   });
 
   it("SpindleTemp resolves to its own explicit string NodeId", async () => {
@@ -98,7 +98,7 @@ describe("real, stable NodeIds", () => {
       const nodeId = await resolveNodeId(session, ["HydraNode_1", "SpindleTemp"]);
       return nodeId?.toString();
     });
-    expect(nodeIdString).toBe("ns=1;s=HydraNode_1.SpindleTemp");
+    expect(nodeIdString).toBe("ns=2;s=HydraNode_1.SpindleTemp");
   });
 });
 
