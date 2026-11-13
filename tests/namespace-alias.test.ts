@@ -7,7 +7,7 @@
 // while the alias is on, and the alias can be switched off or given an end by the configuration.
 // =============================================================================
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { AttributeIds, MessageSecurityMode, OPCUAClient, SecurityPolicy, StatusCodes, UserTokenType } from "node-opcua";
+import { AttributeIds, MessageSecurityMode, OPCUAClient, SecurityPolicy, UserTokenType } from "node-opcua";
 import type { ClientSession } from "node-opcua";
 import { buildAddressSpaceServer } from "../src/server.js";
 import { installLegacyNamespaceAlias, legacyAliasFromEnv } from "../src/legacyAlias.js";
@@ -100,25 +100,25 @@ describe("a real server", () => {
       expect(uris[2]).toBe("urn:hydra-umc:opcua-server:v1");
       expect(uris[1]).not.toBe("urn:hydra-umc:opcua-server:v1");
       const node = await session.read({ nodeId: "ns=2;s=HydraNode_1.MaintenanceMode", attributeId: AttributeIds.Value });
-      expect(node.statusCode).toBe(StatusCodes.Good);
+      expect(node.statusCode.name).toBe("Good");
     });
   });
 
   it("answers the old ns=1 identifier with the node of the same name while the alias is on", async () => {
     await withSession(withAlias.server.getEndpointUrl(), async (session) => {
       const old = await session.read({ nodeId: "ns=1;s=HydraNode_1.MaintenanceMode", attributeId: AttributeIds.Value });
-      expect(old.statusCode).toBe(StatusCodes.Good);
+      expect(old.statusCode.name).toBe("Good");
       const browsed = await session.browse({ nodeId: "ns=1;s=Robots", resultMask: 63 });
-      expect(browsed.statusCode).toBe(StatusCodes.Good);
+      expect(browsed.statusCode.name).toBe("Good");
     });
   });
 
   it("refuses the old identifier when the alias is off, and still serves ns=2", async () => {
     await withSession(withoutAlias.server.getEndpointUrl(), async (session) => {
       const old = await session.read({ nodeId: "ns=1;s=HydraNode_1.MaintenanceMode", attributeId: AttributeIds.Value });
-      expect(old.statusCode).toBe(StatusCodes.BadNodeIdUnknown);
+      expect(old.statusCode.name).toBe("BadNodeIdUnknown");
       const current = await session.read({ nodeId: "ns=2;s=HydraNode_1.MaintenanceMode", attributeId: AttributeIds.Value });
-      expect(current.statusCode).toBe(StatusCodes.Good);
+      expect(current.statusCode.name).toBe("Good");
     });
   });
 });
