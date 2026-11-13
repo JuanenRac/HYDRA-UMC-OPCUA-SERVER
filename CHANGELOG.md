@@ -2,7 +2,7 @@
 
 All notable changes to this project are documented here.
 
-## [Unreleased]
+## [0.2.8] - Fleet view from the MQTT broker and updated dependencies
 
 - **README: the platform statement:** a note says that where the README speaks of the CM5 it means the pilot bench that runs today, and that the target platform of HYDRA-UMC, an NVIDIA Jetson Orin NX 16 GB, is a design that has not been built or tested.
 - **node-opcua updated to 2.180.0:** `node-opcua`, `node-opcua-address-space`, `node-opcua-server` and `node-opcua-types` move to 2.180.0 (the line with the fix for the published security advisories of the first three); the package files and the lock file follow.
