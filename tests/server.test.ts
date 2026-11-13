@@ -82,8 +82,8 @@ describe("HYDRA-UMC-OPCUA-SERVER address space (real OPC-UA protocol)", () => {
         startingNode: "ns=0;i=85", // Objects folder
         relativePath: {
           elements: [
-            { targetName: { namespaceIndex: 1, name: "HydraNode_1" } },
-            { targetName: { namespaceIndex: 1, name: "SwarmOnline" } },
+            { targetName: { namespaceIndex: 2, name: "HydraNode_1" } },
+            { targetName: { namespaceIndex: 2, name: "SwarmOnline" } },
           ],
         },
       });
@@ -113,8 +113,8 @@ describe("HYDRA-UMC-OPCUA-SERVER address space (real OPC-UA protocol)", () => {
         startingNode: "ns=0;i=85",
         relativePath: {
           elements: [
-            { targetName: { namespaceIndex: 1, name: "HydraNode_1" } },
-            { targetName: { namespaceIndex: 1, name: "ActiveRobotCount" } },
+            { targetName: { namespaceIndex: 2, name: "HydraNode_1" } },
+            { targetName: { namespaceIndex: 2, name: "ActiveRobotCount" } },
           ],
         },
       });
@@ -139,8 +139,8 @@ describe("HYDRA-UMC-OPCUA-SERVER address space (real OPC-UA protocol)", () => {
         startingNode: "ns=0;i=85",
         relativePath: {
           elements: [
-            { targetName: { namespaceIndex: 1, name: "HydraNode_1" } },
-            { targetName: { namespaceIndex: 1, name: "SwarmOnline" } },
+            { targetName: { namespaceIndex: 2, name: "HydraNode_1" } },
+            { targetName: { namespaceIndex: 2, name: "SwarmOnline" } },
           ],
         },
       });

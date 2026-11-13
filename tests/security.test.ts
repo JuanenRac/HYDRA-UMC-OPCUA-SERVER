@@ -66,7 +66,7 @@ async function withSession<T>(userIdentity: UserIdentityInfo, fn: (session: Clie
 async function resolveNodeId(session: ClientSession, browseNames: string[]) {
   const browsePath = await session.translateBrowsePath({
     startingNode: "ns=0;i=85", // Objects folder
-    relativePath: { elements: browseNames.map((name) => ({ targetName: { namespaceIndex: 1, name } })) },
+    relativePath: { elements: browseNames.map((name) => ({ targetName: { namespaceIndex: 2, name } })) },
   });
   return browsePath.targets?.[0]?.targetId;
 }

@@ -103,7 +103,9 @@ answered with the node `ns=2;s=NAME`: reads, browses, subscriptions, history and
 method calls. The alias adds no node and gives no write access. Set
 `OPCUA_LEGACY_NS_ALIAS_UNTIL=YYYY-MM-DD` (in the environment file, see
 `.env.example`) to end it after that day, or `OPCUA_LEGACY_NS_ALIAS=0` to turn it
-off now. Move clients to `ns=2` before it ends.
+off now. Move clients to `ns=2` before it ends. The alias covers NodeIds only: the
+browse names of the nodes are in the same namespace now (`2:HydraNode_1`), so a client
+that finds a node by browse path must use the index it reads from the namespace array.
 
 | NodeId | Type | Access | Notes |
 | --- | --- | --- | --- |

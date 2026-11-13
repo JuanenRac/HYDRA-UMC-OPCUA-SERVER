@@ -99,14 +99,14 @@ describe("a real server", () => {
       const uris = array.value.value as string[];
       expect(uris[2]).toBe("urn:hydra-umc:opcua-server:v1");
       expect(uris[1]).not.toBe("urn:hydra-umc:opcua-server:v1");
-      const node = await session.read({ nodeId: "ns=2;s=HydraNode_1.SwarmOnline", attributeId: AttributeIds.Value });
+      const node = await session.read({ nodeId: "ns=2;s=HydraNode_1.MaintenanceMode", attributeId: AttributeIds.Value });
       expect(node.statusCode).toBe(StatusCodes.Good);
     });
   });
 
   it("answers the old ns=1 identifier with the node of the same name while the alias is on", async () => {
     await withSession(withAlias.server.getEndpointUrl(), async (session) => {
-      const old = await session.read({ nodeId: "ns=1;s=HydraNode_1.SwarmOnline", attributeId: AttributeIds.Value });
+      const old = await session.read({ nodeId: "ns=1;s=HydraNode_1.MaintenanceMode", attributeId: AttributeIds.Value });
       expect(old.statusCode).toBe(StatusCodes.Good);
       const browsed = await session.browse({ nodeId: "ns=1;s=Robots", resultMask: 63 });
       expect(browsed.statusCode).toBe(StatusCodes.Good);
@@ -115,9 +115,9 @@ describe("a real server", () => {
 
   it("refuses the old identifier when the alias is off, and still serves ns=2", async () => {
     await withSession(withoutAlias.server.getEndpointUrl(), async (session) => {
-      const old = await session.read({ nodeId: "ns=1;s=HydraNode_1.SwarmOnline", attributeId: AttributeIds.Value });
+      const old = await session.read({ nodeId: "ns=1;s=HydraNode_1.MaintenanceMode", attributeId: AttributeIds.Value });
       expect(old.statusCode).toBe(StatusCodes.BadNodeIdUnknown);
-      const current = await session.read({ nodeId: "ns=2;s=HydraNode_1.SwarmOnline", attributeId: AttributeIds.Value });
+      const current = await session.read({ nodeId: "ns=2;s=HydraNode_1.MaintenanceMode", attributeId: AttributeIds.Value });
       expect(current.statusCode).toBe(StatusCodes.Good);
     });
   });

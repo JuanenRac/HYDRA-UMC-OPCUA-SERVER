@@ -24,7 +24,7 @@ describe("nodeset/HydraUmc.NodeSet2.xml", () => {
   const file = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "nodeset", "HydraUmc.NodeSet2.xml");
 
   it("is what the address space builds", () => {
-    const built_xml = built.server.engine.addressSpace!.getOwnNamespace().toNodeset2XML().replace(/\r\n/g, "\n");
+    const built_xml = built.server.engine.addressSpace!.getNamespace("urn:hydra-umc:opcua-server:v1").toNodeset2XML().replace(/\r\n/g, "\n");
     expect(readFileSync(file, "utf-8").replace(/\r\n/g, "\n")).toBe(built_xml);
   });
 
