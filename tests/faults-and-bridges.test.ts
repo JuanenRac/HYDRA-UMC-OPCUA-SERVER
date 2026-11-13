@@ -156,7 +156,7 @@ describe("the alarms on a real server", () => {
     try {
       const session: ClientSession = await client.createSession();
       try {
-        const name = await session.read({ nodeId: "ns=1;s=HydraNode_1.McuAlarm", attributeId: AttributeIds.BrowseName });
+        const name = await session.read({ nodeId: "ns=2;s=HydraNode_1.McuAlarm", attributeId: AttributeIds.BrowseName });
         expect(String(name.value.value.name)).toBe("McuAlarm");
       } finally {
         await session.close();
@@ -215,7 +215,7 @@ describe("the mobile bridges", () => {
       try {
         const session = await client.createSession();
         try {
-          const read = async (id: string) => session.read({ nodeId: `ns=1;s=${id}`, attributeId: AttributeIds.Value });
+          const read = async (id: string) => session.read({ nodeId: `ns=2;s=${id}`, attributeId: AttributeIds.Value });
           expect((await read("Bridge_amr.Available")).value.value).toBe(true);
           expect((await read("Bridge_amr.Health")).value.value).toBe("READY");
           expect((await read("Bridge_uav.Health")).value.value).toBe("FAULT");
@@ -223,7 +223,7 @@ describe("the mobile bridges", () => {
           const unknown = await read("Bridge_droids.Available");
           expect(unknown.statusCode.name).toBe("BadWaitingForInitialData");
           // nothing is writable
-          const written = await session.write({ nodeId: "ns=1;s=Bridge_amr.Available", attributeId: AttributeIds.Value, value: { value: { dataType: 1, value: false } } });
+          const written = await session.write({ nodeId: "ns=2;s=Bridge_amr.Available", attributeId: AttributeIds.Value, value: { value: { dataType: 1, value: false } } });
           expect(written.isGood()).toBe(false);
         } finally {
           await session.close();
@@ -238,7 +238,7 @@ describe("the mobile bridges", () => {
       try {
         const session = await client2.createSession();
         try {
-          const value = await session.read({ nodeId: "ns=1;s=Bridge_amr.Health", attributeId: AttributeIds.Value });
+          const value = await session.read({ nodeId: "ns=2;s=Bridge_amr.Health", attributeId: AttributeIds.Value });
           expect(value.statusCode.name).toContain("Uncertain");
         } finally {
           await session.close();

@@ -64,7 +64,7 @@ describe("a real subscription", () => {
     });
     try {
       const monitored = await subscription.monitor(
-        { nodeId: "ns=1;s=HydraNode_1.ActiveRobotCount", attributeId: AttributeIds.Value },
+        { nodeId: "ns=2;s=HydraNode_1.ActiveRobotCount", attributeId: AttributeIds.Value },
         { samplingInterval: 100, discardOldest: true, queueSize: 10 },
         TimestampsToReturn.Both,
       );
@@ -82,7 +82,7 @@ describe("a real subscription", () => {
 });
 
 describe("the Online variable while the roster cannot be read", () => {
-  const nodeId = "ns=1;s=Robot_arm1.Online";
+  const nodeId = "ns=2;s=Robot_arm1.Online";
 
   it("is Good with the read time when the roster was read, Uncertain (and false) when it could not be", async () => {
     const before = Date.now();

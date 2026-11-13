@@ -66,7 +66,7 @@ async function withSession<T>(userIdentity: UserIdentityInfo, fn: (session: Clie
 async function resolveNodeId(session: ClientSession, browseNames: string[]) {
   const browsePath = await session.translateBrowsePath({
     startingNode: "ns=0;i=85", // Objects folder
-    relativePath: { elements: browseNames.map((name) => ({ targetName: { namespaceIndex: 1, name } })) },
+    relativePath: { elements: browseNames.map((name) => ({ targetName: { namespaceIndex: 2, name } })) },
   });
   return browsePath.targets?.[0]?.targetId;
 }
@@ -90,7 +90,7 @@ describe("real, stable NodeIds", () => {
       const nodeId = await resolveNodeId(session, ["HydraNode_1", "SwarmOnline"]);
       return nodeId?.toString();
     });
-    expect(nodeIdString).toBe("ns=1;s=HydraNode_1.SwarmOnline");
+    expect(nodeIdString).toBe("ns=2;s=HydraNode_1.SwarmOnline");
   });
 
   it("SpindleTemp resolves to its own explicit string NodeId", async () => {
@@ -98,7 +98,7 @@ describe("real, stable NodeIds", () => {
       const nodeId = await resolveNodeId(session, ["HydraNode_1", "SpindleTemp"]);
       return nodeId?.toString();
     });
-    expect(nodeIdString).toBe("ns=1;s=HydraNode_1.SpindleTemp");
+    expect(nodeIdString).toBe("ns=2;s=HydraNode_1.SpindleTemp");
   });
 });
 

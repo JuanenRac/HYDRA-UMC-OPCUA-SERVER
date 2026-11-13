@@ -49,7 +49,7 @@ async function writeMaintenanceMode(identityFor: (client: OPCUAClient) => Promis
     const session = await client.createSession(await identityFor(client));
     try {
       const status = await session.write({
-        nodeId: "ns=1;s=HydraNode_1.MaintenanceMode",
+        nodeId: "ns=2;s=HydraNode_1.MaintenanceMode",
         attributeId: AttributeIds.Value,
         value: { value: { dataType: DataType.Boolean, value: true } },
       });
@@ -77,7 +77,7 @@ describe("nothing is invented", () => {
     await client.connect(endpointUrl);
     try {
       const session = await client.createSession({ type: UserTokenType.Anonymous });
-      const dataValue = await session.read({ nodeId: "ns=1;s=HydraNode_1.SpindleTemp", attributeId: AttributeIds.Value });
+      const dataValue = await session.read({ nodeId: "ns=2;s=HydraNode_1.SpindleTemp", attributeId: AttributeIds.Value });
       await session.close();
       expect(dataValue.statusCode.name).toBe("BadWaitingForInitialData");
       expect(dataValue.value.value).toBeNull();

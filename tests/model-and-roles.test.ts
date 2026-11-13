@@ -63,27 +63,27 @@ const browseNames = async (session: ClientSession, nodeId: string): Promise<stri
 describe("the information model", () => {
   it("has a type for the cell and a type for a robot, with their members", async () => {
     await withSession(anonymous, async (session) => {
-      expect(await browseNames(session, "ns=1;s=HydraCellType")).toEqual(["ActiveRobotCount", "MaintenanceMode", "SpindleTemp", "SwarmOnline"]);
-      expect(await browseNames(session, "ns=1;s=HydraRobotType")).toEqual(["LastUpdate", "Live", "Name", "Online"]);
+      expect(await browseNames(session, "ns=2;s=HydraCellType")).toEqual(["ActiveRobotCount", "MaintenanceMode", "SpindleTemp", "SwarmOnline"]);
+      expect(await browseNames(session, "ns=2;s=HydraRobotType")).toEqual(["LastUpdate", "Live", "Name", "Online"]);
     });
   });
 
   it("hangs the robots from a Robots folder and gives each the robot type", async () => {
     await withSession(anonymous, async (session) => {
-      expect(await browseNames(session, "ns=1;s=Robots")).toContain("Robot_7");
+      expect(await browseNames(session, "ns=2;s=Robots")).toContain("Robot_7");
       const root = await browseNames(session, "ns=0;i=85");
       expect(root).toContain("Robots");
       expect(root).not.toContain("Robot_7");
-      const definition = await session.browse({ nodeId: "ns=1;s=Robot_7", referenceTypeId: "HasTypeDefinition", resultMask: 63 });
+      const definition = await session.browse({ nodeId: "ns=2;s=Robot_7", referenceTypeId: "HasTypeDefinition", resultMask: 63 });
       expect(definition.references?.[0].browseName.name).toBe("HydraRobotType");
-      const cell = await session.browse({ nodeId: "ns=1;s=HydraNode_1", referenceTypeId: "HasTypeDefinition", resultMask: 63 });
+      const cell = await session.browse({ nodeId: "ns=2;s=HydraNode_1", referenceTypeId: "HasTypeDefinition", resultMask: 63 });
       expect(cell.references?.[0].browseName.name).toBe("HydraCellType");
     });
   });
 
   it("keeps the NodeIds of the variables that were there before", async () => {
     await withSession(anonymous, async (session) => {
-      for (const id of ["ns=1;s=HydraNode_1.SwarmOnline", "ns=1;s=HydraNode_1.ActiveRobotCount", "ns=1;s=Robot_7.Name", "ns=1;s=Robot_7.Online"]) {
+      for (const id of ["ns=2;s=HydraNode_1.SwarmOnline", "ns=2;s=HydraNode_1.ActiveRobotCount", "ns=2;s=Robot_7.Name", "ns=2;s=Robot_7.Online"]) {
         const value = await session.read({ nodeId: id, attributeId: AttributeIds.Value });
         expect(value.statusCode).not.toBe(StatusCodes.BadNodeIdUnknown);
       }
@@ -94,18 +94,18 @@ describe("the information model", () => {
 describe("Live and LastUpdate", () => {
   it("are waiting for a first signal until a robot is seen, then say when and whether it is alive", async () => {
     await withSession(anonymous, async (session) => {
-      const live = await session.read({ nodeId: "ns=1;s=Robot_7.Live", attributeId: AttributeIds.Value });
+      const live = await session.read({ nodeId: "ns=2;s=Robot_7.Live", attributeId: AttributeIds.Value });
       expect(live.statusCode).toBe(StatusCodes.BadWaitingForInitialData);
-      const last = await session.read({ nodeId: "ns=1;s=Robot_7.LastUpdate", attributeId: AttributeIds.Value });
+      const last = await session.read({ nodeId: "ns=2;s=Robot_7.LastUpdate", attributeId: AttributeIds.Value });
       expect(last.statusCode).toBe(StatusCodes.BadWaitingForInitialData);
     });
     const seen = Date.now() - 1000;
     built.markRobotSeen(7, seen);
     await withSession(anonymous, async (session) => {
-      const live = await session.read({ nodeId: "ns=1;s=Robot_7.Live", attributeId: AttributeIds.Value });
+      const live = await session.read({ nodeId: "ns=2;s=Robot_7.Live", attributeId: AttributeIds.Value });
       expect(live.statusCode.isGood()).toBe(true);
       expect(live.value.value).toBe(true);
-      const last = await session.read({ nodeId: "ns=1;s=Robot_7.LastUpdate", attributeId: AttributeIds.Value });
+      const last = await session.read({ nodeId: "ns=2;s=Robot_7.LastUpdate", attributeId: AttributeIds.Value });
       expect((last.value.value as Date).getTime()).toBe(seen);
     });
     expect(built.liveRobotCount()).toBe(1);
@@ -121,7 +121,7 @@ describe("Live and LastUpdate", () => {
     );
     built.markRobotSeen(8, Date.now() - 10 * 60_000);
     await withSession(anonymous, async (session) => {
-      const live = await session.read({ nodeId: "ns=1;s=Robot_8.Live", attributeId: AttributeIds.Value });
+      const live = await session.read({ nodeId: "ns=2;s=Robot_8.Live", attributeId: AttributeIds.Value });
       expect(live.statusCode.isGood()).toBe(true);
       expect(live.value.value).toBe(false);
     });
@@ -134,7 +134,7 @@ describe("Live and LastUpdate", () => {
       { stale: true },
     );
     await withSession(anonymous, async (session) => {
-      const live = await session.read({ nodeId: "ns=1;s=Robot_7.Live", attributeId: AttributeIds.Value });
+      const live = await session.read({ nodeId: "ns=2;s=Robot_7.Live", attributeId: AttributeIds.Value });
       expect(live.statusCode).toBe(StatusCodes.UncertainNoCommunicationLastUsableValue);
       expect(live.value.value).toBe(false);
     });
@@ -151,7 +151,7 @@ describe("Live and LastUpdate", () => {
       { stale: false, observedAtMs: Date.now() },
     );
     await withSession(anonymous, async (session) => {
-      const live = await session.read({ nodeId: "ns=1;s=Robot_99.Live", attributeId: AttributeIds.Value });
+      const live = await session.read({ nodeId: "ns=2;s=Robot_99.Live", attributeId: AttributeIds.Value });
       expect(live.value.value).toBe(true);
     });
     built.setRobots([{ id: 7, name: "Arm", online: true }], { stale: false, observedAtMs: Date.now() });
@@ -169,7 +169,7 @@ describe("roles (OPC UA Part 18)", () => {
   const rolesOf = async (identity: UserIdentityInfo): Promise<string[]> =>
     withSession(identity, async (session) => {
       // the roles the session holds are the ones the role permissions of a node grant it: read what the server says this session may do
-      const result = await session.read({ nodeId: "ns=1;s=HydraNode_1.SwarmOnline", attributeId: AttributeIds.UserRolePermissions });
+      const result = await session.read({ nodeId: "ns=2;s=HydraNode_1.SwarmOnline", attributeId: AttributeIds.UserRolePermissions });
       const granted = (result.value.value as Array<{ roleId: { toString(): string }; permissions: number }> | null) ?? [];
       return granted.map((r) => r.roleId.toString()).sort();
     });
