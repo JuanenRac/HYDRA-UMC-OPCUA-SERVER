@@ -23,7 +23,9 @@ echo ========================================
 echo  Installing dependencies...
 echo ========================================
 call npm install
-call npm install-scripts approve --all
+REM `npm install-scripts approve` only exists in the newest npm; npm 10 stops with "Unknown command", so ask first and never fail the run over it.
+call npm install-scripts --help >nul 2>&1
+if not errorlevel 1 call npm install-scripts approve --all
 
 echo ========================================
 echo  Starting HYDRA-UMC OPCUA SERVER (Dev Mode)
