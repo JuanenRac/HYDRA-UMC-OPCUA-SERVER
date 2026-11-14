@@ -67,13 +67,13 @@ const until = async (check: () => Promise<boolean>, ms = 8000) => {
 
 describe("robot roster from a real HTTP source to a real OPC-UA client", () => {
   it("shows the robot the source lists, and drops it when the source stops listing it", async () => {
-    expect(await until(async () => (await readValue("ns=1;s=Robot_7.Online")).good)).toBe(true);
-    expect((await readValue("ns=1;s=Robot_7.Name")).value).toBe("Arm");
+    expect(await until(async () => (await readValue("ns=2;s=Robot_7.Online")).good)).toBe(true);
+    expect((await readValue("ns=2;s=Robot_7.Name")).value).toBe("Arm");
     expect(built.state.activeRobotCount).toBe(1);
 
     roster = { controllers: [{ robots: [{ id: 8, name: "Mill", online: false }] }] };
-    expect(await until(async () => !(await readValue("ns=1;s=Robot_7.Online")).good)).toBe(true);
-    expect((await readValue("ns=1;s=Robot_8.Online")).value).toBe(false);
+    expect(await until(async () => !(await readValue("ns=2;s=Robot_7.Online")).good)).toBe(true);
+    expect((await readValue("ns=2;s=Robot_8.Online")).value).toBe(false);
     expect(built.state.activeRobotCount).toBe(0);
   }, 30000);
 });

@@ -184,8 +184,8 @@ describe("the nodes under Fleet", () => {
       const session = await client.createSession();
       try {
         const out = [];
-        for (const id of ids) out.push(await session.read({ nodeId: `ns=1;s=${id}`, attributeId: AttributeIds.Value }));
-        const written = await session.write({ nodeId: "ns=1;s=Fleet.agv1.battery.charge", attributeId: AttributeIds.Value, value: { value: { dataType: 11, value: 1 } } });
+        for (const id of ids) out.push(await session.read({ nodeId: `ns=2;s=${id}`, attributeId: AttributeIds.Value }));
+        const written = await session.write({ nodeId: "ns=2;s=Fleet.agv1.battery.charge", attributeId: AttributeIds.Value, value: { value: { dataType: 11, value: 1 } } });
         return { values: out, writable: written.isGood() };
       } finally {
         await session.close();

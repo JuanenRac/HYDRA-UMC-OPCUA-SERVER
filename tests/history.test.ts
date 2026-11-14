@@ -163,7 +163,7 @@ describe("HistoryRead over the real protocol", () => {
     }
   }
 
-  const node = "ns=1;s=HydraNode_1.SpindleTemp";
+  const node = "ns=2;s=HydraNode_1.SpindleTemp";
   const at = (n: number) => new Date(BASE + n * 1000);
   const dataValues = (result: HistoryReadResult) => ((result.historyData as unknown as { dataValues?: Array<{ value: { value: unknown }; statusCode: unknown }> } | null)?.dataValues ?? []);
   const values = (result: HistoryReadResult) => dataValues(result).map((v) => v.value.value);
@@ -207,7 +207,7 @@ describe("HistoryRead over the real protocol", () => {
   it("makes only the mapped variables historical, and leaves them read-only", async () => {
     await withSession(async (s) => {
       const mapped = await s.read({ nodeId: node, attributeId: AttributeIds.UserAccessLevel });
-      const plain = await s.read({ nodeId: "ns=1;s=HydraNode_1.MaintenanceMode", attributeId: AttributeIds.UserAccessLevel });
+      const plain = await s.read({ nodeId: "ns=2;s=HydraNode_1.MaintenanceMode", attributeId: AttributeIds.UserAccessLevel });
       expect(Number(mapped.value.value) & 4).toBe(4); // HistoryRead
       expect(Number(mapped.value.value) & 2).toBe(0); // CurrentWrite
       expect(Number(plain.value.value) & 4).toBe(0);

@@ -24,7 +24,7 @@ vi.setConfig({ testTimeout: 30_000 });
 
 const BASE = Date.UTC(2026, 5, 1, 12, 0, 0);
 const SERIES = { sourceId: "arm-1", kind: "spindle", field: "temp" };
-const NODE = "ns=1;s=HydraNode_1.SpindleTemp";
+const NODE = "ns=2;s=HydraNode_1.SpindleTemp";
 const at = (ms: number) => new Date(BASE + ms);
 const RAMP: FakePoint[] = Array.from({ length: 10 }, (_, i) => ({ timestamp: BASE + i * 1000, value: 20 + i }));
 

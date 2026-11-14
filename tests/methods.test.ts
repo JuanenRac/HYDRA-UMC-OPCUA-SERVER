@@ -187,7 +187,7 @@ describe("the methods over OPC UA", () => {
     try {
       const session: ClientSession = await client.createSession(identity);
       try {
-        return await session.call({ objectId: "ns=1;s=HydraNode_1", methodId: `ns=1;s=HydraNode_1.${method}`, inputArguments: args });
+        return await session.call({ objectId: "ns=2;s=HydraNode_1", methodId: `ns=2;s=HydraNode_1.${method}`, inputArguments: args });
       } finally {
         await session.close();
       }

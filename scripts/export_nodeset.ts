@@ -14,7 +14,7 @@ import { buildAddressSpaceServer } from "../src/server.ts";
 
 const target = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "nodeset", "HydraUmc.NodeSet2.xml");
 const built = await buildAddressSpaceServer(0);
-const xml = built.server.engine.addressSpace!.getOwnNamespace().toNodeset2XML().replace(/\r\n/g, "\n");
+const xml = built.server.engine.addressSpace!.getNamespace("urn:hydra-umc:opcua-server:v1").toNodeset2XML().replace(/\r\n/g, "\n");
 await built.server.shutdown();
 if (process.argv.includes("--check")) {
   const current = readFileSync(target, "utf-8").replace(/\r\n/g, "\n");

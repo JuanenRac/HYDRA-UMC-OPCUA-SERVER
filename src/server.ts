@@ -48,6 +48,7 @@ import { EVENT_NOTIFIER_HISTORY_READ, installEvents } from "./historyEvents.js";
 import { JobMethods, methodsConfigFromEnv } from "./methods.js";
 import { faultSourceFromEnv, installFaultAlarms, startFaultPolling } from "./faults.js";
 import { bridgeNamesFromEnv, bridgesEnabled, type BridgeSnapshot } from "./bridges.js";
+import { installLegacyNamespaceAlias, legacyAliasFromEnv, type LegacyAliasConfig } from "./legacyAlias.js";
 import { fleetConfigFromEnv, fleetEnabled, startFleetSubscription, type FleetType, type FleetUpdate } from "./fleet.js";
 
 // 4840 is the IANA-registered default OPC-UA TCP port, and node-opcua's
@@ -101,6 +102,8 @@ export interface BuildOptions {
   bridges?: boolean;
   /** Build the Fleet folder (the nodes the bridges publish on the MQTT broker); by default only while HYDRA_UMC_OPCUA_MQTT=1. */
   fleet?: boolean;
+  /** Answer `ns=1;s=NAME` with the node of the same name in the namespace of this server; by default it comes from the environment (on unless OPCUA_LEGACY_NS_ALIAS=0). */
+  legacyNamespaceAlias?: LegacyAliasConfig;
 }
 
 export interface HydraNodeState {
@@ -312,11 +315,11 @@ export async function buildAddressSpaceServer(port: number = resolveListenPortOf
   if (!addressSpace) {
     throw new Error("HYDRA-UMC-OPCUA-SERVER: address space failed to initialize");
   }
-  const namespace = addressSpace.getOwnNamespace();
-  // A real, explicit URI instead of node-opcua's implicit hostname-derived
-  // default - see NAMESPACE_URI's own doc comment above. Same namespace
-  // index (1) as before, so existing browse-by-name lookups are unaffected.
-  namespace.namespaceUri = NAMESPACE_URI;
+  // The nodes of this server live in a namespace registered under the explicit URI of NAMESPACE_URI (index 2). The local namespace
+  // (index 1) keeps the URI node-opcua gives it, which is what a client expects index 1 to be. A client that still asks for
+  // `ns=1;s=NAME` is answered with the node of the same name while the alias is on (see legacyAlias.ts).
+  const namespace = addressSpace.registerNamespace(NAMESPACE_URI);
+  installLegacyNamespaceAlias(server, namespace.index, options.legacyNamespaceAlias ?? legacyAliasFromEnv());
 
   // Placeholder address space: one HydraNode object exposing a few
   // variables. Real deployments generate one such object per active

@@ -36,7 +36,8 @@ HYDRA_UMC_VERSION_BUILT="$(python3 -c 'import json, pathlib, sys; print(json.loa
 printf '%s\n' "      Building v${HYDRA_UMC_VERSION_BUILT:-unknown} (building never changes the version)"
 echo
 npm install
-npm install-scripts approve --all
+# `npm install-scripts approve` only exists in the newest npm; npm 10 stops with "Unknown command", so ask first and never fail the run over it.
+if npm install-scripts --help >/dev/null 2>&1; then npm install-scripts approve --all || echo "npm install-scripts approve failed; continuing."; fi
 
 echo "========================================"
 echo " Running the real test suite (vitest)... "

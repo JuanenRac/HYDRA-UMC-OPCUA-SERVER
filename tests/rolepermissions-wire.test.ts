@@ -34,7 +34,7 @@ const WRITE_BITS =
   PermissionType.DeleteNode |
   PermissionType.AddNode;
 
-const NODES = ["ns=1;s=HydraNode_1.SwarmOnline", "ns=1;s=HydraNode_1.MaintenanceMode", "ns=1;s=Robots"];
+const NODES = ["ns=2;s=HydraNode_1.SwarmOnline", "ns=2;s=HydraNode_1.MaintenanceMode", "ns=2;s=Robots"];
 
 function setEnv(values: Record<string, string | undefined>): () => void {
   const previous: Record<string, string | undefined> = {};
