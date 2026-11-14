@@ -1,0 +1,41 @@
+# =============================================================================
+#  - Simulation bench
+# Copyright (C) 2026 JuanenRac (Electro Hobby 3D) <electrohobby3d@gmail.com>
+# GPL-3.0-or-later - see LICENSE
+#
+# Runs the real history reader of the server against a simulated data lake that holds a synthetic machine history (fixed seed, 5400 points over six pages) and fails on command. No hardware. See docs/SIMULATION.md.
+# It runs on every push and pull request, by hand, and once a week.
+# =============================================================================
+name: Simulation bench
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 5 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  simulation:
+    name: Run the simulated scenarios
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: "20"
+          cache: npm
+      - name: Run the scenarios
+        env:
+          PYTHONDONTWRITEBYTECODE: "1"
+        run: |
+          npm ci
+          npx vitest run tests/simulation-bench.test.ts
