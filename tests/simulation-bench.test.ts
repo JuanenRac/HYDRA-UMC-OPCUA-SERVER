@@ -205,7 +205,7 @@ describe("a data lake that fails", () => {
 
   it("never sends the token anywhere but the lake it was given", async () => {
     const seen: string[] = [];
-    const spy = (async (input: URL | RequestInfo, init?: RequestInit) => {
+    const spy = (async (input: string | URL | Request, init?: RequestInit) => {
       seen.push(String(input), JSON.stringify(init?.headers ?? {}));
       return new Response(JSON.stringify({ points: [], nextCursor: null }), { status: 200 });
     }) as unknown as typeof fetch;
