@@ -136,6 +136,9 @@
             <RolePermission Permissions="35">i=15716</RolePermission>
             <RolePermission Permissions="35">i=15644</RolePermission>
         </RolePermissions>
+        <Value>
+            <uax:UInt32>0</uax:UInt32>
+        </Value>
     </UAVariable>
     <UAVariable NodeId="ns=1;s=HydraNode_1.MaintenanceMode" BrowseName="1:MaintenanceMode" ParentNodeId="ns=1;s=HydraNode_1" MinimumSamplingInterval="1000" DataType="Boolean">
         <DisplayName>MaintenanceMode</DisplayName>

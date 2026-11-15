@@ -4,6 +4,7 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+- **node-opcua updated to 2.187:** `node-opcua` and `node-opcua-types` move to the 2.187 line (and vitest to 5.1). The library now adds the bounding values of a history read itself, so the bounding values this server takes from the data lake are stamped with the boundary they bound, as the specification asks, and the library no longer adds a second, empty one. The NodeSet file now carries the initial value of `ActiveRobotCount`, which the library started to export.
 
 ## [0.2.9]
 

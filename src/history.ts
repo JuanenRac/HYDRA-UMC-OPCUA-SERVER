@@ -248,7 +248,11 @@ function dataValueOf(point: HistoryPoint, dataType: DataType): DataValue {
 }
 
 function boundValue(point: HistoryPoint | null | undefined, at: Date | null | undefined, dataType: DataType): DataValue {
-  if (point) return dataValueOf(point, dataType);
+  if (point) {
+    // A bounding value is stamped with the boundary it bounds: the library adds a bound of its own to any answer whose first or last value is not on the boundary.
+    const when = new Date(point.timestamp);
+    return new DataValue({ value: convertValue(point.value, dataType), statusCode: StatusCodes.Good, sourceTimestamp: at ?? when, serverTimestamp: when });
+  }
   return new DataValue({ value: new Variant({ dataType: DataType.Null }), statusCode: StatusCodes.BadBoundNotFound, sourceTimestamp: at ?? undefined });
 }
 
