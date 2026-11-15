@@ -19,6 +19,7 @@
 
 import type { RobotSnapshot, RosterMeta } from "./server.js";
 import { extractBridges, type BridgeSnapshot } from "./bridges.js";
+import { rosterFromSettings } from "./robotRoster.js";
 
 /** What GET /api/robots/liveness says of each robot, by "<controller id>/<robot id>"; null when the body is not a liveness report. */
 export function extractLiveness(report: unknown): Map<string, string> | null {
@@ -39,18 +40,23 @@ export function extractRobots(settings: unknown, liveness?: Map<string, string>)
   const robots: RobotSnapshot[] = [];
   const controllers = (settings as { controllers?: unknown } | null)?.controllers;
   if (!Array.isArray(controllers)) return robots;
-  for (const controller of controllers) {
+  // A robot with a whole-number id is read with the robot roster of the SDK (its online flag); a robot with a text id, which the roster does not know, keeps this reader's own walk.
+  const rostered = new Map<string, boolean>();
+  for (const member of rosterFromSettings(settings).robots) rostered.set(`${member.controller_id}/${member.robot_id}`, member.online);
+  for (const [position, controller] of controllers.entries()) {
     const list = (controller as { robots?: unknown } | null)?.robots;
     if (!Array.isArray(list)) continue;
     const rawControllerId = (controller as { id?: unknown } | null)?.id;
     const controllerId = typeof rawControllerId === "string" ? rawControllerId : typeof rawControllerId === "number" ? String(rawControllerId) : "";
+    const rosterController = typeof rawControllerId === "string" && rawControllerId.length >= 1 && rawControllerId.length <= 100 ? rawControllerId : `controller-${position + 1}`;
     for (const entry of list) {
       const robot = entry as { id?: unknown; name?: unknown; online?: unknown } | null;
       if (typeof robot?.id !== "string" && typeof robot?.id !== "number") continue;
+      const fromRoster = Number.isInteger(robot.id) && (robot.id as number) >= 0 ? rostered.get(`${rosterController}/${robot.id}`) : undefined;
       robots.push({
         id: robot.id,
         name: typeof robot.name === "string" ? robot.name : String(robot.id),
-        online: liveness ? liveness.get(`${controllerId}/${String(robot.id)}`) === "live" : robot.online === true,
+        online: liveness ? liveness.get(`${controllerId}/${String(robot.id)}`) === "live" : fromRoster ?? robot.online === true,
       });
     }
   }

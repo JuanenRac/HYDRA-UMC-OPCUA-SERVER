@@ -7,6 +7,26 @@ import { describe, expect, it, vi } from "vitest";
 import { extractRobots, pollerConfigFromEnv, startRobotPolling } from "../src/robotSource.js";
 import type { RobotSnapshot } from "../src/server.js";
 
+describe("extractRobots and the robot roster of the SDK", () => {
+  it("reads a whole-number id with the roster and keeps a text id with the own walk", () => {
+    const robots = extractRobots({ controllers: [{ id: "c1", robots: [{ id: 1, name: "Arm", online: true }, { id: "arm2", name: "Belt", online: true }, { id: 3, name: "Mill" }, { id: -1, name: "Odd", online: true }] }] });
+    expect(robots).toEqual([
+      { id: 1, name: "Arm", online: true },
+      { id: "arm2", name: "Belt", online: true },
+      { id: 3, name: "Mill", online: false },
+      { id: -1, name: "Odd", online: true },
+    ]);
+  });
+
+  it("gives the same robots as the roster for the whole-number ids, in the same order", async () => {
+    const { rosterFromSettings } = await import("../src/robotRoster.js");
+    const settings = { controllers: [{ robots: [{ id: 2, online: true }] }, { id: "c2", robots: [{ id: 1 }, { id: "x" }, { id: 7, online: true }] }] };
+    const mine = extractRobots(settings).filter((r) => typeof r.id === "number");
+    const theirs = rosterFromSettings(settings).robots;
+    expect(mine.map((r) => [r.id, r.online])).toEqual(theirs.map((r) => [r.robot_id, r.online]));
+  });
+});
+
 describe("extractRobots", () => {
   it("reads every robot of every controller", () => {
     const robots = extractRobots({
