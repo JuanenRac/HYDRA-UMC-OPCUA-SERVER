@@ -4,6 +4,9 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+
+## [0.2.9]
+
 - **The online flag of a robot with a whole-number id is read with the robot roster of the shared SDK:** `src/robotRoster.ts` is the SDK file unchanged (a test compares it with the SDK when it is at hand). A robot with a text id, which the roster does not know, keeps this server's own walk, so no robot is dropped and the names still come from the settings.
 - **Comments describe what the code does, not what it used to do:** the notes in the source and the tests say the present behaviour and the reason for it. Comments only: no behaviour changes.
 - **The SDK pin and the shared tools are up to date:** the SDK dependency names the newest release tag, and the shared tools are the canonical copies again.
@@ -11,6 +14,8 @@ All notable changes to this project are documented here.
 
 - **The development and build scripts no longer stop on npm 10:** `dev` and `build` (`.sh` and `.bat`) called `npm install-scripts approve --all`, a command that only the newest npm has, so the run ended with "Unknown command" before it started; they now ask `npm install-scripts --help` first and go on without it. A test reads the four scripts and fails if the call comes back unguarded.
 - **The nodes are in a namespace of their own (index 2), and the old `ns=1` identifiers still answer for a period you choose:** the server used to rename its local namespace (index 1) to `urn:hydra-umc:opcua-server:v1`, which clients and validators that expect index 1 to be the application URI took as an error. The nodes now live in a namespace registered under that URI, so their identifiers are `ns=2;s=...`, and index 1 keeps its default. To keep clients working, a request for `ns=1;s=NAME` is answered with the node `ns=2;s=NAME` (reads, browses, subscriptions, history and method calls; nothing is added and no write access is given) while `OPCUA_LEGACY_NS_ALIAS` is on (the default); `OPCUA_LEGACY_NS_ALIAS_UNTIL` (a date, in `.env.example`) ends it, and `OPCUA_LEGACY_NS_ALIAS=0` turns it off. **Change to plan for:** the alias covers NodeIds only; the browse names of the nodes are now in the same namespace (`2:HydraNode_1`, not `1:HydraNode_1`), so a client that finds nodes by browse path, or that fixes the index, must read the index from the namespace array (the URI is `urn:hydra-umc:opcua-server:v1`) before the alias ends. 7 new tests.
+
+- Build version synchronized with `hydra-umc.project.json` and the repository-native version source.
 
 ## [0.2.8] - Fleet view from the MQTT broker and updated dependencies
 
