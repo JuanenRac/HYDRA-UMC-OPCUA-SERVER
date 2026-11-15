@@ -125,11 +125,10 @@ describe("HYDRA-UMC-OPCUA-SERVER address space (real OPC-UA protocol)", () => {
     expect(value).toBe(3);
   });
 
-  // Real bug fixed while auditing the code: SwarmOnline used to accept a write
-  // from ANY anonymous client, unlike MaintenanceMode (which already had a
-  // real per-session isUserWritable check) - closed the same way. This
-  // test used to assert the anonymous write succeeded; it now asserts the
-  // opposite, which is the actual point of the fix. A real *authenticated*
+  // SwarmOnline must not accept a write from ANY anonymous client, just
+  // like MaintenanceMode (which has a real per-session isUserWritable
+  // check). This test asserts that the anonymous write is rejected, which
+  // is the point of the check. A real *authenticated*
   // write against SwarmOnline is covered in security.test.ts, alongside
   // MaintenanceMode's own equivalent test - this file intentionally has no
   // admin-credential plumbing of its own.

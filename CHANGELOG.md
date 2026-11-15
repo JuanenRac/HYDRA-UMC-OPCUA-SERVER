@@ -4,6 +4,7 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+- **Comments describe what the code does, not what it used to do:** the notes in the source and the tests say the present behaviour and the reason for it. Comments only: no behaviour changes.
 - **The SDK pin and the shared tools are up to date:** the SDK dependency names the newest release tag, and the shared tools are the canonical copies again.
 - **A test of what a recreated container needs to stay the same server (`tests/container-identity.test.ts`):** the image keeps the certificate stores on `/data/pki`, owned by the unprivileged user, a second start on the same directory presents the same certificate, an empty directory gives a different one, and the alternate host name is in the certificate when it is set. The container is simulated by two starts on one directory.
 
