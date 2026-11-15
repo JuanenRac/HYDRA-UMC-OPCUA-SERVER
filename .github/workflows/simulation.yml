@@ -3,7 +3,7 @@
 # Copyright (C) 2026 JuanenRac (Electro Hobby 3D) <electrohobby3d@gmail.com>
 # GPL-3.0-or-later - see LICENSE
 #
-# Runs the real history reader of the server against a simulated data lake that holds a synthetic machine history (fixed seed, 5400 points over six pages) and fails on command. No hardware. See docs/SIMULATION.md.
+# Runs the real history reader of the server against a simulated data lake that holds a synthetic machine history (fixed seed, 5400 points over six pages) and fails on command, and the fleet nodes and the roster of the server while their sources fail. No hardware. See docs/SIMULATION.md.
 # It runs on every push and pull request, by hand, and once a week.
 # =============================================================================
 name: Simulation bench
@@ -38,4 +38,4 @@ jobs:
           PYTHONDONTWRITEBYTECODE: "1"
         run: |
           npm ci
-          npx vitest run tests/simulation-bench.test.ts
+          npx vitest run tests/simulation-bench.test.ts tests/simulation-bench-fleet.test.ts

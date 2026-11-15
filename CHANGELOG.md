@@ -4,6 +4,8 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+- **Simulation bench of the fleet nodes and the roster:** `tests/simulation-bench-fleet.test.ts` (5 tests, fixed seed) reads the real server with a real OPC UA client while the vehicle publishes good values, garbage and a value of the wrong type for an existing node, goes silent, and loses the broker, and while the HYDRA-UMC-SERVER of the roster is off, answers 500, 503 or 401, or sends a page that is not JSON or a JSON cut in the middle. A node shows the last good value, silence turns the quality to uncertain and the next message turns it back to good, and no robot is online on the strength of old data. The workflow `simulation.yml` runs it, `docs/SIMULATION.md` lists the scenarios and the physical tests that are still pending, and the evidence of the manifest is now `simulator`.
+
 - **node-opcua updated to 2.187:** `node-opcua` and `node-opcua-types` move to the 2.187 line (and vitest to 5.1). The library now adds the bounding values of a history read itself, so the bounding values this server takes from the data lake are stamped with the boundary they bound, as the specification asks, and the library no longer adds a second, empty one. The NodeSet file now carries the initial value of `ActiveRobotCount`, which the library started to export.
 
 ## [0.2.9]
