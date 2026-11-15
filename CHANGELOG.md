@@ -4,6 +4,7 @@ All notable changes to this project are documented here.
 
 ## [Unreleased]
 
+- **Comments describe what the code does, not what it used to do:** the notes in the source and the tests say the present behaviour and the reason for it. Comments only: no behaviour changes.
 - **A test of what a recreated container needs to stay the same server (`tests/container-identity.test.ts`):** the image keeps the certificate stores on `/data/pki`, owned by the unprivileged user, a second start on the same directory presents the same certificate, an empty directory gives a different one, and the alternate host name is in the certificate when it is set. The container is simulated by two starts on one directory.
 
 - **The development and build scripts no longer stop on npm 10:** `dev` and `build` (`.sh` and `.bat`) called `npm install-scripts approve --all`, a command that only the newest npm has, so the run ended with "Unknown command" before it started; they now ask `npm install-scripts --help` first and go on without it. A test reads the four scripts and fails if the call comes back unguarded.

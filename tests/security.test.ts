@@ -217,9 +217,8 @@ describe("real read/write authorization on MaintenanceMode", () => {
   });
 });
 
-// Real gap closed while auditing the code: SwarmOnline used to accept a
-// write from ANY anonymous client - the one real per-session
-// isUserWritable check above (MaintenanceMode) never covered it. Same
+// SwarmOnline must not accept a write from ANY anonymous client - it has
+// the same per-session isUserWritable check as MaintenanceMode above. Same
 // three-way coverage as MaintenanceMode's own suite: anonymous denied,
 // authenticated accepted, and state genuinely unchanged by the denied
 // attempt (not a silent no-op that still reports success).
