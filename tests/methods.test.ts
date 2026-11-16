@@ -31,15 +31,18 @@ interface Call {
 /** A fetch whose answer for each service the test sets; it remembers every call in order. */
 function stand(answers: { estop?: () => Response | Promise<Response>; gate?: () => Response | Promise<Response>; jobs?: (url: string) => Response | Promise<Response>; audit?: () => Response | Promise<Response> } = {}) {
   const calls: Call[] = [];
+  /** Every host asked, the global stop included, in order (the stop is read before the gate and is not a call of the steps). */
+  const hosts: string[] = [];
   const json = (status: number, body: unknown = {}) => new Response(JSON.stringify(body), { status });
   const doFetch = (async (url: string, init: RequestInit) => {
-    calls.push({ url, auth: new Headers(init.headers).get("Authorization"), body: init.body === undefined ? null : JSON.parse(String(init.body)) });
+    hosts.push(new URL(url).host);
     if (url.startsWith("http://stop.test")) return answers.estop ? answers.estop() : json(200, { engaged: false });
+    calls.push({ url, auth: new Headers(init.headers).get("Authorization"), body: JSON.parse(String(init.body)) });
     if (url.startsWith("http://gate.test")) return answers.gate ? answers.gate() : json(200, { allowed: true, reason: "ok" });
     if (url.startsWith("http://jobs.test")) return answers.jobs ? answers.jobs(url) : json(201, { ID: "j" });
     return answers.audit ? answers.audit() : json(202, { written: 2 });
   }) as unknown as typeof fetch;
-  return { calls, methods: new JobMethods(CONFIG, doFetch, () => 1000) };
+  return { calls, hosts, methods: new JobMethods(CONFIG, doFetch, () => 1000) };
 }
 
 describe("the settings", () => {
@@ -140,10 +143,10 @@ describe("StartJob", () => {
   });
 
   it("states no cell state to the gate and attests the stop gate only after reading the stop clear", async () => {
-    const { calls, methods } = stand();
+    const { calls, hosts, methods } = stand();
     await methods.startJob(true, "a", { jobId: "j" });
-    const order = calls.map((c) => new URL(c.url).host);
-    expect(order.indexOf("stop.test")).toBeLessThan(order.indexOf("gate.test"));
+    expect(hosts.indexOf("stop.test")).toBeGreaterThan(hosts.indexOf("lake.test"));
+    expect(hosts.indexOf("stop.test")).toBeLessThan(hosts.indexOf("gate.test"));
     const gate = calls.find((c) => c.url.startsWith("http://gate.test"))!;
     expect(gate.body).not.toHaveProperty("cellState");
     expect(gate.body.satisfiedSafetyGates).toEqual(["cell.estop.clear"]);
