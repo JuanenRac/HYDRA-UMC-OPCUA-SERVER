@@ -29,7 +29,7 @@ GPL-3.0-or-later - see LICENSE
 
 ---
 
-> **安全与安防现状:**本生态系统不是经认证的安全系统。目前尚无硬件 E-STOP 通路,没有由固件强制执行的限位或联锁,也没有经过验证的运动指令;固件映像使用 CRC-32 和 Ed25519 签名校验,发布构建会拒绝已公开的开发密钥(中继之后的工具头和扩展板仍运行 URTC 的引导程序,它们使用共享密钥的 HMAC-SHA256 而不是签名);TLS 与双向 TLS 均为可选项,默认关闭;自制电路板尚未组装或测试。在依赖此处任何说法来保障人身安全之前,请先阅读[安全基线](https://github.com/JuanenRac/HYDRA-UMC-DOCS/blob/main/docs/SECURITY_BASELINE.md)和[威胁模型](https://github.com/JuanenRac/HYDRA-UMC-DOCS/blob/main/docs/THREAT_MODEL.md)。
+> **安全与安防现状:**本生态系统不是经认证的安全系统。目前尚无硬件 E-STOP 通路,没有由固件强制执行的限位或联锁,也没有经过验证的运动指令;固件映像使用 CRC-32 和 Ed25519 签名校验,发布构建会拒绝已公开的开发密钥(中继之后的 URTC 引导程序不再使用共享密钥:主板用公钥表校验 Ed25519 记录,扩展板只有在主板确认了该确切映像之后才会安装它);TLS 与双向 TLS 均为可选项,默认关闭;自制电路板尚未组装或测试。在依赖此处任何说法来保障人身安全之前,请先阅读[安全基线](https://github.com/JuanenRac/HYDRA-UMC-DOCS/blob/main/docs/SECURITY_BASELINE.md)和[威胁模型](https://github.com/JuanenRac/HYDRA-UMC-DOCS/blob/main/docs/THREAT_MODEL.md)。
 
 ---
 
@@ -54,7 +54,7 @@ GPL-3.0-or-later - see LICENSE
 
 | 领域 | 状态 | 在这里的含义 |
 |---|---|---|
-| 软件 | 🟡 | 主要用途可用；上面的诚实性检查列出了仍然缺少的内容 |
+| 软件 | 🟡 | 主要用途可用；本 README 中的诚实性检查列出了仍然缺少的内容 |
 | 测试 | 🟢 | 296 项自动测试，每次变更都会运行 |
 | 真实硬件 | ⚪ | 不适用：这里的内容不在硬件上运行 |
 | 接口与协议 | 🟡 | 提供的路由或消息已有文档，并用客户端测试过；尚未被所有客户端使用 |
@@ -128,7 +128,7 @@ flowchart LR
 
 监听端口首先从 `HYDRA_UMC_OPCUA_PORT` 读取（默认 4840）。共享的 `PORT` 仍可作为最后手段并会打印警告，这样多个服务共用的环境文件就不会意外把服务器移到另一个服务的端口上；已设置但不是有效端口的值会终止启动，容器健康检查遵循相同的顺序。 历史访问默认关闭。`HYDRA_UMC_OPCUA_HISTORY=1` 将其打开，`HYDRA_UMC_OPCUA_HISTORY_URL` 指向 HYDRA-UMC-DATALAKE（若它有读取令牌，再设置 `HYDRA_UMC_OPCUA_HISTORY_TOKEN`），`HYDRA_UMC_OPCUA_HISTORY_MAP` 是把变量映射到序列的 JSON 文件；只有被映射的变量才响应 HistoryRead，匿名会话会被拒绝，除非设置 `HYDRA_UMC_OPCUA_HISTORY_ANONYMOUS=1`，一次读取最多取 `HYDRA_UMC_OPCUA_HISTORY_MAX_POINTS` 个点（默认 10000）。没有任何内容变为可写。 处理后的历史同样默认关闭：`HYDRA_UMC_OPCUA_HISTORY_AGGREGATES=1` 使其响应 Average、Minimum、Maximum、Count 和 Interpolative（每次读取最多 `HYDRA_UMC_OPCUA_HISTORY_MAX_INTERVALS` 个区间，默认 1000；加上 `HYDRA_UMC_OPCUA_HISTORY_USE_DATALAKE_WINDOWS=1` 后，读取（正向或反向）的平均值、最小值、最大值和计数取自 data lake 的窗口和汇总，无法回答时使用原始点；此时点已被汇总替换的区间显示为不确定（Uncertain），而不是空），`HYDRA_UMC_OPCUA_HISTORY_EVENTS=1` 加上 `HYDRA_UMC_OPCUA_HISTORY_EVENTS_MAP`（按对象列出限值规则的 JSON 文件）使其响应由已存序列推导出的事件历史。 设置 `HYDRA_UMC_OPCUA_LIVENESS=1`（默认关闭，仅轮询模式）后，`Online` 跟随 HYDRA-UMC-SERVER 的 `GET /api/robots/liveness`，而不是设置里的 `online` 开关：只有服务器报告 `live` 时机器人才在线；`stale`、`unknown`、报告中未列出的机器人以及无法读取的报告都按不在线处理。
 
-新增三项功能，默认全部关闭。`HYDRA_UMC_OPCUA_METHODS=1` 仅为管理员会话增加方法 `StartJob` 和 `AbortJob`：每次调用先写入 HYDRA-UMC-DATALAKE 的审计记录，再询问 HYDRA-UMC-CONNECTOR-HUB 的能力门，最后才交给 HYDRA-UMC-JOB-DISPATCHER；任何一步被拒绝，调用即告结束（`HYDRA_UMC_OPCUA_GATE_URL`、`_JOBS_URL`、`_AUDIT_URL` 及其令牌）。`HYDRA_UMC_OPCUA_FAULTS_URL` 根据控制器的活动故障构建报警 `McuAlarm` 和 `UrtcAlarm`（Alarms and Conditions）。`HYDRA_UMC_OPCUA_BRIDGES=1` 把移动桥接（amr、uav、droids）显示为 `Bridge_<名称>` 对象。`docs/adapter-manifest.json` 为连接器中心描述该服务器。
+新增三项功能，默认全部关闭。`HYDRA_UMC_OPCUA_METHODS=1` 仅为管理员会话增加方法 `StartJob` 和 `AbortJob`：每次调用先写入 HYDRA-UMC-DATALAKE 的审计记录，再询问 HYDRA-UMC-CONNECTOR-HUB 的能力门，最后才交给 HYDRA-UMC-JOB-DISPATCHER；任何一步被拒绝，调用即告结束（`HYDRA_UMC_OPCUA_GATE_URL`、`_JOBS_URL`、`_AUDIT_URL` 及其令牌；`HYDRA_UMC_OPCUA_METHODS=1` 时，若未将 `HYDRA_UMC_OPCUA_ESTOP_URL` 指向 HYDRA-UMC-ORCHESTRATOR 的急停状态，服务器将拒绝启动；该状态在每次调用前读取，急停未解除则拒绝调用）。`HYDRA_UMC_OPCUA_FAULTS_URL` 根据控制器的活动故障构建报警 `McuAlarm` 和 `UrtcAlarm`（Alarms and Conditions）。`HYDRA_UMC_OPCUA_BRIDGES=1` 把移动桥接（amr、uav、droids）显示为 `Bridge_<名称>` 对象。`docs/adapter-manifest.json` 为连接器中心描述该服务器。
 
 ## 🚀 快速开始
 

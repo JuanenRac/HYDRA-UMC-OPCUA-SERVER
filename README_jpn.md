@@ -29,7 +29,7 @@ GPL-3.0-or-later - see LICENSE
 
 ---
 
-> **安全性とセキュリティの現状:** このエコシステムは認証された安全システムではありません。ハードウェアの E-STOP 経路、ファームウェアが強制する制限やインターロック、検証済みの動作コマンドはまだありません。ファームウェアイメージは CRC-32 と Ed25519 署名で検査し、リリースビルドは公開済みの開発用鍵を拒否します(リレーの先のツールヘッドと拡張ボードは引き続き URTC のブートローダーを使い、署名ではなく共有鍵の HMAC-SHA256 を使います)。TLS と相互 TLS は任意で、既定では無効です。独自基板はまだ実装も試験もされていません。ここに書かれた内容を人の安全のために頼る前に、[セキュリティベースライン](https://github.com/JuanenRac/HYDRA-UMC-DOCS/blob/main/docs/SECURITY_BASELINE.md)と[脅威モデル](https://github.com/JuanenRac/HYDRA-UMC-DOCS/blob/main/docs/THREAT_MODEL.md)をお読みください。
+> **安全性とセキュリティの現状:** このエコシステムは認証された安全システムではありません。ハードウェアの E-STOP 経路、ファームウェアが強制する制限やインターロック、検証済みの動作コマンドはまだありません。ファームウェアイメージは CRC-32 と Ed25519 署名で検査し、リリースビルドは公開済みの開発用鍵を拒否します(リレーの先の URTC のブートローダーは共有鍵を使わなくなりました。メイン基板が公開鍵の表に対して Ed25519 のレコードを検証し、拡張ボードはメイン基板がそのイメージ自体を確認した場合にだけイメージをインストールします)。TLS と相互 TLS は任意で、既定では無効です。独自基板はまだ実装も試験もされていません。ここに書かれた内容を人の安全のために頼る前に、[セキュリティベースライン](https://github.com/JuanenRac/HYDRA-UMC-DOCS/blob/main/docs/SECURITY_BASELINE.md)と[脅威モデル](https://github.com/JuanenRac/HYDRA-UMC-DOCS/blob/main/docs/THREAT_MODEL.md)をお読みください。
 
 ---
 
@@ -54,7 +54,7 @@ GPL-3.0-or-later - see LICENSE
 
 | 領域 | 状態 | ここでの意味 |
 |---|---|---|
-| ソフトウェア | 🟡 | 主な目的では動作します。足りない点は上の正直さの確認に書かれています |
+| ソフトウェア | 🟡 | 主な目的では動作します。足りない点はこの README の正直さの確認に書かれています |
 | テスト | 🟢 | 自動テスト 296 件。変更のたびに実行されます |
 | 実機 | ⚪ | 対象外：ここにあるものはハードウェア上では動きません |
 | インターフェースとプロトコル | 🟡 | 提供するルートやメッセージは文書化され、クライアントで試験済みです。すべてのクライアントがまだ使ったわけではありません |
@@ -129,7 +129,7 @@ flowchart LR
 
 待ち受けポートは、まず `HYDRA_UMC_OPCUA_PORT` から読み取ります（既定は 4840）。共有の `PORT` は最後の手段として引き続き使え、警告を表示します。そのため、複数のサービスで共有する環境ファイルがサーバーを他のサービスのポートへうっかり移すことはありません。設定されていても有効なポートでない値は起動を止め、コンテナのヘルスチェックも同じ順序に従います。 履歴アクセスは既定で無効です。`HYDRA_UMC_OPCUA_HISTORY=1` で有効になり、`HYDRA_UMC_OPCUA_HISTORY_URL` で HYDRA-UMC-DATALAKE を指定し（読み取りトークンがある場合は `HYDRA_UMC_OPCUA_HISTORY_TOKEN`）、`HYDRA_UMC_OPCUA_HISTORY_MAP` は変数と系列を対応づける JSON ファイルです。対応づけた変数だけが HistoryRead に応答し、匿名セッションは `HYDRA_UMC_OPCUA_HISTORY_ANONYMOUS=1` でない限り拒否され、1 回の読み出しは最大 `HYDRA_UMC_OPCUA_HISTORY_MAX_POINTS` 点（既定 10000）までです。書き込み可能になるものはありません。 加工済み履歴も既定で無効です。`HYDRA_UMC_OPCUA_HISTORY_AGGREGATES=1` で Average、Minimum、Maximum、Count、Interpolative に応答し（1 回の読み出しは最大 `HYDRA_UMC_OPCUA_HISTORY_MAX_INTERVALS` 区間、既定 1000。`HYDRA_UMC_OPCUA_HISTORY_USE_DATALAKE_WINDOWS=1` を付けると、読み出し（順方向でも逆方向でも）の平均・最小・最大・個数は data lake のウィンドウとロールアップから取り、答えられないときは生の点を使います。その場合、点がすでにロールアップに置き換えられた区間は、空ではなく Uncertain になります）、`HYDRA_UMC_OPCUA_HISTORY_EVENTS=1` と `HYDRA_UMC_OPCUA_HISTORY_EVENTS_MAP`（オブジェクトごとの限界値ルールの JSON ファイル）で、保存された系列から導いたイベント履歴に応答します。 `HYDRA_UMC_OPCUA_LIVENESS=1`（既定ではオフ、ポーリングモードのみ）にすると、`Online` は設定の `online` スイッチではなく HYDRA-UMC-SERVER の `GET /api/robots/liveness` に従います。ロボットはサーバーが `live` と言っている間だけオンラインで、`stale`、`unknown`、レポートに載っていないロボット、読み取れないレポートはすべてオンラインとして扱われません。
 
-いずれも初期状態ではオフの機能が三つ増えました。`HYDRA_UMC_OPCUA_METHODS=1` は管理者のセッション専用にメソッド `StartJob` と `AbortJob` を追加します。各呼び出しはまず HYDRA-UMC-DATALAKE の監査記録に書かれ、HYDRA-UMC-CONNECTOR-HUB のケイパビリティゲートに問い合わせ、その後でようやく HYDRA-UMC-JOB-DISPATCHER に渡されます。どの段階でも拒否されれば呼び出しは終了します（`HYDRA_UMC_OPCUA_GATE_URL`、`_JOBS_URL`、`_AUDIT_URL` とそのトークン）。`HYDRA_UMC_OPCUA_FAULTS_URL` はコントローラーの有効な故障からアラーム `McuAlarm` と `UrtcAlarm`（Alarms and Conditions）を作ります。`HYDRA_UMC_OPCUA_BRIDGES=1` は移動系ブリッジ（amr、uav、droids）を `Bridge_<名前>` オブジェクトとして表示します。`docs/adapter-manifest.json` はこのサーバーをコネクターハブ向けに記述します。
+いずれも初期状態ではオフの機能が三つ増えました。`HYDRA_UMC_OPCUA_METHODS=1` は管理者のセッション専用にメソッド `StartJob` と `AbortJob` を追加します。各呼び出しはまず HYDRA-UMC-DATALAKE の監査記録に書かれ、HYDRA-UMC-CONNECTOR-HUB のケイパビリティゲートに問い合わせ、その後でようやく HYDRA-UMC-JOB-DISPATCHER に渡されます。どの段階でも拒否されれば呼び出しは終了します（`HYDRA_UMC_OPCUA_GATE_URL`、`_JOBS_URL`、`_AUDIT_URL` とそのトークン。`HYDRA_UMC_OPCUA_METHODS=1` のときは `HYDRA_UMC_OPCUA_ESTOP_URL` が HYDRA-UMC-ORCHESTRATOR の非常停止状態を指していないと起動しません。この状態は各呼び出しの前に読み取られ、停止が解除されていなければ呼び出しは拒否されます）。`HYDRA_UMC_OPCUA_FAULTS_URL` はコントローラーの有効な故障からアラーム `McuAlarm` と `UrtcAlarm`（Alarms and Conditions）を作ります。`HYDRA_UMC_OPCUA_BRIDGES=1` は移動系ブリッジ（amr、uav、droids）を `Bridge_<名前>` オブジェクトとして表示します。`docs/adapter-manifest.json` はこのサーバーをコネクターハブ向けに記述します。
 
 ## 🚀 クイックスタート
 
