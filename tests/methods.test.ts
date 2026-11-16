@@ -36,10 +36,10 @@ function stand(answers: { estop?: () => Response | Promise<Response>; gate?: () 
   const json = (status: number, body: unknown = {}) => new Response(JSON.stringify(body), { status });
   const doFetch = (async (url: string, init: RequestInit) => {
     hosts.push(new URL(url).host);
-    if (url.startsWith("http://stop.test")) return answers.estop ? answers.estop() : json(200, { engaged: false });
+    if (new URL(url).host === "stop.test") return answers.estop ? answers.estop() : json(200, { engaged: false });
     calls.push({ url, auth: new Headers(init.headers).get("Authorization"), body: JSON.parse(String(init.body)) });
-    if (url.startsWith("http://gate.test")) return answers.gate ? answers.gate() : json(200, { allowed: true, reason: "ok" });
-    if (url.startsWith("http://jobs.test")) return answers.jobs ? answers.jobs(url) : json(201, { ID: "j" });
+    if (new URL(url).host === "gate.test") return answers.gate ? answers.gate() : json(200, { allowed: true, reason: "ok" });
+    if (new URL(url).host === "jobs.test") return answers.jobs ? answers.jobs(url) : json(201, { ID: "j" });
     return answers.audit ? answers.audit() : json(202, { written: 2 });
   }) as unknown as typeof fetch;
   return { calls, hosts, methods: new JobMethods(CONFIG, doFetch, () => 1000) };
@@ -101,7 +101,7 @@ describe("StartJob", () => {
     for (const audit of [() => new Response("{}", { status: 503 }), () => Promise.reject(new Error("down"))]) {
       const { calls, methods } = stand({ audit });
       expect(await methods.startJob(true, "a", { jobId: "j" })).toMatchObject({ accepted: false, code: "audit_unavailable" });
-      expect(calls.every((c) => c.url.startsWith("http://lake.test"))).toBe(true);
+      expect(calls.every((c) => new URL(c.url).host === "lake.test")).toBe(true);
     }
   });
 
@@ -117,7 +117,7 @@ describe("StartJob", () => {
       const { calls, methods } = stand({ gate });
       const result = await methods.startJob(true, "a", { jobId: "j" });
       expect(result, code).toMatchObject({ accepted: false, code });
-      expect(calls.some((c) => c.url.startsWith("http://jobs.test"))).toBe(false);
+      expect(calls.some((c) => new URL(c.url).host === "jobs.test")).toBe(false);
       expect(calls[calls.length - 1].body.fields).toMatchObject({ [`phase.${code}`]: 1 });
     }
     const denied = stand({ gate: () => new Response(JSON.stringify({ allowed: false, reason: "the cell is INHIBITED" }), { status: 200 }) });
@@ -137,7 +137,7 @@ describe("StartJob", () => {
       for (const run of [(m: JobMethods) => m.startJob(true, "a", { jobId: "j" }), (m: JobMethods) => m.abortJob(true, "a", { jobId: "j" })]) {
         const { calls, methods } = stand({ estop });
         expect(await run(methods), code).toMatchObject({ accepted: false, code });
-        expect(calls.some((c) => c.url.startsWith("http://gate.test") || c.url.startsWith("http://jobs.test"))).toBe(false);
+        expect(calls.some((c) => new URL(c.url).host === "gate.test" || new URL(c.url).host === "jobs.test")).toBe(false);
       }
     }
   });
@@ -147,7 +147,7 @@ describe("StartJob", () => {
     await methods.startJob(true, "a", { jobId: "j" });
     expect(hosts.indexOf("stop.test")).toBeGreaterThan(hosts.indexOf("lake.test"));
     expect(hosts.indexOf("stop.test")).toBeLessThan(hosts.indexOf("gate.test"));
-    const gate = calls.find((c) => c.url.startsWith("http://gate.test"))!;
+    const gate = calls.find((c) => new URL(c.url).host === "gate.test")!;
     expect(gate.body).not.toHaveProperty("cellState");
     expect(gate.body.satisfiedSafetyGates).toEqual(["cell.estop.clear"]);
   });
