@@ -11,7 +11,8 @@
 //   3. The call is written to the audit trail in HYDRA-UMC-DATALAKE BEFORE anything else is asked. If it cannot be written the call is refused.
 //   4. The capability gate (the service of HYDRA-UMC-CONNECTOR-HUB, which is the safety gate of HYDRA-UMC-SDK) is asked. Its answer must say
 //      `allowed: true`; a denial, an error, a timeout or an answer that cannot be read is a refusal. This server attests only the permission it
-//      checked itself (that the session is the administrator's); the state of the cell is read by the gate service.
+//      checked itself (that the session is the administrator's) and the global stop, which it reads from the stop service just before asking (no
+//      reading, an engaged stop or an unreadable answer is a refusal); it states no cell state, so the gate service must read the cell itself.
 //   5. Only then is the job queue of HYDRA-UMC-JOB-DISPATCHER told: StartJob submits the job (`POST /jobs/submit`, with the job id as its dedup key, so
 //      calling it twice is the same job), AbortJob withdraws it (`POST /jobs/cancel`). A job that is already on a robot cannot be withdrawn by the
 //      queue: the answer says so and nothing is reported as stopped.
@@ -22,6 +23,7 @@
 //   HYDRA_UMC_OPCUA_GATE_URL / _GATE_TOKEN        the gate service (http://host:port) and its bearer token
 //   HYDRA_UMC_OPCUA_JOBS_URL / _JOBS_TOKEN        the job queue and its token (the token may be empty for a loopback dispatcher)
 //   HYDRA_UMC_OPCUA_AUDIT_URL / _AUDIT_TOKEN      the data lake that keeps the audit trail
+//   HYDRA_UMC_OPCUA_ESTOP_URL / _ESTOP_TOKEN      the service that answers GET /estop with {"engaged": false} while the global stop is clear
 //   HYDRA_UMC_OPCUA_METHOD_TIMEOUT_MS             how long each of those services may take (200 to 30000, default 3000)
 // Each *_TOKEN may be given as *_TOKEN_FILE instead (a path).
 // =============================================================================
@@ -37,10 +39,12 @@ export interface MethodsConfig {
   gate: ServiceRef;
   jobs: ServiceRef;
   audit: ServiceRef;
+  /** The fleet's global stop (GET <url>/estop of HYDRA-UMC-ORCHESTRATOR): read before every call; this server attests nothing it has not read. */
+  estop: ServiceRef;
   timeoutMs: number;
 }
 
-export type MethodCode = "ok" | "bad_arguments" | "not_admin" | "audit_unavailable" | "gate_denied" | "gate_unavailable" | "dispatcher_refused" | "dispatcher_unavailable";
+export type MethodCode = "ok" | "bad_arguments" | "not_admin" | "audit_unavailable" | "gate_denied" | "gate_unavailable" | "estop_engaged" | "estop_unreadable" | "dispatcher_refused" | "dispatcher_unavailable";
 
 export interface MethodResult {
   accepted: boolean;
@@ -79,6 +83,7 @@ export function methodsConfigFromEnv(env: NodeJS.ProcessEnv = process.env, read:
     gate: service(env, "GATE", false, read),
     jobs: service(env, "JOBS", true, read),
     audit: service(env, "AUDIT", true, read),
+    estop: service(env, "ESTOP", true, read),
     timeoutMs: Number.isInteger(timeout) && timeout >= 200 && timeout <= 30_000 ? timeout : 3000,
   };
 }
@@ -131,7 +136,28 @@ export class JobMethods {
     return this.auditClock;
   }
 
+  /** Reads the global stop. Only an answer that says `engaged: false` counts as clear; anything else is a refusal that says why. */
+  private async readEstop(): Promise<MethodResult | null> {
+    try {
+      const response = await this.doFetch(`${this.config.estop.url}/estop`, { method: "GET", headers: this.headers(this.config.estop), signal: AbortSignal.timeout(this.config.timeoutMs) });
+      const text = await response.text();
+      let body: { engaged?: unknown } | null = null;
+      try {
+        body = text ? (JSON.parse(text) as { engaged?: unknown }) : null;
+      } catch {
+        body = null;
+      }
+      if (response.status !== 200 || typeof body?.engaged !== "boolean") return refuse("estop_unreadable", `the global stop could not be read (HTTP ${response.status}), so the call was not made`);
+      if (body.engaged) return refuse("estop_engaged", "the global stop is engaged");
+      return null;
+    } catch (error) {
+      return refuse("estop_unreadable", `the global stop could not be read: ${(error as Error).message}`);
+    }
+  }
+
   private async gate(capability: string, caller: string, jobId: string): Promise<MethodResult | null> {
+    const stopped = await this.readEstop();
+    if (stopped) return stopped;
     let answer: { status: number; body: unknown };
     try {
       answer = await this.send(this.config.gate, "/gate/evaluate", {
@@ -146,9 +172,8 @@ export class JobMethods {
         grantedPermissions: [capability === "startJob" ? "opcua.job.start" : "opcua.job.abort"],
         cellMode: "operational",
         humanConfirmed: false,
+        // The only gate attested is the one read just above; no cell state is stated (the gate service must read it).
         satisfiedSafetyGates: ["cell.estop.clear"],
-        // used only when the gate service has no provider of its own
-        cellState: "READY",
       });
     } catch (error) {
       return refuse("gate_unavailable", `the capability gate could not be asked: ${(error as Error).message}`);

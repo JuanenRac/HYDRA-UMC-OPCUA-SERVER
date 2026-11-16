@@ -18,6 +18,7 @@ const CONFIG: MethodsConfig = {
   gate: { url: "http://gate.test", token: "gate-token-0123456789" },
   jobs: { url: "http://jobs.test", token: "jobs-token" },
   audit: { url: "http://lake.test" },
+  estop: { url: "http://stop.test" },
   timeoutMs: 1000,
 };
 
@@ -28,25 +29,29 @@ interface Call {
 }
 
 /** A fetch whose answer for each service the test sets; it remembers every call in order. */
-function stand(answers: { gate?: () => Response | Promise<Response>; jobs?: (url: string) => Response | Promise<Response>; audit?: () => Response | Promise<Response> } = {}) {
+function stand(answers: { estop?: () => Response | Promise<Response>; gate?: () => Response | Promise<Response>; jobs?: (url: string) => Response | Promise<Response>; audit?: () => Response | Promise<Response> } = {}) {
   const calls: Call[] = [];
+  /** Every host asked, the global stop included, in order (the stop is read before the gate and is not a call of the steps). */
+  const hosts: string[] = [];
   const json = (status: number, body: unknown = {}) => new Response(JSON.stringify(body), { status });
   const doFetch = (async (url: string, init: RequestInit) => {
+    hosts.push(new URL(url).host);
+    if (url.startsWith("http://stop.test")) return answers.estop ? answers.estop() : json(200, { engaged: false });
     calls.push({ url, auth: new Headers(init.headers).get("Authorization"), body: JSON.parse(String(init.body)) });
     if (url.startsWith("http://gate.test")) return answers.gate ? answers.gate() : json(200, { allowed: true, reason: "ok" });
     if (url.startsWith("http://jobs.test")) return answers.jobs ? answers.jobs(url) : json(201, { ID: "j" });
     return answers.audit ? answers.audit() : json(202, { written: 2 });
   }) as unknown as typeof fetch;
-  return { calls, methods: new JobMethods(CONFIG, doFetch, () => 1000) };
+  return { calls, hosts, methods: new JobMethods(CONFIG, doFetch, () => 1000) };
 }
 
 describe("the settings", () => {
   it("are off unless the switch is 1, and then everything the methods need must be there", () => {
     expect(methodsEnabled({})).toBe(false);
     expect(methodsConfigFromEnv({ HYDRA_UMC_OPCUA_GATE_URL: "http://g:1" })).toBeUndefined();
-    const full = { HYDRA_UMC_OPCUA_METHODS: "1", HYDRA_UMC_OPCUA_GATE_URL: "http://g:1", HYDRA_UMC_OPCUA_GATE_TOKEN: "t".repeat(20), HYDRA_UMC_OPCUA_JOBS_URL: "http://j:2", HYDRA_UMC_OPCUA_AUDIT_URL: "http://a:3" };
+    const full = { HYDRA_UMC_OPCUA_METHODS: "1", HYDRA_UMC_OPCUA_GATE_URL: "http://g:1", HYDRA_UMC_OPCUA_GATE_TOKEN: "t".repeat(20), HYDRA_UMC_OPCUA_JOBS_URL: "http://j:2", HYDRA_UMC_OPCUA_AUDIT_URL: "http://a:3", HYDRA_UMC_OPCUA_ESTOP_URL: "http://s:4" };
     expect(methodsConfigFromEnv(full)).toMatchObject({ gate: { url: "http://g:1" }, jobs: { url: "http://j:2" }, audit: { url: "http://a:3" }, timeoutMs: 3000 });
-    for (const missing of ["HYDRA_UMC_OPCUA_GATE_URL", "HYDRA_UMC_OPCUA_GATE_TOKEN", "HYDRA_UMC_OPCUA_JOBS_URL", "HYDRA_UMC_OPCUA_AUDIT_URL"]) {
+    for (const missing of ["HYDRA_UMC_OPCUA_GATE_URL", "HYDRA_UMC_OPCUA_GATE_TOKEN", "HYDRA_UMC_OPCUA_JOBS_URL", "HYDRA_UMC_OPCUA_AUDIT_URL", "HYDRA_UMC_OPCUA_ESTOP_URL"]) {
       const env: Record<string, string> = { ...full };
       delete env[missing];
       expect(() => methodsConfigFromEnv(env), missing).toThrow(/HYDRA_UMC_OPCUA_/);
@@ -117,6 +122,34 @@ describe("StartJob", () => {
     }
     const denied = stand({ gate: () => new Response(JSON.stringify({ allowed: false, reason: "the cell is INHIBITED" }), { status: 200 }) });
     expect((await denied.methods.startJob(true, "a", { jobId: "j" })).message).toContain("INHIBITED");
+  });
+
+  it("is refused, without asking the gate or the queue, when the global stop is engaged, cannot be read or answers something unreadable", async () => {
+    const cases: Array<[() => Response | Promise<Response>, string]> = [
+      [() => new Response(JSON.stringify({ engaged: true }), { status: 200 }), "estop_engaged"],
+      [() => new Response("{}", { status: 503 }), "estop_unreadable"],
+      [() => new Response("{}", { status: 200 }), "estop_unreadable"],
+      [() => new Response("<html>", { status: 200 }), "estop_unreadable"],
+      [() => new Response(JSON.stringify({ engaged: "no" }), { status: 200 }), "estop_unreadable"],
+      [() => Promise.reject(new Error("timeout")), "estop_unreadable"],
+    ];
+    for (const [estop, code] of cases) {
+      for (const run of [(m: JobMethods) => m.startJob(true, "a", { jobId: "j" }), (m: JobMethods) => m.abortJob(true, "a", { jobId: "j" })]) {
+        const { calls, methods } = stand({ estop });
+        expect(await run(methods), code).toMatchObject({ accepted: false, code });
+        expect(calls.some((c) => c.url.startsWith("http://gate.test") || c.url.startsWith("http://jobs.test"))).toBe(false);
+      }
+    }
+  });
+
+  it("states no cell state to the gate and attests the stop gate only after reading the stop clear", async () => {
+    const { calls, hosts, methods } = stand();
+    await methods.startJob(true, "a", { jobId: "j" });
+    expect(hosts.indexOf("stop.test")).toBeGreaterThan(hosts.indexOf("lake.test"));
+    expect(hosts.indexOf("stop.test")).toBeLessThan(hosts.indexOf("gate.test"));
+    const gate = calls.find((c) => c.url.startsWith("http://gate.test"))!;
+    expect(gate.body).not.toHaveProperty("cellState");
+    expect(gate.body.satisfiedSafetyGates).toEqual(["cell.estop.clear"]);
   });
 
   it("reports a queue that refuses or is down as such", async () => {
