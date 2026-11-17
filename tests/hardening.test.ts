@@ -9,7 +9,8 @@
 // =============================================================================
 
 import { describe, expect, it, vi } from "vitest";
-import { LoginThrottle, createCertificateManagers, resolveListenPortOf, resolvePort, robotNodeKey, secretsMatch } from "../src/server.js";
+import { UserNameIdentityToken } from "node-opcua";
+import { LoginThrottle, createCertificateManagers, resolveListenPortOf, resolvePort, robotNodeKey, secretsMatch, sessionLabel } from "../src/server.js";
 import { apiUrl, readJsonCapped, startRobotPolling } from "../src/robotSource.js";
 import { readPackageVersion } from "../src/version.js";
 
@@ -50,6 +51,63 @@ describe("login protection", () => {
     expect(throttle.isLocked(30)).toBe(true);
     expect(throttle.isLocked(999)).toBe(true);
     expect(throttle.isLocked(1025)).toBe(false);
+  });
+
+  it("locks one user name at its own limit and the whole login at the global limit", () => {
+    const throttle = new LoginThrottle(3, 1000, 8);
+    for (let at = 0; at < 3; at += 1) throttle.recordFailure(at, "scada");
+    expect(throttle.isLocked(10, "scada")).toBe(true);
+    // the administrator is not locked out by somebody else's wrong password
+    expect(throttle.isLocked(10, "hydra-admin")).toBe(false);
+    expect(throttle.isLocked(10)).toBe(false);
+    // five more failures under other names reach the global limit of eight: everybody is locked
+    for (let at = 10; at < 15; at += 1) throttle.recordFailure(at, `guess-${at}`);
+    expect(throttle.isLocked(20, "hydra-admin")).toBe(true);
+    expect(throttle.isLocked(20)).toBe(true);
+    // both end when the window passes
+    expect(throttle.isLocked(1100, "scada")).toBe(false);
+    expect(throttle.isLocked(1100, "hydra-admin")).toBe(false);
+  });
+
+  it("without a global limit any failures that reach the limit lock every name, as before", () => {
+    const throttle = new LoginThrottle(3, 1000);
+    throttle.recordFailure(0, "a");
+    throttle.recordFailure(1, "b");
+    throttle.recordFailure(2, "c");
+    expect(throttle.isLocked(3, "hydra-admin")).toBe(true);
+    expect(throttle.isLocked(3)).toBe(true);
+  });
+
+  it("a global limit below the per-name limit is raised to it", () => {
+    const throttle = new LoginThrottle(5, 1000, 2);
+    throttle.recordFailure(0, "a");
+    throttle.recordFailure(1, "b");
+    expect(throttle.isLocked(2, "c")).toBe(false);
+  });
+
+  it("keeps the table of names bounded: names beyond it only count in the global total", () => {
+    const throttle = new LoginThrottle(2, 60_000, 100_000);
+    for (let i = 0; i < LoginThrottle.MAX_NAMES + 50; i += 1) throttle.recordFailure(i, `name-${i}`);
+    expect(throttle.totalFailures).toBe(LoginThrottle.MAX_NAMES + 50);
+    // a name that did not fit is never locked by itself, however often it fails
+    const extra = `name-${LoginThrottle.MAX_NAMES + 10}`;
+    throttle.recordFailure(1000, extra);
+    throttle.recordFailure(1001, extra);
+    expect(throttle.isLocked(1002, extra)).toBe(false);
+    // a name that fit still is
+    throttle.recordFailure(1003, "name-0");
+    expect(throttle.isLocked(1004, "name-0")).toBe(true);
+  });
+});
+
+describe("who is behind a session", () => {
+  const session = (token: unknown) => ({ session: { userIdentityToken: token } }) as never;
+  it("names the administrator, another login, a certificate and an anonymous session", () => {
+    expect(sessionLabel(session(new UserNameIdentityToken({ userName: "hydra-admin" })), "hydra-admin")).toBe("hydra-admin");
+    expect(sessionLabel(session(new UserNameIdentityToken({ userName: "scada" })), "hydra-admin")).toBe("user:scada");
+    expect(sessionLabel(session({ certificateData: Buffer.from("x") }), "hydra-admin")).toBe("certificate");
+    expect(sessionLabel(session({ policyId: "anonymous" }), "hydra-admin")).toBe("anonymous");
+    expect(sessionLabel({} as never, undefined)).toBe("anonymous");
   });
 });
 

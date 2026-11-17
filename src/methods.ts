@@ -184,8 +184,14 @@ export class JobMethods {
     return null;
   }
 
+  /** The refusal of a session that is not the administrator's. The attempt is written to the audit trail on a best-effort basis: if the trail cannot be reached the answer is the same. */
+  private async refuseNotAdmin(method: "StartJob" | "AbortJob", caller: string, jobId: unknown): Promise<MethodResult> {
+    await this.audit(method, caller, typeof jobId === "string" && JOB_ID.test(jobId) ? jobId : "-", "not_admin");
+    return refuse("not_admin", `${method} is for the administrator's session only`);
+  }
+
   async startJob(admin: boolean, caller: string, args: { jobId: unknown; requiredTool?: unknown; priority?: unknown }): Promise<MethodResult> {
-    if (!admin) return refuse("not_admin", "StartJob is for the administrator's session only");
+    if (!admin) return this.refuseNotAdmin("StartJob", caller, args.jobId);
     const jobId = args.jobId;
     if (typeof jobId !== "string" || !JOB_ID.test(jobId)) return refuse("bad_arguments", "jobId must be letters, digits, '.', '_' or '-' (up to 64)");
     const tool = typeof args.requiredTool === "string" ? args.requiredTool.trim() : "";
@@ -210,7 +216,7 @@ export class JobMethods {
   }
 
   async abortJob(admin: boolean, caller: string, args: { jobId: unknown }): Promise<MethodResult> {
-    if (!admin) return refuse("not_admin", "AbortJob is for the administrator's session only");
+    if (!admin) return this.refuseNotAdmin("AbortJob", caller, args.jobId);
     const jobId = args.jobId;
     if (typeof jobId !== "string" || !JOB_ID.test(jobId)) return refuse("bad_arguments", "jobId must be letters, digits, '.', '_' or '-' (up to 64)");
     if (!(await this.audit("AbortJob", caller, jobId, "order"))) return refuse("audit_unavailable", "the call could not be recorded in the audit trail, so it was not made");
