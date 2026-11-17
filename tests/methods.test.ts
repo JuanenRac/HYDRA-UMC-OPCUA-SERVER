@@ -259,12 +259,12 @@ describe("the methods over OPC UA", () => {
     expect(seen).toEqual(["/ingest", "/gate/evaluate", "/jobs/submit", "/ingest"]);
   });
 
-  it("is refused for the viewer account, and the steps are not reached", async () => {
+  it("is refused for the viewer account: only the audit sample is written, the gate and the queue are not reached", async () => {
     seen.length = 0;
     const result = await call(endpoint, viewer, "StartJob", startArgs);
     expect(result.statusCode.isGood()).toBe(false);
     expect(result.outputArguments?.[0].value).toBe(false);
-    expect(seen).toEqual([]);
+    expect(seen).toEqual(["/ingest"]);
   });
 
   it("AbortJob answers through the same path", async () => {
