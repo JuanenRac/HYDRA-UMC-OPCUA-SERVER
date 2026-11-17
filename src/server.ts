@@ -169,31 +169,68 @@ export function secretsMatch(provided: string, expected: string): boolean {
  * attacker can also keep the administrator out of the (few) writable variables for as long as the attack lasts.
  */
 export class LoginThrottle {
+  /** Most user names whose failures are counted one by one; a name beyond this only counts in the global total. */
+  static readonly MAX_NAMES = 256;
   private failures: number[] = [];
+  private byName = new Map<string, number[]>();
   private total = 0;
+  private readonly maxGlobalFailures: number;
   /** Every failed login since the process started (for the metrics). */
   get totalFailures(): number {
     return this.total;
   }
+  /**
+   * `maxFailures` is the limit for one user name and `maxGlobalFailures` the limit for all names together; when the second is not given it
+   * equals the first, so a lock keeps the one meaning it always had (any ten failures lock every login). A larger global limit lets a
+   * client with a wrong password lock out its own name without keeping the administrator out.
+   */
   constructor(
     private readonly maxFailures: number = 10,
     private readonly windowMs: number = 60_000,
-  ) {}
+    maxGlobalFailures: number = maxFailures,
+  ) {
+    this.maxGlobalFailures = Math.max(maxFailures, maxGlobalFailures);
+  }
 
   private prune(now: number): void {
     this.failures = this.failures.filter((at) => now - at < this.windowMs);
   }
 
-  isLocked(now: number = Date.now()): boolean {
-    this.prune(now);
-    return this.failures.length >= this.maxFailures;
+  private recent(name: string, now: number): number[] {
+    const list = (this.byName.get(name) ?? []).filter((at) => now - at < this.windowMs);
+    if (list.length === 0) this.byName.delete(name);
+    else this.byName.set(name, list);
+    return list;
   }
 
-  recordFailure(now: number = Date.now()): void {
+  /** Locked for everybody when the global limit is reached, and for one user name when its own limit is. */
+  isLocked(now: number = Date.now(), username?: string): boolean {
+    this.prune(now);
+    if (this.failures.length >= this.maxGlobalFailures) return true;
+    if (username !== undefined && this.recent(username.slice(0, 256), now).length >= this.maxFailures) return true;
+    return false;
+  }
+
+  recordFailure(now: number = Date.now(), username?: string): void {
     this.prune(now);
     this.total += 1;
     this.failures.push(now);
+    if (username === undefined) return;
+    const name = username.slice(0, 256);
+    if (!this.byName.has(name) && this.byName.size >= LoginThrottle.MAX_NAMES) {
+      for (const known of [...this.byName.keys()]) this.recent(known, now);
+      if (this.byName.size >= LoginThrottle.MAX_NAMES) return;
+    }
+    this.byName.set(name, [...this.recent(name, now), now]);
   }
+}
+
+/** Who is behind a session, for the audit trail: the administrator's user name, `user:<name>` for another login, `certificate` or `anonymous`. */
+export function sessionLabel(context: ISessionContext, adminUsername: string | undefined): string {
+  const token = (context as { session?: { userIdentityToken?: unknown } }).session?.userIdentityToken;
+  if (token instanceof UserNameIdentityToken) return adminUsername && token.userName === adminUsername ? adminUsername : `user:${token.userName ?? ""}`;
+  if (token && typeof token === "object" && "certificateData" in token) return "certificate";
+  return "anonymous";
 }
 
 /** True only for a session that logged in with the administrator's user name and password (never a certificate, never anonymous). */
@@ -231,7 +268,9 @@ export async function buildAddressSpaceServer(port: number = resolveListenPortOf
     console.warn("[HYDRA-UMC-OPCUA-SERVER] OPCUA_ALLOW_ANONYMOUS=0 with no administrator or viewer account: nobody can open a session");
   }
   const maxFailures = Number(process.env.OPCUA_LOGIN_MAX_FAILURES);
-  const throttle = new LoginThrottle(Number.isInteger(maxFailures) && maxFailures > 0 ? maxFailures : 10);
+  const perNameLimit = Number.isInteger(maxFailures) && maxFailures > 0 ? maxFailures : 10;
+  const maxGlobalFailures = Number(process.env.OPCUA_LOGIN_MAX_FAILURES_GLOBAL);
+  const throttle = new LoginThrottle(perNameLimit, 60_000, Number.isInteger(maxGlobalFailures) && maxGlobalFailures > 0 ? maxGlobalFailures : perNameLimit);
   const { serverCertificateManager, userCertificateManager } = createCertificateManagers();
   const alternateHostname = process.env.OPCUA_ALTERNATE_HOSTNAME?.trim();
 
@@ -286,7 +325,7 @@ export async function buildAddressSpaceServer(port: number = resolveListenPortOf
         if (adminUsername && adminPassword) accounts.push([adminUsername, adminPassword]);
         if (viewerUsername && viewerPassword) accounts.push([viewerUsername, viewerPassword]);
         if (accounts.length === 0) return false;
-        if (throttle.isLocked()) {
+        if (throttle.isLocked(Date.now(), username)) {
           console.warn("[HYDRA-UMC-OPCUA-SERVER] too many failed logins: attempts are refused until the window passes");
           return false;
         }
@@ -298,7 +337,7 @@ export async function buildAddressSpaceServer(port: number = resolveListenPortOf
           if (userOk && passwordOk) accepted = true;
         }
         if (accepted) return true;
-        throttle.recordFailure();
+        throttle.recordFailure(Date.now(), username);
         console.warn("[HYDRA-UMC-OPCUA-SERVER] failed login attempt");
         return false;
       },
@@ -652,7 +691,7 @@ export async function buildAddressSpaceServer(port: number = resolveListenPortOf
       });
       const handler = (args: Variant[], context: ISessionContext, callback: (error: Error | null, result?: unknown) => void) => {
         const admin = isAdminSession(context, adminUsername);
-        run(admin, adminUsername ?? "unknown", args)
+        run(admin, admin ? (adminUsername ?? "unknown") : sessionLabel(context, adminUsername), args)
           .then((result) =>
             callback(null, {
               statusCode: result.accepted ? StatusCodes.Good : StatusCodes.BadUserAccessDenied,

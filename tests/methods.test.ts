@@ -83,7 +83,28 @@ describe("StartJob", () => {
   it("is refused for a session that is not the administrator's, before anything is asked", async () => {
     const { calls, methods } = stand();
     expect(await methods.startJob(false, "viewer", { jobId: "j1" })).toMatchObject({ accepted: false, code: "not_admin" });
-    expect(calls).toHaveLength(0);
+    // nothing but the one audit sample: no gate, no queue
+    expect(calls.map((c) => new URL(c.url).pathname)).toEqual(["/ingest"]);
+  });
+
+  it("writes the refusal of a session that is not the administrator's to the audit trail, with who it came from", async () => {
+    const { calls, methods } = stand();
+    await methods.startJob(false, "user:scada", { jobId: "weld-42" });
+    await methods.abortJob(false, "anonymous", { jobId: "../not a job id" });
+    expect(calls).toHaveLength(2);
+    expect(calls[0].body).toMatchObject({ sourceId: "opcua:user:scada", kind: "method.StartJob", fields: { "job:weld-42": 1, "phase.not_admin": 1 } });
+    expect(calls[1].body).toMatchObject({ sourceId: "opcua:anonymous", kind: "method.AbortJob", fields: { "job:-": 1, "phase.not_admin": 1 } });
+  });
+
+  it("gives the same refusal when the audit trail cannot be reached", async () => {
+    const { methods } = stand({ audit: () => new Response("{}", { status: 503 }) });
+    expect(await methods.startJob(false, "anonymous", { jobId: "j1" })).toMatchObject({ accepted: false, code: "not_admin" });
+    const { methods: down } = stand({
+      audit: () => {
+        throw new Error("connection refused");
+      },
+    });
+    expect(await down.abortJob(false, "anonymous", { jobId: "j1" })).toMatchObject({ accepted: false, code: "not_admin" });
   });
 
   it("is refused for arguments that are not what they say, before anything is asked", async () => {
