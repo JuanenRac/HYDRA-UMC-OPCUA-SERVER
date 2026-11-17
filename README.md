@@ -55,7 +55,7 @@ Each line is one part of this repository and the light says how far it is today.
 | Area | State | What it means here |
 |---|---|---|
 | Software | 🟡 | Works for its main purpose; the honesty check of this README lists what is still missing |
-| Tests | 🟢 | 296 automated tests, run on every change |
+| Tests | 🟡 | 296 automated tests recorded; the exact count, or a workflow that runs them on every change, is not confirmed yet |
 | Real hardware | ⚪ | Not applicable: nothing here runs on hardware |
 | Interface and protocols | 🟡 | The routes or messages it offers are documented and tested with a client; not every client has used them yet |
 | Integration | 🟡 | Its messages and routes are checked against the shared contracts of the SDK; it has not run together with the real equipment |
